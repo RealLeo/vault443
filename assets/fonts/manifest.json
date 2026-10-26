@@ -1,0 +1,23 @@
+[
+  {
+    "file": "RobotoCondensed-Regular.ttf",
+    "url": "https://raw.githubusercontent.com/googlefonts/roboto-2/main/src/hinted/RobotoCondensed-Regular.ttf",
+    "sha256": "a9603db0f52e244064de480253ab7f48e6c21c22e24528207cab06d39abc7bb7"
+  },
+  {
+    "file": "Roboto-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/googlefonts/roboto-2/main/LICENSE",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  },
+  {
+    "file": "Iosevka-LICENSE.md",
+    "url": "https://raw.githubusercontent.com/be5invis/Iosevka/v34.9.0/LICENSE.md",
+    "sha256": "4ba53c7c1cb39279aae5f8d7d22054c485c71169920e5a36ed098b115e2e3c5d"
+  },
+  {
+    "file": "IosevkaTerm-Medium.ttf",
+    "url": "https://github.com/be5invis/Iosevka/releases/download/v34.9.0/PkgTTF-IosevkaTerm-34.9.0.zip",
+    "archiveSHA256": "1c0b8ac68ca210cc253c1833619d37ed2227d96fbdda0a36231375828b7bd6fb",
+    "sha256": "b8c9d88801eb5e87a432d7cb2094f0bbe83fe61abcd33e3bd9e9e1369f9aee84"
+  }
+]

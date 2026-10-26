@@ -1,0 +1,36 @@
+{
+  "version": "1.0.1",
+  "language": "en",
+  "mode": "demo",
+  "logicalSize": [
+    472,
+    480
+  ],
+  "screens": [
+    {
+      "file": "main.png",
+      "demoScreen": "main",
+      "sha256": "780d2e0517d75a5587dac5ba4637ad53d517ad3d3ac413a88853a913142b547d"
+    },
+    {
+      "file": "import.png",
+      "demoScreen": "import-preview",
+      "sha256": "a5458ca13562a66dd2d84d947fd47144dd819f36f638c42af1b8f4d85200922b"
+    },
+    {
+      "file": "settings.png",
+      "demoScreen": "settings",
+      "sha256": "0825f38c94c21467965b3b96b683707dfcd11ed7d9636b00641fa697a339a216"
+    },
+    {
+      "file": "icons.png",
+      "demoScreen": "icons",
+      "sha256": "03c52c0e167e2bbba572978f3d851343946b1308dc147ce7b000cbed2a865944"
+    },
+    {
+      "file": "logs.png",
+      "demoScreen": "logs",
+      "sha256": "03ccf71c3504b38e34a262f30b1bac53b07a9050fed735aa6c32d967e0435917"
+    }
+  ]
+}

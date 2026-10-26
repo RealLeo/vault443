@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=org.vault443.Service1
+Exec=/usr/sbin/vault443d
+User=root
+SystemdService=vault443.service

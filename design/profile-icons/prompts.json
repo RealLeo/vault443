@@ -1,0 +1,106 @@
+{
+  "mode": "built-in imagegen",
+  "transparentBackground": true,
+  "icons": [
+    {
+      "id": "vault-door",
+      "name": "Дверь убежища",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: a massive round cog-edged vault door with central locking wheel. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "radiation",
+      "name": "Радиация",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: a clear radiation trefoil symbol, three broad blades. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "atom",
+      "name": "Атом",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: an atomic nucleus with three elliptical electron orbits. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "gear",
+      "name": "Шестерня",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: a single chunky mechanical gear with eight teeth and a round center hole. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "wrench",
+      "name": "Гаечный ключ",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: a single sturdy open-ended mechanical wrench. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "lightning",
+      "name": "Молния",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: a single bold zigzag lightning bolt. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "battery",
+      "name": "Аккумулятор",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: an old rectangular accumulator battery with two top terminals. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "shield",
+      "name": "Щит",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: a sturdy rounded heraldic shield with a broad raised rim. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "key",
+      "name": "Ключ",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: an old mechanical key with a round bow and two square teeth. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "gas-mask",
+      "name": "Противогаз",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: a front facing old industrial gas mask with two round goggles and a circular central filter. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "crt-terminal",
+      "name": "CRT-терминал",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: an old compact CRT computer terminal with a blank glass screen and small keyboard. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "robot",
+      "name": "Робот",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: a front facing friendly retro mechanical robot head with two round eyes and a straight grille mouth. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "radar",
+      "name": "Радар",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: a circular radar scope with concentric rings and one raised sweep pointer. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "compass",
+      "name": "Компас",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: a circular compass with a bold four-point needle, no letters. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "rocket",
+      "name": "Ракета",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: a classic retro space rocket with pointed nose, round porthole and two fins. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "canteen",
+      "name": "Фляга",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: a rounded military water canteen with short cap and strap lugs. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "vacuum-tube",
+      "name": "Радиолампа",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: an old radio vacuum tube with a rounded glass bulb, filament and metal base. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "plug",
+      "name": "Электрическая вилка",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: a vintage electrical plug with two prongs and a short curved cord. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "binoculars",
+      "name": "Бинокль",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: a sturdy pair of field binoculars front facing with two large round lenses. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    },
+    {
+      "id": "satellite",
+      "name": "Орбитальный спутник",
+      "prompt": "Use case: stylized-concept. Asset type: one small transparent PNG profile emblem for a Fallout 2 inspired industrial desktop interface. Subject: a retro orbital satellite with central sphere and two simple solar panel wings. Front-facing orthographic emblem, centered, isolated silhouette occupying about 78 percent of square canvas. Weathered dull golden brass, worn edges, dark charcoal recessed details, shallow embossed relief, restrained warm upper-left highlights. Simple strong forms clearly readable at 36x40 pixels. Actual transparent background and transparent holes; no background plaque, no border/frame, no text, no numbers, no labels, no glow, no shadows outside the emblem, no extra symbols or objects. This is one single icon, not a sheet."
+    }
+  ]
+}

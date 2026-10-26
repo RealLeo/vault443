@@ -1,0 +1,16 @@
+ARG BASE_IMAGE=ubuntu:24.04@sha256:534baea6a22c03a63003dbc8dbe78fe34bc0d7e595d9a9dc9834884ff530eb55
+FROM ${BASE_IMAGE}
+ENV DEBIAN_FRONTEND=noninteractive
+RUN . /etc/os-release && case "$VERSION_ID" in 24.04) qt_suffix=t64;; *) qt_suffix=;; esac \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    xvfb xauth weston qt6-wayland qt6-qpa-plugins libxcb-cursor0 \
+    libqt6widgets6${qt_suffix} libqt6quickcontrols2-6 libqt6dbus6${qt_suffix} libqt6test6${qt_suffix} \
+    qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+    qml6-module-qtquick-window qml6-module-qtquick-templates qml6-module-qtquick-dialogs \
+    qml6-module-qtqml qml6-module-qtqml-workerscript \
+    fonts-dejavu-core dbus && rm -rf /var/lib/apt/lists/*
+# Minimal headless images need cursor assets too. GDB is test-only and makes
+# compositor/plugin regressions diagnosable without touching the host desktop.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    adwaita-icon-theme gdb && rm -rf /var/lib/apt/lists/*
+WORKDIR /src

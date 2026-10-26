@@ -1,0 +1,28 @@
+[Unit]
+Description=Early Vault 443 fail-closed boot guard
+DefaultDependencies=no
+After=local-fs.target
+Before=network-pre.target NetworkManager.service systemd-networkd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/vault443d --boot-guard
+RemainAfterExit=yes
+User=root
+UMask=0077
+StateDirectory=vault443
+StateDirectoryMode=0700
+RuntimeDirectory=vault443
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=yes
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_SYS_PTRACE
+SystemCallFilter=~ptrace process_vm_readv process_vm_writev
+SystemCallErrorNumber=EPERM
+ReadWritePaths=/var/lib/vault443 /run/vault443
+
+[Install]
+WantedBy=network-pre.target

@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+if [ "$1" = install ] || [ "$1" = upgrade ]; then
+  old=$(dpkg-query -W -f='${db:Status-Status}' vless-terminal 2>/dev/null || true)
+  if { [ -n "$old" ] && [ "$old" != not-installed ] && [ "$old" != config-files ]; } ||
+     [ -e /var/lib/vless-terminal/state.json ] || [ -L /var/lib/vless-terminal/state.json ] ||
+     [ -e /var/lib/vault443-migration/active.json ] || [ -L /var/lib/vault443-migration/active.json ]; then
+    echo 'Complete the transition to Vault 443 using the 1.0.0 installer before installing this package.' >&2
+    echo 'Installation blocked: an older client or unfinished migration is present. Existing data and services were not changed.' >&2
+    exit 1
+  fi
+fi

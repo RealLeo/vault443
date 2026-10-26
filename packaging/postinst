@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+if [ "$1" = configure ]; then
+  getent group vault443 >/dev/null || addgroup --system vault443
+  for unit in vault443.service vault443-guard.service; do
+    deb-systemd-helper unmask "$unit" >/dev/null || true
+    if deb-systemd-helper --quiet was-enabled "$unit"; then
+      deb-systemd-helper enable "$unit" >/dev/null
+    else
+      deb-systemd-helper update-state "$unit" >/dev/null
+    fi
+  done
+  if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload
+    action=start
+    if [ -n "${2:-}" ]; then action=try-restart; fi
+    deb-systemd-invoke "$action" vault443.service >/dev/null || true
+  fi
+fi

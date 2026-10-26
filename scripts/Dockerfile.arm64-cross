@@ -1,0 +1,48 @@
+ARG BASE_IMAGE=ubuntu:24.04@sha256:534baea6a22c03a63003dbc8dbe78fe34bc0d7e595d9a9dc9834884ff530eb55
+FROM ${BASE_IMAGE}
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates cmake ninja-build pkg-config g++-aarch64-linux-gnu \
+    qt6-base-dev qt6-declarative-dev qt6-base-dev-tools qt6-declarative-dev-tools qt6-l10n-tools \
+    python3 file binutils && rm -rf /var/lib/apt/lists/*
+
+# Keep host tools executable on amd64; extract arm64 packages into a separate
+# sysroot rather than installing foreign tools over moc/rcc/qmlimportscanner.
+RUN dpkg --add-architecture arm64 && \
+    sed -i '/^Types: deb/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources && \
+    printf '%s\n' \
+      'Types: deb' \
+      'URIs: http://ports.ubuntu.com/ubuntu-ports' \
+      'Suites: noble noble-updates noble-security' \
+      'Components: main universe restricted multiverse' \
+      'Architectures: arm64' \
+      'Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg' \
+      > /etc/apt/sources.list.d/arm64.sources && \
+    apt-get update && mkdir -p /tmp/arm64-debs/partial /opt/arm64-sysroot && \
+    apt-get -y --download-only --no-install-recommends \
+      -o Dir::Cache::archives=/tmp/arm64-debs install \
+      qt6-base-dev:arm64 qt6-declarative-dev:arm64 \
+      libc6-dev:arm64 libstdc++-13-dev:arm64 && \
+    for archive in /tmp/arm64-debs/*.deb; do \
+      dpkg-deb -x "$archive" /opt/arm64-sysroot; \
+      dpkg-deb -f "$archive" Package Version Architecture >> /opt/arm64-sysroot/package-versions.txt; \
+    done && rm -rf /tmp/arm64-debs /var/lib/apt/lists/*
+
+RUN printf '%s\n' \
+    'set(CMAKE_SYSTEM_NAME Linux)' \
+    'set(CMAKE_SYSTEM_PROCESSOR aarch64)' \
+    'set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)' \
+    'set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)' \
+    'set(CMAKE_SYSROOT /opt/arm64-sysroot)' \
+    'set(CMAKE_FIND_ROOT_PATH /opt/arm64-sysroot)' \
+    'set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)' \
+    'set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)' \
+    'set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)' \
+    'set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)' \
+    'set(QT_HOST_PATH /usr CACHE PATH "Native Qt tools")' \
+    'set(QT_HOST_PATH_CMAKE_DIR /usr/lib/x86_64-linux-gnu/cmake CACHE PATH "Native Qt tool packages")' \
+    'set(CMAKE_EXE_LINKER_FLAGS_INIT "-Wl,-rpath-link,/opt/arm64-sysroot/usr/lib/aarch64-linux-gnu")' \
+    > /opt/arm64-toolchain.cmake
+ENV PKG_CONFIG_SYSROOT_DIR=/opt/arm64-sysroot
+ENV PKG_CONFIG_LIBDIR=/opt/arm64-sysroot/usr/lib/aarch64-linux-gnu/pkgconfig:/opt/arm64-sysroot/usr/share/pkgconfig
+WORKDIR /src

@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "defaultIcon": "antenna",
+  "icons": [
+    {
+      "id": "antenna",
+      "name": "Антенна",
+      "file": "../skin/emblem-antenna.png",
+      "kind": "original-framed"
+    },
+    {
+      "id": "dish",
+      "name": "Тарелка",
+      "file": "../skin/emblem-dish.png",
+      "kind": "original-framed"
+    },
+    {
+      "id": "globe",
+      "name": "Глобус",
+      "file": "../skin/emblem-globe.png",
+      "kind": "original-framed"
+    },
+    {
+      "id": "vault-door",
+      "name": "Дверь убежища",
+      "file": "vault-door.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "radiation",
+      "name": "Радиация",
+      "file": "radiation.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "atom",
+      "name": "Атом",
+      "file": "atom.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "gear",
+      "name": "Шестерня",
+      "file": "gear.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "wrench",
+      "name": "Гаечный ключ",
+      "file": "wrench.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "lightning",
+      "name": "Молния",
+      "file": "lightning.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "battery",
+      "name": "Аккумулятор",
+      "file": "battery.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "shield",
+      "name": "Щит",
+      "file": "shield.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "key",
+      "name": "Ключ",
+      "file": "key.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "gas-mask",
+      "name": "Противогаз",
+      "file": "gas-mask.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "crt-terminal",
+      "name": "CRT-терминал",
+      "file": "crt-terminal.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "robot",
+      "name": "Робот",
+      "file": "robot.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "radar",
+      "name": "Радар",
+      "file": "radar.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "compass",
+      "name": "Компас",
+      "file": "compass.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "rocket",
+      "name": "Ракета",
+      "file": "rocket.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "canteen",
+      "name": "Фляга",
+      "file": "canteen.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "vacuum-tube",
+      "name": "Радиолампа",
+      "file": "vacuum-tube.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "plug",
+      "name": "Электрическая вилка",
+      "file": "plug.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "binoculars",
+      "name": "Бинокль",
+      "file": "binoculars.png",
+      "kind": "transparent-emblem"
+    },
+    {
+      "id": "satellite",
+      "name": "Орбитальный спутник",
+      "file": "satellite.png",
+      "kind": "transparent-emblem"
+    }
+  ]
+}

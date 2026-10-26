@@ -1,0 +1,47 @@
+[Unit]
+Description=Vault 443 privileged network supervisor
+Documentation=file:/usr/share/doc/vault443/README.md
+DefaultDependencies=no
+After=local-fs.target dbus.service vault443-guard.service
+Requires=dbus.service vault443-guard.service
+Before=network-pre.target NetworkManager.service systemd-networkd.service shutdown.target
+Wants=network-pre.target
+Conflicts=shutdown.target
+
+[Service]
+Type=dbus
+BusName=org.vault443.Service1
+ExecStartPre=/usr/sbin/vault443d --boot-guard
+ExecStart=/usr/sbin/vault443d
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+TimeoutStopSec=15
+User=root
+UMask=0077
+StateDirectory=vault443
+StateDirectoryMode=0700
+RuntimeDirectory=vault443
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=restart
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+# Linux gates /proc/<openvpn-pid>/{exe,fdinfo} on ptrace credentials even for
+# root when the peer has capabilities outside this reduced bounding set.
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_SYS_PTRACE
+# Discovery reads kernel metadata only; debugging/memory syscalls are forbidden.
+SystemCallFilter=~ptrace process_vm_readv process_vm_writev
+SystemCallErrorNumber=EPERM
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET AF_INET6
+ReadWritePaths=/var/lib/vault443 /run/vault443
+# No ExecStopPost cleanup: a supervisor failure MUST leave the kill switch armed.
+
+[Install]
+WantedBy=multi-user.target

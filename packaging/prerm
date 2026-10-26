@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+if [ "$1" = remove ] || [ "$1" = deconfigure ]; then
+  # Release is an explicit package-removal operation, never a crash handler.
+  if [ -d /run/systemd/system ]; then
+    deb-systemd-invoke stop vault443.service >/dev/null || true
+  fi
+  /usr/sbin/vault443d --release-network
+fi

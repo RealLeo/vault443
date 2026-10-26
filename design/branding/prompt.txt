@@ -1,0 +1,6 @@
+Use case: text-localization and precise-object-edit.
+Edit target: attached existing 944 by 960 application skin, NOT a new design.
+Change only two areas:
+1. In the existing top metal name plaque, replace the text VLESS TERMINAL with exactly "VAULT 443". Center the shorter inscription in the same plaque, use the identical distressed brass stencil lettering, identical letter height. Preserve plaque outline, bolts, surrounding metal, ventilation and window buttons.
+2. Inside the narrow green CRT statistics strip near the bottom, remove the green clock symbol, both vertical green dividers, down arrow and up arrow. Restore a completely blank seamless dark green CRT surface matching its existing scanlines and subtle illumination, preserve its exact outer metal frame.
+Everything else must remain identical in position, size, color and texture: full 944x960 canvas and casing, profile cards, emblems, LEDs, controls and footer. Do not add new words or symbols. Output exact same geometry, no crop, no padding.

@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+if [ -d /run/systemd/system ]; then systemctl daemon-reload; fi
+if [ "$1" = purge ]; then
+  deb-systemd-helper purge vault443.service >/dev/null || true
+  deb-systemd-helper purge vault443-guard.service >/dev/null || true
+  # Profile data is retained on uninstall; removal is explicit and documented.
+fi

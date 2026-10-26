@@ -1,0 +1,763 @@
+import QtQuick
+import QtQuick.Window
+import QtQuick.Controls
+import QtQuick.Layouts
+import QtQuick.Dialogs
+
+ApplicationWindow {
+    id: appWindow
+    visible: true
+    width: Math.round(944 * initialScale)
+    height: Math.round(960 * initialScale)
+    minimumWidth: width
+    maximumWidth: width
+    minimumHeight: height
+    maximumHeight: height
+    flags: Qt.Window | Qt.FramelessWindowHint
+    color: "transparent"
+    title: "Vault 443"
+    property var snap: backend.snapshot
+    property var runtime: snap.runtime || ({})
+    property var traffic: snap.traffic || ({})
+    property bool trafficAvailable: backend.online && !snap.busyByOtherUser && traffic.valid === true
+    property var profiles: backend.profiles
+    property string activeId: snap.activeProfileId || ""
+    property string bodyFont: condensedFont.status === FontLoader.Ready ? condensedFont.name : "DejaVu Sans Condensed"
+    property string monoFont: monoLoader.status === FontLoader.Ready ? monoLoader.name : "DejaVu Sans Mono"
+    property int tick: 0
+    property var selectedProfile: ({})
+    property var selectedSubscription: ({})
+    property var diagnosticProfile: ({})
+    property var operation: backend.connectionRequest.action ? backend.connectionRequest : (snap.operation || ({}))
+    property bool cleaning: operation.action === "disconnect" && operation.stage !== "disconnected"
+    property string pendingOperation: ""
+    property string profileIconId: "antenna"
+    property string iconTargetId: ""
+    property string iconTarget: "profile"
+    property bool logHistoryMode: false
+    property bool logFollowEnd: true
+    property real logSavedPosition: 0
+    property int subscriptionFailureCount: -1
+    property bool subscriptionRefreshDone: false
+    property bool vpnBindingSaved: false
+    function localizedMessage(value) { i18n.language; return i18n.serviceMessage(value || "") }
+    function bytes(value) {
+        i18n.language
+        var n = Math.max(0, Number(value || 0))
+        var units = [qsTr("%1 B"), qsTr("%1 KB"), qsTr("%1 MB"), qsTr("%1 GB"), qsTr("%1 TB"), qsTr("%1 PB"), qsTr("%1 EB")]
+        var unit = 0
+        while (n >= 1024 && unit < units.length - 1) { n /= 1024; unit++ }
+        var decimals = unit > 0 && n < 100 ? 1 : 0
+        return units[unit].arg(n.toFixed(decimals).replace(".", i18n.language === "ru" ? "," : "."))
+    }
+    function sessionDuration() {
+        if (!trafficAvailable) return "—"
+        var seconds = Math.max(0, Math.floor(Number(traffic.durationSeconds || 0)))
+        function padded(n) { return n < 10 ? "0" + n : String(n) }
+        return padded(Math.floor(seconds / 3600)) + ":" + padded(Math.floor(seconds / 60) % 60) + ":" + padded(seconds % 60)
+    }
+    function trafficText(value, rate) {
+        i18n.language
+        if (!trafficAvailable) return "—"
+        return rate ? qsTr("%1/s").arg(bytes(value)) : bytes(value)
+    }
+    function fullTraffic(value, rate) {
+        i18n.language
+        if (!trafficAvailable) return "—"
+        var n = Math.max(0, Number(value || 0))
+        var text = n.toFixed(rate && n % 1 ? 1 : 0).replace(".", i18n.language === "ru" ? "," : ".")
+        var amount = qsTr("%1 B").arg(text)
+        if (n > 9007199254740991) amount = "≈ " + amount
+        return rate ? qsTr("%1/s").arg(amount) : amount
+    }
+    function trafficExplanation() {
+        i18n.language
+        if (!backend.online) return qsTr("Service unavailable — traffic statistics are unknown.")
+        if (snap.busyByOtherUser) return qsTr("Traffic statistics belong to another user.")
+        if (!traffic.valid) return qsTr("Waiting for a reliable TUN traffic measurement.")
+        return qsTr("IP traffic through this VPN tunnel, including internal service requests. Encrypted transport overhead is excluded.")
+    }
+    function stageName(stage, action) {
+        i18n.language
+        var names = {requested: action === "disconnect" ? qsTr("Requesting disconnect…") : qsTr("Requesting connection…"), checking_vpn:qsTr("Checking VPNs"), enabling_guard:qsTr("Enabling protection"), resolving_endpoint:qsTr("Resolving server"), starting_core:qsTr("Starting Xray"), configuring_network:qsTr("Configuring network"), checking_connection:qsTr("Checking connection"), restoring_network:qsTr("Restoring network"), connected:qsTr("Connected"), paused_external:qsTr("Paused: another VPN"), disconnected:qsTr("Disconnected")}
+        return names[stage] || qsTr("Connecting…")
+    }
+    function failureName(failure) {
+        i18n.language
+        var names = {dns_timeout:qsTr("DNS is not responding"), dns_no_answer:qsTr("No IPv4 address"), dns_not_found:qsTr("Name not found"), dns_tls:qsTr("DNS TLS error"), dns_transport:qsTr("DNS unavailable"), dns_invalid_response:qsTr("Invalid DNS response"), vpn_dns_failed:qsTr("VPN DNS unavailable"), vpn_https_timeout:qsTr("HTTPS is not responding"), vpn_https_tls:qsTr("HTTPS certificate error"), vpn_https_response:qsTr("Invalid HTTPS response"), vpn_https_failed:qsTr("HTTPS through VPN failed")}
+        return names[failure.code] || qsTr("Connection failed")
+    }
+    function profileOperation(profile) { return operation.profileId === profile.id ? operation : ({}) }
+    function profileActive(profile) { var op = profileOperation(profile); return (op.action && op.stage !== "disconnected") || (profile.id === activeId && runtime.state !== "disconnected") }
+    function statusText(profile) {
+        i18n.language
+        tick
+        if (!backend.online) return qsTr("Service unavailable")
+        if (snap.busyByOtherUser) return qsTr("In use by another user")
+        if (backend.connectionErrorProfile === profile.id && backend.connectionError.length) return qsTr("Request failed")
+        var op = profileOperation(profile)
+        var failure = snap.lastFailure || ({})
+        if (op.stage === "cleanup_failed") return qsTr("Disconnect failed\nRetry cleanup")
+        if (op.stage === "retry_wait") return qsTr("%1\nRetry in %2 s").arg(failureName(failure)).arg(Math.max(0, Math.ceil((Number(op.nextRetryAt) - Date.now()) / 1000)))
+        if (op.stage && op.stage !== "disconnected" && op.stage !== "connected" && op.stage !== "paused_external") {
+            var elapsed = op.stageStartedAt ? Math.max(0, Math.floor((Date.now() - Number(op.stageStartedAt)) / 1000)) : 0
+            return elapsed > 0 ? qsTr("%1 · %2 s").arg(stageName(op.stage, op.action)).arg(elapsed) : stageName(op.stage, op.action)
+        }
+        if (profile.id !== activeId) return qsTr("Disconnected")
+        var names = {connected:qsTr("Connected"), connecting:qsTr("Connecting…"), reconnecting:qsTr("Reconnecting…"), paused_external:qsTr("Another VPN is active"), error:qsTr("Connection failed"), disconnected:qsTr("Disconnected")}
+        return names[runtime.state] || qsTr("Disconnected")
+    }
+    function statusDetail(profile) {
+        i18n.language
+        if (!backend.online) return qsTr("Service unavailable — VPN state is unknown. Click to open the last diagnostic snapshot.")
+        if (snap.busyByOtherUser) return qsTr("In use by another user")
+        if (backend.connectionErrorProfile === profile.id && backend.connectionError.length) return appWindow.localizedMessage(backend.connectionError)
+        var op = profileOperation(profile)
+        var text = statusText(profile)
+        if (op.stage === "cleanup_failed") return qsTr("Could not fully restore the network. Click Retry to disconnect again.\n%1").arg(appWindow.localizedMessage(runtime.message || ""))
+        if (op.attempt) text += "\n" + qsTr("Attempt %1").arg(op.attempt)
+        if (op.stage === "retry_wait" && snap.lastFailure) text += "\n" + appWindow.localizedMessage(snap.lastFailure.message)
+        return text + "\n" + qsTr("Click to open profile diagnostics.")
+    }
+    function connectionLabel(profile) {
+        i18n.language
+        var op = profileOperation(profile)
+        if (op.stage === "cleanup_failed") return qsTr("Retry")
+        if (op.action === "disconnect" && op.stage !== "disconnected") return qsTr("Disconnecting…")
+        if (!profileActive(profile)) return qsTr("Connect")
+        if (op.stage && op.stage !== "connected" && op.stage !== "paused_external" && op.stage !== "retry_wait") return qsTr("Cancel")
+        return runtime.state === "connecting" || runtime.state === "reconnecting" ? qsTr("Cancel") : qsTr("Disconnect")
+    }
+    function openDiagnostics(profile) {
+        if (!profile) profile = profiles.filter(function(p) { return p.id === activeId })[0] || ({})
+        diagnosticProfile = profile
+        diagnosticsDialog.open(); backend.getDiagnostics(profile.id || "")
+    }
+    function showProfile(profile) {
+        selectedProfile = profile; renameField.text = profile.name; profileIconId = profile.iconId || "antenna"
+        debugLogging.checked = !!profile.debugLogging; profileTabs.currentIndex = 0
+        logHistoryMode = false; backend.loadProfileLogs(profile.id, true); detailDialog.open()
+    }
+    function chooseIcon(target, id, iconId) { iconTarget = target; iconTargetId = id; iconPicker.selectedIcon = iconId || "antenna"; iconPicker.open() }
+    function activateProfile(profile) {
+        if (profileActive(profile)) backend.disconnectProfile()
+        else backend.connectProfile(profile.id)
+    }
+    function openSettings() { settingsDialog.open() }
+    function openImport() { backend.cancelImport(); importDialog.sourceKind = "text"; importArea.text = ""; importDialog.previewReady = false; importDialog.iconChoices = ({}); importDialog.open() }
+    function openSubscriptionImport() {
+        backend.cancelImport(); importDialog.sourceKind = "subscription"; importDialog.previewReady = false; importDialog.iconChoices = ({})
+        importDialog.open(); backend.prepareImport(subscriptionUrl.text.trim(), "subscription", subscriptionName.text)
+    }
+    function formattedDate(value) { i18n.language; if (!value) return qsTr("not updated yet"); return typeof value === "number" ? displayDateTime(value * 1000) : value }
+    function displayDateTime(value) { return new Date(value).toLocaleString(Qt.locale(i18n.localeName), Locale.ShortFormat) }
+    function logLevel(value) { i18n.language; var levels = { debug: qsTr("DEBUG"), info: qsTr("INFO"), warning: qsTr("WARNING"), error: qsTr("ERROR") }; return levels[value] || String(value).toUpperCase() }
+    function splitLines(value) { return value.split(/[\n,]/).map(function(v) { return v.trim() }).filter(function(v) { return v.length > 0 }) }
+    Component.onCompleted: demoTimer.start()
+    Timer { id: demoTimer; interval: 80; onTriggered: {
+        if (demoScreen === "import") openImport()
+        else if (demoScreen === "settings" || demoScreen === "subscriptions" || demoScreen === "vpn" || demoScreen === "vpn-actions") { settingsTabs.currentIndex = demoScreen === "settings" ? 0 : (demoScreen === "subscriptions" ? 1 : 2); openSettings(); if (demoScreen === "vpn-actions") vpnPreviewTimer.start() }
+        else if (demoScreen === "diagnostics") openDiagnostics()
+        else if ((demoScreen === "profile" || demoScreen === "logs" || demoScreen === "icons") && appWindow.profiles.length) { appWindow.showProfile(appWindow.profiles[0]); if (demoScreen === "logs") profileTabs.currentIndex = 1; if (demoScreen === "icons") appWindow.chooseIcon("profile", "", appWindow.profileIconId) }
+        else if (demoScreen === "combo") { openSettings(); comboPreviewTimer.start() }
+        else if (demoScreen === "import-preview") { openImport(); importArea.text = "vless://00000000-0000-4000-8000-000000000011@example.net:443?security=tls#" + qsTr("Primary") + "\nvless://00000000-0000-4000-8000-000000000012@backup.example.net:443?security=tls#" + qsTr("Backup") + "\nvless://00000000-0000-4000-8000-000000000013@work.example.net:443?security=tls#" + qsTr("Work"); importDialog.previewInput = importArea.text; backend.prepareImport(importArea.text, "text", "") }
+        else if (demoScreen === "error") errorDialog.open()
+    } }
+
+    Timer { id: vpnPreviewTimer; interval: 80; onTriggered: { vpnAdvanced.checked = true; Qt.callLater(function() { vpnScroll.contentItem.contentY = Math.max(0, vpnScroll.contentHeight - vpnScroll.availableHeight) }) } }
+    Timer { id: comboPreviewTimer; interval: 80; onTriggered: bootProfile.popup.open() }
+    FontLoader { id: condensedFont; source: "qrc:/assets/fonts/RobotoCondensed-Regular.ttf" }
+    FontLoader { id: monoLoader; source: "qrc:/assets/fonts/IosevkaTerm-Medium.ttf" }
+    Timer { interval: 1000; running: appWindow.visible; repeat: true; onTriggered: appWindow.tick++ }
+    Shortcut { sequence: "Ctrl+I"; onActivated: openImport() }
+    Shortcut { sequence: "Ctrl+,"; onActivated: openSettings() }
+    Shortcut { sequence: "Ctrl+D"; onActivated: openDiagnostics() }
+    Shortcut { sequence: "Ctrl+Q"; onActivated: backend.quitInterface() }
+    Shortcut { sequence: "F5"; onActivated: backend.refresh() }
+    onClosing: function(close) { if (backend.trayAvailable) { close.accepted = false; hide() } }
+    Connections {
+        target: backend
+        function onProfileLogsAboutToChange() { appWindow.logFollowEnd = logList.atYEnd; appWindow.logSavedPosition = logList.contentY }
+        function onProfileLogsChanged() { Qt.callLater(function() { if (!appWindow.logHistoryMode && appWindow.logFollowEnd) logList.positionViewAtEnd(); else if (!appWindow.logHistoryMode) logList.contentY = appWindow.logSavedPosition }) }
+        function onRaiseRequested() { appWindow.showNormal(); appWindow.requestActivate() }
+        function onImportFileRead(text) { importArea.text = text; importDialog.previewReady = false }
+        function onPreviewChanged() {
+            importDialog.previewReady = !!backend.preview.draftId && (importDialog.sourceKind === "subscription" || importArea.text === importDialog.previewInput)
+            if (importDialog.previewReady) {
+                var choices = ({})
+                ;(backend.preview.profiles || []).forEach(function(profile) { choices[profile.id] = profile.iconId || "antenna" })
+                importDialog.iconChoices = choices
+            }
+        }
+        function onErrorChanged() { if (backend.error.length) errorDialog.open() }
+        function onOperationDone(operation, result) {
+            if (result.error) return
+            if (operation === "ImportProfiles" || operation === "CommitImport") { importDialog.close(); importArea.text = ""; if (importDialog.sourceKind === "subscription") { subscriptionUrl.text = ""; subscriptionName.text = "" } }
+            if (operation === "UpdateProfile" || operation === "RemoveProfile") detailDialog.close()
+            if (operation === "RefreshSubscriptions") {
+                var failed = (result.results || []).filter(function(r) { return !r.updated })
+                appWindow.subscriptionFailureCount = failed.length; appWindow.subscriptionRefreshDone = true
+            }
+            if (operation === "SetVPNBinding") appWindow.vpnBindingSaved = true
+        }
+    }
+
+    Item {
+        id: scene
+        width: 944; height: 960
+        scale: initialScale
+        transformOrigin: Item.TopLeft
+        Image { anchors.fill: parent; source: "qrc:/assets/skin/window.png"; fillMode: Image.Stretch; smooth: true }
+        MouseArea { x: 20; y: 0; width: 744; height: 79; onPressed: appWindow.startSystemMove(); acceptedButtons: Qt.LeftButton }
+        Button { PointerHover {}
+            x: 783; y: 10; width: 70; height: 63
+            background: Rectangle { color: parent.hovered ? "#20ffe3a0" : "transparent"; radius: 4; border.color: parent.visualFocus ? "#a0e8a4" : "transparent" }
+            Accessible.name: qsTr("Minimize")
+            ToolTip.visible: hovered; ToolTip.text: qsTr("Minimize")
+            onClicked: appWindow.showMinimized()
+        }
+        Button { PointerHover {}
+            x: 861; y: 10; width: 66; height: 63
+            objectName: "close-button"
+            background: Rectangle { color: parent.hovered ? "#35ffb083" : "transparent"; radius: 4; border.color: parent.visualFocus ? "#a0e8a4" : "transparent" }
+            Accessible.name: qsTr("Close interface")
+            ToolTip.visible: hovered; ToolTip.text: backend.trayAvailable ? qsTr("Hide to tray; VPN will stay connected") : qsTr("Close window; VPN will stay connected")
+            onClicked: appWindow.close()
+        }
+        Button { PointerHover {}
+            x: 54; y: 94; width: 232; height: 69
+            id: importButton
+            objectName: "import-button"
+            padding: 0
+            contentItem: Item { Text { objectName: "import-label"; textFormat: Text.PlainText; x: 89; y: 0; width: 133; height: parent.height; text: qsTr("Import", "toolbar label"); color: "#e7c68a"; font.family: appWindow.bodyFont; font.pixelSize: 36; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter } }
+            background: Rectangle { color: parent.hovered ? "#20ffe3a0" : "transparent"; radius: 4; border.color: parent.visualFocus ? "#a7ef9c" : "transparent" }
+            Accessible.name: qsTr("Import profiles", "toolbar action")
+            TerminalToolTip { control: importButton; text: qsTr("Import profiles", "toolbar action") }
+            onClicked: openImport()
+        }
+        Button { PointerHover {}
+            x: 802; y: 94; width: 95; height: 69
+            objectName: "settings-button"
+            background: Rectangle { color: parent.hovered ? "#20ffe3a0" : "transparent"; radius: 4; border.color: parent.visualFocus ? "#a0e8a4" : "transparent" }
+            Accessible.name: qsTr("Settings")
+            ToolTip.visible: hovered; ToolTip.text: qsTr("Settings")
+            onClicked: openSettings()
+        }
+
+        Rectangle { x: 40; y: appWindow.profiles.length === 1 ? 367 : 557; width: 872; height: appWindow.profiles.length === 1 ? 380 : 190; visible: appWindow.profiles.length === 1 || appWindow.profiles.length === 2; color: "#141913"; border.color: "#554c38"; radius: 8 }
+        ListView {
+            id: profileList
+            objectName: "profile-list"
+            x: 40; y: 182; width: 872; height: 565
+            clip: true
+            spacing: 0
+            boundsBehavior: Flickable.StopAtBounds
+            model: appWindow.profiles
+            ScrollBar.vertical: ScrollBar { policy: profileList.count > 3 ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff; width: 10 }
+            delegate: Item {
+                id: row
+                required property var modelData
+                required property int index
+                width: 872; height: index % 3 === 0 ? 185 : 190
+                property int variant: index % 3
+                property int cardHeight: [182, 186, 190][variant]
+                property bool active: appWindow.profileActive(modelData)
+                property bool lit: active && appWindow.runtime.state === "connected"
+                Image { width: parent.width; height: row.cardHeight; source: "qrc:/assets/skin/card-" + (row.variant + 1) + ".png" }
+                Image { x: 221; y: row.variant === 0 ? 88 : 93; width: 54; height: 53; source: "qrc:/assets/skin/led-" + (row.lit ? "on" : "off") + ".png" }
+                Text { textFormat: Text.PlainText;
+                    x: 223; y: [35,36,35][row.variant]; width: 302; height: 45
+                    text: row.modelData.name || qsTr("Profile")
+                    color: "#78df8a"
+                    font.family: appWindow.monoFont; font.pixelSize: 40; font.letterSpacing: 0.6
+                    elide: Text.ElideRight
+                    verticalAlignment: Text.AlignVCenter
+                }
+                Button { PointerHover {}
+                    id: profileStatus
+                    objectName: "status-" + row.index
+                    x: 283; y: row.variant === 0 ? 86 : 93; width: 250; height: 64
+                    padding: 0; hoverEnabled: true
+                    text: appWindow.statusText(row.modelData)
+                    Accessible.name: appWindow.statusDetail(row.modelData)
+                    background: Rectangle { color: "transparent"; border.color: profileStatus.visualFocus ? "#a0e8a4" : "transparent"; radius: 3 }
+                    contentItem: Text {
+                        textFormat: Text.PlainText; text: profileStatus.text
+                        color: row.lit ? "#78df8a" : (row.active ? "#d6b468" : "#708985")
+                        font.family: appWindow.monoFont; font.pixelSize: text.length > 18 ? 22 : 30; font.letterSpacing: 0.1
+                        wrapMode: Text.Wrap
+                        elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter
+                        maximumLineCount: 2
+                    }
+                    TerminalToolTip { control: profileStatus; text: appWindow.statusDetail(row.modelData) }
+                    onClicked: appWindow.openDiagnostics(row.modelData)
+                }
+                Button { PointerHover {}
+                    id: connectionButton
+                    objectName: "connect-" + row.index
+                    x: 588; y: row.variant === 0 ? 43 : 48; width: 247; height: row.variant === 0 ? 88 : 89
+                    enabled: backend.online && (!appWindow.cleaning || (row.active && appWindow.operation.stage === "cleanup_failed")) && !appWindow.snap.busyByOtherUser && (row.active || !backend.networkBusy)
+                    hoverEnabled: true
+                    padding: 0
+                    Accessible.name: qsTr("%1 %2").arg(appWindow.connectionLabel(row.modelData)).arg(row.modelData.name)
+                    text: appWindow.connectionLabel(row.modelData)
+                    background: Item {
+                        Image { anchors.fill: parent; source: "qrc:/assets/skin/button-" + (row.active ? "red" : "green") + ".png" }
+                        Rectangle { anchors.fill: parent; anchors.margins: 5; radius: 9; color: connectionButton.down ? "#33000000" : (connectionButton.hovered ? "#14ffeead" : "transparent"); border.color: connectionButton.visualFocus ? "#d3eab0" : "transparent"; border.width: 2 }
+                    }
+                    contentItem: Text { textFormat: Text.PlainText;
+                        text: connectionButton.text
+                        color: connectionButton.enabled ? "#e7c68a" : "#aa9570"
+                        font.family: appWindow.monoFont; font.pixelSize: text.length > 10 ? 30 : 38; font.letterSpacing: 0.1
+                        horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                    }
+                    onClicked: appWindow.activateProfile(row.modelData)
+                }
+                ProfileIcon {
+                    x: 44; y: [31,35,36][row.variant]; width: row.variant === 0 ? 114 : 115; height: [115,114,116][row.variant]
+                    iconId: row.modelData.iconId || ["antenna","dish","globe"][row.variant]
+                    visible: iconId !== ["antenna","dish","globe"][row.variant]
+                }
+                Button { PointerHover {}
+                    objectName: "profile-" + row.index
+                    x: 28; y: 25; width: 134; height: 135
+                    background: Rectangle { color: parent.hovered ? "#1cffe1a0" : "transparent"; border.color: parent.visualFocus ? "#8be599" : "transparent"; radius: 8 }
+                    Accessible.name: qsTr("Profile details: %1").arg(row.modelData.name)
+                    ToolTip.visible: hovered; ToolTip.text: qsTr("Name, emblem and connection logs")
+                    onClicked: appWindow.showProfile(row.modelData)
+                }
+                TapHandler { acceptedButtons: Qt.RightButton; onTapped: appWindow.showProfile(row.modelData) }
+            }
+        }
+        Rectangle {
+            x: 56; y: 196; width: 834; height: 523
+            visible: appWindow.profiles.length === 0
+            color: "#07130b"; radius: 12; border.color: "#796e4f"
+            Column {
+                anchors.centerIn: parent; spacing: 24
+                Text { textFormat: Text.PlainText; width: 690; text: backend.online ? qsTr("No profiles") : qsTr("System service unavailable"); color: "#8ceaa0"; font.family: appWindow.bodyFont; font.pixelSize: 38; horizontalAlignment: Text.AlignHCenter }
+                Text { textFormat: Text.PlainText; width: 690; text: backend.online ? qsTr("Import vless:// links\nor add a subscription in settings.") : qsTr("Install and start vault443d,\nthen refresh the status."); color: "#829a89"; font.family: appWindow.bodyFont; font.pixelSize: 26; horizontalAlignment: Text.AlignHCenter }
+                MetalButton { objectName: "empty-action"; anchors.horizontalCenter: parent.horizontalCenter; text: backend.online ? qsTr("Import") : qsTr("Refresh"); onClicked: backend.online ? openImport() : backend.refresh() }
+            }
+        }
+        Item {
+            x: 56; y: 760; width: 830; height: 74
+            objectName: "traffic-panel"
+            Image { anchors.fill: parent; source: "qrc:/assets/skin/stats.png" }
+            Rectangle { x: 180; y: 17; width: 2; height: 40; color: "#365c3c" }
+            Rectangle { x: 534; y: 17; width: 2; height: 40; color: "#365c3c" }
+            TrafficValue {
+                objectName: "session-duration"; x: 14; y: 7; width: 156; height: 60
+                text: appWindow.sessionDuration(); font.family: appWindow.monoFont; font.pixelSize: 28
+                description: qsTr("Session duration: %1").arg(appWindow.sessionDuration())
+                explanation: qsTr("Session duration includes automatic retries and pauses. Manual disconnection freezes the last session.") + "\n" + appWindow.trafficExplanation()
+            }
+            TrafficValue {
+                objectName: "download-rate"; x: 196; y: 7; width: 154; height: 60
+                text: "↓ " + appWindow.trafficText(appWindow.traffic.downloadBytesPerSecond, true)
+                font.family: appWindow.monoFont
+                description: qsTr("Download speed") + ": " + appWindow.fullTraffic(appWindow.traffic.downloadBytesPerSecond, true)
+                explanation: qsTr("Measured every second. Speed is zero while paused or waiting to retry.") + "\n" + appWindow.trafficExplanation()
+            }
+            TrafficValue {
+                objectName: "upload-rate"; x: 362; y: 7; width: 154; height: 60
+                text: "↑ " + appWindow.trafficText(appWindow.traffic.uploadBytesPerSecond, true)
+                font.family: appWindow.monoFont
+                description: qsTr("Upload speed") + ": " + appWindow.fullTraffic(appWindow.traffic.uploadBytesPerSecond, true)
+                explanation: qsTr("Measured every second. Speed is zero while paused or waiting to retry.") + "\n" + appWindow.trafficExplanation()
+            }
+            TrafficValue {
+                objectName: "download-total"; x: 550; y: 7; width: 125; height: 60
+                text: "↓ " + appWindow.trafficText(appWindow.traffic.downloadBytes, false)
+                font.family: appWindow.monoFont
+                description: qsTr("Downloaded this session") + ": " + appWindow.fullTraffic(appWindow.traffic.downloadBytes, false)
+                explanation: qsTr("Reopening the interface does not reset session totals.") + "\n" + appWindow.trafficExplanation()
+            }
+            TrafficValue {
+                objectName: "upload-total"; x: 687; y: 7; width: 125; height: 60
+                text: "↑ " + appWindow.trafficText(appWindow.traffic.uploadBytes, false)
+                font.family: appWindow.monoFont
+                description: qsTr("Uploaded this session") + ": " + appWindow.fullTraffic(appWindow.traffic.uploadBytes, false)
+                explanation: qsTr("Reopening the interface does not reset session totals.") + "\n" + appWindow.trafficExplanation()
+            }
+        }
+
+        Button { PointerHover {}
+            x: 81; y: 868; width: 342; height: 68
+            objectName: "autostart-button"
+            background: Rectangle { color: parent.hovered ? "#17ffdc9b" : "transparent"; radius: 7; border.color: parent.visualFocus ? "#a0e8a4" : "transparent" }
+            Accessible.name: qsTr("Open interface at login")
+            Accessible.checkable: true; Accessible.checked: backend.autostart
+            Image { x: 19; y: 8; width: 52; height: 50; source: "qrc:/assets/skin/checkbox-" + (backend.autostart ? "on" : "off") + ".png" }
+            Text { textFormat: Text.PlainText; objectName: "autostart-label"; x: 91; y: 8; width: 231; height: 49; text: qsTr("Launch at login"); color: "#e7c68a"; font.family: appWindow.bodyFont; font.pixelSize: 26; verticalAlignment: Text.AlignVCenter }
+            onClicked: backend.setAutostart(!backend.autostart)
+        }
+        Button { PointerHover {}
+            x: 523; y: 868; width: 345; height: 68
+            objectName: "boot-button"
+            background: Rectangle { color: parent.hovered ? "#17ffdc9b" : "transparent"; radius: 7; border.color: parent.visualFocus ? "#a0e8a4" : "transparent" }
+            Accessible.name: qsTr("VPN at system boot")
+            Accessible.checkable: true; Accessible.checked: (appWindow.snap.bootProfileId || "").length > 0
+            Image { x: 19; y: 8; width: 52; height: 50; source: "qrc:/assets/skin/checkbox-" + ((appWindow.snap.bootProfileId || "").length ? "on" : "off") + ".png" }
+            Text { textFormat: Text.PlainText; objectName: "boot-label"; x: 91; y: 8; width: 234; height: 49; text: qsTr("VPN at system boot"); color: "#e7c68a"; font.family: appWindow.bodyFont; font.pixelSize: 26; verticalAlignment: Text.AlignVCenter }
+            onClicked: {
+                if ((appWindow.snap.bootProfileId || "").length && appWindow.snap.canAdmin) backend.setBootProfile("")
+                else openSettings()
+            }
+        }
+        Rectangle {
+            x: 320; y: 101; width: 452; height: 53; radius: 4
+            visible: !backend.online || appWindow.snap.busyByOtherUser || appWindow.runtime.state === "paused_external" || appWindow.runtime.state === "error"
+            color: "#df121710"; border.color: "#8f7854"
+            Text { textFormat: Text.PlainText; anchors.fill: parent; anchors.margins: 7; text: !backend.online ? qsTr("Service unavailable") : (appWindow.snap.busyByOtherUser ? qsTr("Another user’s VPN") : (appWindow.runtime.state === "paused_external" ? qsTr("Paused: another VPN") : qsTr("Error · open diagnostics"))); color: "#d9bc78"; font.family: appWindow.bodyFont; font.pixelSize: 24; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+            PointerHover {}
+            MouseArea { anchors.fill: parent; onClicked: { if (appWindow.snap.busyByOtherUser) takeoverDialog.open(); else appWindow.openDiagnostics() } }
+        }
+    }
+
+    FileDialog { id: importFile; title: qsTr("Import VLESS profiles"); nameFilters: [qsTr("Text files (*.txt *.conf)"), qsTr("All files (*)")]; onAccepted: backend.readImportFile(selectedFile) }
+    TerminalDialog {
+        id: importDialog
+        objectName: "import-dialog"
+        title: sourceKind === "subscription" ? qsTr("Import subscription") : qsTr("Import profiles")
+        property bool previewReady: false
+        property string previewInput: ""
+        property string sourceKind: "text"
+        property var iconChoices: ({})
+        onClosed: { backend.cancelImport(); previewReady = false }
+        ColumnLayout {
+            anchors.fill: parent; spacing: 13
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: importDialog.sourceKind === "subscription" ? qsTr("Review subscription profiles and choose their emblems. The subscription is saved after confirmation.") : qsTr("Paste one vless:// link per line. Review the profiles, then choose their emblems."); color: "#c3b38e"; wrapMode: Text.Wrap; font.pixelSize: 21 }
+            ScrollView {
+                visible: importDialog.sourceKind === "text"
+                Layout.fillWidth: true; Layout.preferredHeight: 175
+                TextArea {
+                    id: importArea; wrapMode: TextEdit.WrapAnywhere; color: "#88d995"; font.family: appWindow.monoFont; font.pixelSize: 18
+                    objectName: "import-text"
+                    placeholderText: "vless://…"; placeholderTextColor: "#667969"; selectByMouse: true
+                    background: Rectangle { color: "#09120c"; border.color: "#6d6046"; radius: 5 }
+                    onTextChanged: { importDialog.previewReady = false; backend.cancelImport() }
+                }
+            }
+            RowLayout {
+                visible: importDialog.sourceKind === "text"
+                MetalButton { text: qsTr("From file"); small: true; enabled: !backend.busy; onClicked: importFile.open() }
+                Item { Layout.fillWidth: true }
+                MetalButton { objectName: "import-preview"; text: qsTr("Review"); small: true; enabled: importArea.text.trim().length > 0 && !backend.busy; onClicked: { importDialog.previewInput = importArea.text; backend.prepareImport(importArea.text, "text", "") } }
+            }
+            Text { textFormat: Text.PlainText; visible: backend.busy && !importDialog.previewReady; text: qsTr("Preparing profiles…"); color: "#a8b794"; font.pixelSize: 21 }
+            ListView {
+                objectName: "import-profiles"
+                Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+                model: importDialog.previewReady ? (backend.preview.profiles || []) : []
+                delegate: Item {
+                    required property var modelData
+                    required property int index
+                    id: importRow
+                    width: ListView.view.width; height: 83
+                    Button { PointerHover {}
+                        objectName: "import-icon-" + parent.index
+                        x: 2; y: 4; width: 70; height: 71; padding: 2
+                        enabled: !parent.modelData.duplicate
+                        contentItem: ProfileIcon { iconId: importDialog.iconChoices[importRow.modelData.id] || "antenna" }
+                        background: Rectangle { color: parent.down ? "#33000000" : "transparent"; border.color: parent.visualFocus ? "#a0e8a4" : "transparent"; radius: 6 }
+                        Accessible.name: qsTr("Choose an emblem for %1").arg(parent.modelData.name)
+                        onClicked: appWindow.chooseIcon("import", parent.modelData.id, importDialog.iconChoices[parent.modelData.id])
+                    }
+                    Text { textFormat: Text.PlainText; x: 86; y: 8; width: parent.width - 98; height: 32; text: parent.modelData.duplicate ? qsTr("Already added: %1").arg(parent.modelData.name) : qsTr("✓ %1").arg(parent.modelData.name); color: parent.modelData.duplicate ? "#a69671" : "#8dd49a"; font.pixelSize: 22; elide: Text.ElideRight }
+                    Text { textFormat: Text.PlainText; x: 86; y: 41; width: parent.width - 98; height: 29; text: parent.modelData.server; color: "#9b9e88"; font.pixelSize: 18; elide: Text.ElideRight }
+                }
+                ScrollBar.vertical: ScrollBar {}
+            }
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; visible: importDialog.previewReady; text: { var errors = backend.preview.errors || []; return errors.map(function(e) { return qsTr("Line %1: %2").arg(e.line).arg(appWindow.localizedMessage(e.message)) }).join("\n") } color: "#e4a187"; wrapMode: Text.Wrap; font.pixelSize: 18; maximumLineCount: 3; elide: Text.ElideRight }
+            RowLayout {
+                MetalButton { objectName: "import-cancel"; text: qsTr("Cancel"); onClicked: importDialog.close() }
+                Item { Layout.fillWidth: true }
+                MetalButton { objectName: "import-commit"; text: qsTr("Import"); enabled: importDialog.previewReady && (backend.preview.profiles || []).length > 0 && !backend.busy; onClicked: backend.commitImport(importDialog.iconChoices) }
+            }
+        }
+    }
+
+    IconPicker {
+        id: iconPicker
+        onChosen: function(iconId) {
+            if (appWindow.iconTarget === "profile") appWindow.profileIconId = iconId
+            else { var choices = Object.assign({}, importDialog.iconChoices); choices[appWindow.iconTargetId] = iconId; importDialog.iconChoices = choices }
+        }
+    }
+    TerminalDialog {
+        id: detailDialog; title: qsTr("Profile and connection"); height: 830
+        ColumnLayout {
+            anchors.fill: parent; spacing: 14
+            TabBar {
+                id: profileTabs; Layout.fillWidth: true
+                TerminalTabButton { text: qsTr("Profile") }
+                TerminalTabButton { objectName: "logs-tab"; text: qsTr("Logs") }
+            }
+            StackLayout {
+                currentIndex: profileTabs.currentIndex; Layout.fillWidth: true; Layout.fillHeight: true
+                ColumnLayout {
+                    spacing: 16
+                    RowLayout {
+                        Button { PointerHover {}
+                            objectName: "profile-icon-choice"
+                            Layout.preferredWidth: 114; Layout.preferredHeight: 115
+                            padding: 0
+                            contentItem: ProfileIcon { iconId: appWindow.profileIconId }
+                            background: Rectangle { color: "transparent"; border.color: parent.visualFocus ? "#a0e8a4" : "transparent" }
+                            Accessible.name: qsTr("Choose profile emblem")
+                            onClicked: appWindow.chooseIcon("profile", "", appWindow.profileIconId)
+                        }
+                        TerminalField { id: renameField; objectName: "profile-name"; Layout.fillWidth: true; placeholderText: qsTr("Profile name"); maximumLength: 80 }
+                    }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Server: %1\nTransport: %2\nSecurity: %3").arg(appWindow.selectedProfile.server || "").arg(appWindow.selectedProfile.transport || "").arg(appWindow.selectedProfile.security || ""); color: "#bcb294"; font.pixelSize: 23; lineHeight: 1.4; wrapMode: Text.WrapAnywhere }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Click the emblem to change it. To change connection details, import a new link."); color: "#829485"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                    Item { Layout.fillHeight: true }
+                    RowLayout {
+                        MetalButton { text: qsTr("Remove"); danger: true; enabled: !backend.busy; onClicked: deleteDialog.open() }
+                        Item { Layout.fillWidth: true }
+                        MetalButton { objectName: "profile-save"; text: qsTr("Save"); enabled: renameField.text.trim().length > 0 && !backend.busy; onClicked: backend.updateProfile(appWindow.selectedProfile.id, renameField.text, appWindow.profileIconId) }
+                    }
+                }
+                ColumnLayout {
+                    spacing: 10
+                    TerminalCheckBox { id: debugLogging; objectName: "debug-logging"; Layout.fillWidth: true; text: qsTr("Detailed Xray logging"); onClicked: backend.setProfileDebug(appWindow.selectedProfile.id, checked) }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Log detail changes at the next connection. History lasts 7 days. Up to 2,000 entries are shown and copied."); color: "#a5aa8c"; wrapMode: Text.Wrap; font.pixelSize: 18 }
+                    Rectangle {
+                        Layout.fillWidth: true; Layout.fillHeight: true
+                        color: "#08110b"; border.color: "#625b40"; radius: 4
+                        ListView {
+                            id: logList; objectName: "profile-logs"
+                            anchors.fill: parent; anchors.margins: 10
+                            clip: true; spacing: 10; model: backend.profileLogs
+                            delegate: Column {
+                                required property var modelData
+                                width: ListView.view.width - 10
+                                Text { textFormat: Text.PlainText; width: parent.width; text: qsTr("%1 · %2").arg(appWindow.displayDateTime(parent.modelData.time)).arg(appWindow.logLevel(parent.modelData.level)); color: parent.modelData.level === "error" ? "#e1a183" : (parent.modelData.level === "warning" ? "#ddc279" : "#7f9e81"); font.family: appWindow.monoFont; font.pixelSize: 20; elide: Text.ElideRight }
+                                Text { textFormat: Text.PlainText; objectName: "journal-message-" + parent.modelData.id; width: parent.width; text: parent.modelData.message; color: "#93d39a"; font.family: appWindow.monoFont; font.pixelSize: 22; wrapMode: Text.WrapAnywhere }
+                            }
+                            ScrollBar.vertical: ScrollBar {}
+                        }
+                    }
+                    RowLayout {
+                        MetalButton { objectName: "logs-older"; text: qsTr("Older"); small: true; implicitWidth: 124; enabled: !backend.busy && backend.logPreviousCursor.length > 0; onClicked: { appWindow.logHistoryMode = true; backend.loadOlderProfileLogs(appWindow.selectedProfile.id); logList.positionViewAtBeginning() } }
+                        MetalButton { objectName: "logs-more"; text: qsTr("Latest"); small: true; implicitWidth: 160; enabled: !backend.busy; onClicked: { appWindow.logHistoryMode = false; appWindow.logFollowEnd = true; backend.loadProfileLogs(appWindow.selectedProfile.id, true); logList.positionViewAtEnd() } }
+                        Item { Layout.fillWidth: true }
+                        MetalButton { objectName: "logs-copy"; text: qsTr("Copy"); small: true; implicitWidth: 170; enabled: backend.profileLogs.length > 0; onClicked: backend.copyProfileLogs() }
+                        MetalButton { objectName: "logs-clear"; text: qsTr("Clear"); small: true; implicitWidth: 160; danger: true; enabled: !backend.busy; onClicked: backend.clearProfileLogs(appWindow.selectedProfile.id) }
+                    }
+                }
+            }
+        }
+    }
+    Timer { interval: 2000; repeat: true; running: detailDialog.opened && profileTabs.currentIndex === 1 && backend.online && !appWindow.logHistoryMode; onTriggered: backend.loadProfileLogs(appWindow.selectedProfile.id) }
+    TerminalDialog {
+        id: deleteDialog; title: qsTr("Remove profile?"); height: 320
+        ColumnLayout { anchors.fill: parent; spacing: 20
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Profile “%1” will be removed. Disconnect it first if it is in use.").arg(appWindow.selectedProfile.name || ""); color: "#d1b98d"; wrapMode: Text.Wrap; font.pixelSize: 23 }
+            Item { Layout.fillHeight: true }
+            RowLayout { Item { Layout.fillWidth: true } MetalButton { text: qsTr("Cancel"); onClicked: deleteDialog.close() } MetalButton { text: qsTr("Remove"); danger: true; enabled: appWindow.selectedProfile.id !== appWindow.activeId && !backend.busy; onClicked: { backend.removeProfile(appWindow.selectedProfile.id); deleteDialog.close() } } }
+        }
+    }
+
+    TerminalDialog {
+        id: settingsDialog; title: qsTr("Settings"); height: 858
+        Binding { target: backend; property: "vpnCompatibilityActive"; value: settingsDialog.visible && settingsTabs.currentIndex === 2 && appWindow.visible && appWindow.visibility !== Window.Minimized && !diagnosticsDialog.visible && !errorDialog.visible }
+        ColumnLayout {
+            anchors.fill: parent; spacing: 12
+            TabBar {
+                id: settingsTabs; Layout.fillWidth: true
+                TerminalTabButton { objectName: "launch-tab"; text: qsTr("General") } TerminalTabButton { objectName: "subscriptions-tab"; text: qsTr("Subscriptions") } TerminalTabButton { objectName: "vpn-tab"; text: qsTr("Other VPNs") }
+            }
+            StackLayout {
+                currentIndex: settingsTabs.currentIndex; Layout.fillWidth: true; Layout.fillHeight: true
+                ColumnLayout {
+                    spacing: 18
+                    RowLayout {
+                        Layout.fillWidth: true; spacing: 18
+                        Text { textFormat: Text.PlainText; text: qsTr("Language"); color: "#d6c49b"; font.pixelSize: 22 }
+                        TerminalCombo {
+                            id: languageSelector; objectName: "language-selector"
+                            Layout.fillWidth: true
+                            model: [{code: "system", name: qsTr("System default")}, {code: "en", name: "English"}, {code: "ru", name: "Русский"}]
+                            textRole: "name"; valueRole: "code"
+                            currentIndex: i18n.preference === "ru" ? 2 : i18n.preference === "en" ? 1 : 0
+                            Accessible.name: qsTr("Language")
+                            onActivated: i18n.setPreference(currentValue)
+                        }
+                    }
+                    TerminalCheckBox { text: qsTr("Open the interface at login"); checked: backend.autostart; onClicked: backend.setAutostart(checked); palette.windowText: "#d6c49b"; font.pixelSize: 22 }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Connect before login"); color: "#8fd89a"; font.pixelSize: 24 }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("The system service connects the selected profile at boot. Only administrators can change this setting."); color: "#b1aa92"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                    TerminalCombo {
+                        id: bootProfile; objectName: "boot-profile"; Layout.fillWidth: true
+                        property string selectedProfileId: appWindow.snap.bootProfileId || ""
+                        model: [{id:"", name:""}].concat(appWindow.profiles)
+                        firstItemText: qsTr("Off")
+                        textRole: "name"; valueRole: "id"
+                        function restoreSelection() { currentIndex = Math.max(0, indexOfValue(selectedProfileId)) }
+                        Component.onCompleted: restoreSelection()
+                        onModelChanged: Qt.callLater(restoreSelection)
+                        onActivated: selectedProfileId = currentValue || ""
+                        enabled: !!appWindow.snap.canAdmin && !backend.busy; font.pixelSize: 21
+                    }
+                    MetalButton { objectName: "boot-apply"; text: qsTr("Apply"); enabled: !!appWindow.snap.canAdmin && !backend.busy; onClicked: backend.setBootProfile(bootProfile.currentValue || "") }
+                    Text { textFormat: Text.PlainText; visible: !appWindow.snap.canAdmin; Layout.fillWidth: true; text: qsTr("This user cannot change the system startup settings."); color: "#c5a16c"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                    Item { Layout.fillHeight: true }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Closing the interface keeps the VPN running. Disconnect using the connection button or tray menu."); color: "#94a28c"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                }
+                ColumnLayout {
+                    spacing: 14
+                    TerminalField { id: subscriptionName; objectName: "subscription-name"; Layout.fillWidth: true; placeholderText: qsTr("Subscription name"); maximumLength: 80 }
+                    TerminalField { id: subscriptionUrl; objectName: "subscription-url"; Layout.fillWidth: true; placeholderText: "https://…"; echoMode: TextInput.PasswordEchoOnEdit; selectByMouse: true }
+                    MetalButton { objectName: "subscription-prepare"; text: qsTr("Add"); enabled: subscriptionUrl.text.trim().length > 0 && subscriptionName.text.trim().length > 0 && !backend.busy; onClicked: appWindow.openSubscriptionImport() }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Subscription URLs may contain a secret token. They are not shown in diagnostics."); color: "#93a08a"; wrapMode: Text.Wrap; font.pixelSize: 18 }
+                    ListView {
+                        Layout.fillWidth: true; Layout.fillHeight: true; model: appWindow.snap.subscriptions || []; clip: true
+                        delegate: Item {
+                            required property var modelData
+                            width: ListView.view.width; height: 76
+                            Text { textFormat: Text.PlainText; width: parent.width-140; text: qsTr("%1\nUpdated: %2").arg(parent.modelData.name).arg(appWindow.formattedDate(parent.modelData.updatedAt)); color: "#c8bf9f"; font.pixelSize: 20; elide: Text.ElideRight }
+                            MetalButton { anchors.right: parent.right; y: 7; text: qsTr("Remove"); small: true; danger: true; onClicked: { appWindow.selectedSubscription = parent.modelData; deleteSubscriptionDialog.open() } }
+                        }
+                        ScrollBar.vertical: ScrollBar {}
+                    }
+                    MetalButton { text: qsTr("Refresh all"); enabled: !backend.busy; onClicked: backend.refreshSubscriptions() }
+                    Text { textFormat: Text.PlainText; id: subscriptionResult; text: !appWindow.subscriptionRefreshDone ? "" : (appWindow.subscriptionFailureCount > 0 ? qsTr("%1 subscriptions could not be updated. Existing profiles were kept; see diagnostics for details.").arg(appWindow.subscriptionFailureCount) : qsTr("Subscriptions updated.")); Layout.fillWidth: true; color: "#91ba90"; wrapMode: Text.Wrap; font.pixelSize: 19 }
+                }
+                ScrollView {
+                    id: vpnScroll; objectName: "vpn-scroll"
+                    contentWidth: availableWidth
+                    clip: true
+                    ColumnLayout {
+                        width: vpnScroll.availableWidth; spacing: 13
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Compatibility with other VPNs"); color: "#8fd89a"; font.pixelSize: 25 }
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Pritunl is detected automatically. No fields need to be filled in."); color: "#c5b995"; font.pixelSize: 22; wrapMode: Text.Wrap }
+                        Repeater {
+                            model: backend.vpnCompatibility.items || []
+                            delegate: Rectangle {
+                                required property var modelData
+                                required property int index
+                                objectName: "vpn-detected-" + index
+                                Layout.fillWidth: true; implicitHeight: vpnInfo.implicitHeight + 24
+                                color: "#182019"; border.color: modelData.verified ? "#52634a" : "#8f6943"; radius: 5
+                                ColumnLayout {
+                                    id: vpnInfo; x: 12; y: 12; width: parent.width - 24; spacing: 6
+                                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("%1 · %2").arg(appWindow.localizedMessage(modelData.application) || qsTr("Unknown VPN")).arg(modelData.interface); color: "#a5d897"; font.pixelSize: 23; wrapMode: Text.WrapAnywhere }
+                                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: !modelData.verified ? qsTr("Verification failed") : modelData.source === "automatic" ? qsTr("Detected automatically · verified") : qsTr("Manual binding · verified"); color: modelData.verified ? "#c5b995" : "#e6af72"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: !modelData.active ? qsTr("Tunnel is inactive") : !modelData.verified ? qsTr("Protection exceptions are not allowed") : modelData.fullIPv4 && modelData.fullIPv6 ? qsTr("Handles IPv4 and IPv6 internet traffic") : modelData.fullIPv4 ? qsTr("Handles IPv4 internet traffic") : modelData.fullIPv6 ? qsTr("Handles IPv6 internet traffic") : qsTr("Specific work routes only"); color: "#92a9bd"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; visible: text.length > 0; text: { i18n.language; return appWindow.localizedMessage(modelData.message || "") } color: "#d3b581"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                                }
+                            }
+                        }
+                        Text { objectName: "vpn-discovery-status"; textFormat: Text.PlainText; Layout.fillWidth: true; visible: text.length > 0; text: { i18n.language; return appWindow.localizedMessage(backend.vpnCompatibilityError || backend.vpnCompatibility.message || "") || (backend.vpnCompatibility.busyByOtherUser ? qsTr("In use by another user") : backend.vpnCompatibilityPending ? qsTr("Checking tunnels…") : (backend.vpnCompatibility.items || []).length ? "" : qsTr("No active external VPNs found. Connect Pritunl, then open this tab.")) } color: backend.vpnCompatibilityError ? "#e6af72" : "#b9bc9e"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Work routes: Pritunl handles work networks; VLESS handles the internet.\n\nFull tunnel: the requested VLESS connection waits while Pritunl handles the internet, then resumes when those routes are released. Pritunl settings stay unchanged."); color: "#c5b995"; font.pixelSize: 21; wrapMode: Text.Wrap }
+                        MetalButton { objectName: "vpn-diagnostics"; text: qsTr("Diagnostics"); small: true; Layout.preferredWidth: 220; onClicked: appWindow.openDiagnostics() }
+                        MetalButton { id: vpnAdvanced; objectName: "vpn-advanced"; Layout.fillWidth: true; checkable: true; text: (checked ? "▾ " : "▸ ") + qsTr("Advanced: manual binding"); onClicked: if (checked) Qt.callLater(function() { vpnScroll.contentItem.contentY = vpnAdvanced.y }) }
+                        ColumnLayout {
+                        visible: vpnAdvanced.checked; Layout.fillWidth: true; spacing: 13
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("For custom tunnels. The service verifies ownership and transport; an interface name alone is not enough."); color: "#b1aa92"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                        TerminalField { id: vpnInterface; Layout.fillWidth: true; placeholderText: qsTr("Interface, e.g. tun0"); maximumLength: 15 }
+                        TerminalCombo { id: vpnManager; objectName: "vpn-manager"; Layout.fillWidth: true; model: ["networkmanager", "pritunl", "openvpn", "wg-quick"]; font.pixelSize: 21 }
+                        TerminalField { id: vpnUnit; Layout.fillWidth: true; placeholderText: qsTr("systemd unit, e.g. openvpn-client@work.service") }
+                        TerminalField { id: vpnCgroup; Layout.fillWidth: true; placeholderText: qsTr("Cgroup (if no systemd unit is specified)") }
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("External VPN server"); color: "#d2c194"; font.pixelSize: 22 }
+                        RowLayout {
+                            TerminalField { id: vpnEndpoint; Layout.fillWidth: true; Layout.minimumWidth: 60; placeholderText: qsTr("IP address") }
+                            TerminalField { id: vpnPort; Layout.preferredWidth: 112; placeholderText: qsTr("Port"); validator: IntValidator { bottom: 1; top: 65535 } }
+                            TerminalCombo { id: vpnProtocol; objectName: "vpn-protocol"; model: ["udp", "tcp"]; Layout.preferredWidth: 95; font.pixelSize: 18 }
+                        }
+                        TerminalField { id: vpnMark; Layout.fillWidth: true; placeholderText: qsTr("WireGuard fwmark, e.g. 51820 (if used)") }
+                        TerminalField { id: vpnRoutes; Layout.fillWidth: true; placeholderText: qsTr("Protected CIDRs, comma separated (split tunnel)") }
+                        TerminalField { id: vpnDNS; Layout.fillWidth: true; placeholderText: qsTr("DNS servers, comma separated") }
+                        TerminalField { id: vpnDomains; Layout.fillWidth: true; placeholderText: qsTr("DNS domains, comma separated, e.g. ~corp.example") }
+                        RowLayout {
+                            MetalButton { objectName: "vpn-save"; text: qsTr("Save binding"); Layout.preferredWidth: 300; Layout.preferredHeight: 60; enabled: !!appWindow.snap.canAdmin && vpnInterface.text.trim().length > 0 && !backend.busy; onClicked: {
+                                var binding = {interface:vpnInterface.text.trim(), manager:vpnManager.currentText}
+                                if (vpnUnit.text.trim()) binding.unit = vpnUnit.text.trim()
+                                if (vpnCgroup.text.trim()) binding.cgroup = vpnCgroup.text.trim()
+                                if (vpnEndpoint.text.trim()) binding.endpoints = [{address:vpnEndpoint.text.trim(), port:parseInt(vpnPort.text), protocol:vpnProtocol.currentText, mark:vpnMark.text.trim() ? Number(vpnMark.text) : 0}]
+                                binding.routes = appWindow.splitLines(vpnRoutes.text)
+                                binding.dnsServers = appWindow.splitLines(vpnDNS.text)
+                                binding.dnsDomains = appWindow.splitLines(vpnDomains.text)
+                                backend.setVPNBinding(binding)
+                            } }
+                            MetalButton { objectName: "vpn-delete"; text: qsTr("Remove"); Layout.preferredWidth: 300; Layout.preferredHeight: 60; danger: true; enabled: !!appWindow.snap.canAdmin && vpnInterface.text.trim().length > 0 && !backend.busy; onClicked: backend.setVPNBinding({interface:vpnInterface.text.trim(),manager:vpnManager.currentText,remove:true}) }
+                        }
+                        Text { textFormat: Text.PlainText; id: vpnResult; text: appWindow.vpnBindingSaved ? qsTr("Binding saved.") : ""; Layout.fillWidth: true; color: "#93c796"; font.pixelSize: 19; wrapMode: Text.Wrap }
+                        }
+                    }
+                }
+            }
+            Text { objectName: "settings-version"; textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Vault 443 · version %1").arg(Qt.application.version); color: "#b4ab8b"; font.pixelSize: 20; horizontalAlignment: Text.AlignHCenter }
+        }
+        onOpened: { bootProfile.selectedProfileId = appWindow.snap.bootProfileId || ""; bootProfile.restoreSelection() }
+    }
+
+    TerminalDialog {
+        id: deleteSubscriptionDialog; title: qsTr("Remove subscription?"); height: 320
+        ColumnLayout { anchors.fill: parent; spacing: 20
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Subscription “%1” will no longer be updated. Existing profiles and connections will be kept.").arg(appWindow.selectedSubscription.name || ""); color: "#d1b98d"; wrapMode: Text.Wrap; font.pixelSize: 23 }
+            Item { Layout.fillHeight: true }
+            RowLayout { Item { Layout.fillWidth: true } MetalButton { text: qsTr("Cancel"); onClicked: deleteSubscriptionDialog.close() } MetalButton { text: qsTr("Remove"); danger: true; enabled: !backend.busy; onClicked: { backend.removeSubscription(appWindow.selectedSubscription.id); deleteSubscriptionDialog.close() } } }
+        }
+    }
+    TerminalDialog {
+        id: diagnosticsDialog; objectName: "diagnostics-dialog"; title: qsTr("Diagnostics"); height: 830
+        property var failure: {
+            var value = backend.diagnosticData.lastFailure || appWindow.snap.lastFailure || ({})
+            return !appWindow.diagnosticProfile.id || value.profileId === appWindow.diagnosticProfile.id ? value : ({})
+        }
+        ColumnLayout { anchors.fill: parent; spacing: 12
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; visible: !!appWindow.diagnosticProfile.id; text: appWindow.diagnosticProfile.name || ""; color: "#b8b08f"; elide: Text.ElideRight; font.pixelSize: 23 }
+            Text {
+                objectName: "diagnostics-state"
+                textFormat: Text.PlainText; Layout.fillWidth: true
+                text: { i18n.language; return backend.diagnosticsPending ? qsTr("Loading diagnostics…") : (appWindow.localizedMessage(backend.diagnosticsError) || qsTr("Snapshot received: %1").arg(appWindow.displayDateTime(backend.diagnosticsReceivedAt))) }
+                color: backend.diagnosticsError.length ? "#e4a187" : "#a6ba91"; wrapMode: Text.Wrap; font.pixelSize: 22
+            }
+            Text {
+                objectName: "diagnostics-failure"
+                textFormat: Text.PlainText; Layout.fillWidth: true
+                text: {
+                    i18n.language
+                    var failure = diagnosticsDialog.failure
+                    if (failure.message) return qsTr("Last failure · %1\n%2").arg(appWindow.displayDateTime(Number(failure.time))).arg(appWindow.localizedMessage(failure.message))
+                    if (backend.connectionError.length && (!appWindow.diagnosticProfile.id || appWindow.diagnosticProfile.id === backend.connectionErrorProfile)) return appWindow.localizedMessage(backend.connectionError)
+                    return backend.diagnosticsPending ? "" : qsTr("No errors have been recorded for this profile.")
+                }
+                visible: text.length > 0
+                color: "#e1b88f"; wrapMode: Text.Wrap; font.pixelSize: 22
+                maximumLineCount: 5; elide: Text.ElideRight
+            }
+            Text {
+                textFormat: Text.PlainText; Layout.fillWidth: true; visible: backend.diagnosticsError.length > 0
+                text: qsTr("Last snapshot: %1").arg(backend.diagnosticsReceivedAt || backend.snapshotReceivedAt ? appWindow.displayDateTime(backend.diagnosticsReceivedAt || backend.snapshotReceivedAt) : qsTr("not received yet"))
+                color: "#a6aa8a"; font.pixelSize: 20; wrapMode: Text.Wrap
+            }
+            ScrollView { Layout.fillWidth: true; Layout.fillHeight: true
+                TextArea { objectName: "diagnostics-summary"; text: backend.diagnostics; textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.WrapAnywhere; color: "#90d39a"; font.family: appWindow.monoFont; font.pixelSize: 20; background: Rectangle { color: "#08100b"; border.color: "#63573f" } }
+            }
+            RowLayout {
+                MetalButton { objectName: "diagnostics-refresh"; text: qsTr("Refresh"); implicitWidth: 210; enabled: !backend.diagnosticsPending; onClicked: backend.getDiagnostics(appWindow.diagnosticProfile.id || "") }
+                MetalButton { objectName: "diagnostics-logs"; text: qsTr("Logs"); implicitWidth: 150; enabled: backend.online && !!appWindow.diagnosticProfile.id; onClicked: { diagnosticsDialog.close(); appWindow.showProfile(appWindow.diagnosticProfile); profileTabs.currentIndex = 1 } }
+                Item { Layout.fillWidth: true }
+                MetalButton { objectName: "diagnostics-copy"; text: qsTr("Copy"); enabled: backend.diagnostics.length > 0; onClicked: backend.copyDiagnostics() }
+            }
+        }
+    }
+    TerminalDialog {
+        id: errorDialog; objectName: "error-dialog"; title: qsTr("Action failed"); height: 365
+        ColumnLayout { anchors.fill: parent; spacing: 20
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; Layout.fillHeight: true; text: { i18n.language; return appWindow.localizedMessage(backend.error) || (backend.demo ? qsTr("Could not connect to the server. Network protection remains active; reconnection is automatic.") : "") } color: "#e0b195"; font.pixelSize: 22; wrapMode: Text.Wrap }
+            RowLayout { MetalButton { text: qsTr("Diagnostics"); onClicked: { errorDialog.close(); appWindow.openDiagnostics() } } Item { Layout.fillWidth: true } MetalButton { text: qsTr("Got it"); onClicked: { errorDialog.close(); backend.clearError() } } }
+        }
+    }
+    TerminalDialog {
+        id: takeoverDialog; title: qsTr("Take over VPN"); height: 390
+        ColumnLayout { anchors.fill: parent; spacing: 20
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; Layout.fillHeight: true; text: qsTr("Another user is using the VPN. Taking control disconnects their session. You can then choose your own profile."); color: "#d5ba91"; wrapMode: Text.Wrap; font.pixelSize: 23 }
+            RowLayout { MetalButton { text: qsTr("Cancel"); onClicked: takeoverDialog.close() } Item { Layout.fillWidth: true } MetalButton { text: qsTr("Take control"); danger: true; enabled: backend.online && !backend.networkBusy; onClicked: { backend.takeControl(); takeoverDialog.close() } } }
+        }
+    }
+}

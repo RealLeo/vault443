@@ -1,0 +1,9 @@
+{
+  "version": "26.9.30",
+  "tag": "v26.9.30",
+  "prerelease": true,
+  "assets": {
+    "amd64": {"file": "Xray-linux-64.zip", "sha256": "f851110beaff16e78d643f0ccfd9524b4a44dfd59bae3e34bb52bba378f7690e"},
+    "arm64": {"file": "Xray-linux-arm64-v8a.zip", "sha256": "9886f077f9fd8e6713b84c377c1c7db4e53b9bfa8c276a5bd12561139522b473"}
+  }
+}
