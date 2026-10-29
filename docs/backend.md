@@ -1,5 +1,9 @@
 # Service and profile behavior
 
+Managed certificate-based OpenVPN connections introduced in 1.1.0 are described
+in [work VPN behavior](work-vpn.md). They use a separate private store and
+independent lifecycle workers; the existing VLESS v2 data and API remain intact.
+
 The GUI talks to `org.vault443.Service1` on the system bus. Its wire contract
 is in [interfaces.md](interfaces.md). JSON replies omit UUIDs, public keys,
 subscription URLs, and original share links. The `Changed` signal has no payload.

@@ -129,6 +129,7 @@ func automaticBindings(ctx context.Context, r runner, s Snapshot, existing []Bin
 			}
 		}
 		var names []string
+		managedProcess := false
 		fds, _ := os.ReadDir(filepath.Join(base, "fdinfo"))
 		for _, fd := range fds {
 			if ctx.Err() != nil {
@@ -141,11 +142,19 @@ func automaticBindings(ctx context.Context, r runner, s Snapshot, existing []Bin
 			for _, line := range strings.Split(string(content), "\n") {
 				if strings.HasPrefix(line, "iff:") {
 					name := strings.TrimSpace(strings.TrimPrefix(line, "iff:"))
+					for _, b := range existing {
+						if b.Managed && b.Interface == name {
+							managedProcess = true
+						}
+					}
 					if _, exists := s.Link(name); exists && !known[name] {
 						names = append(names, name)
 					}
 				}
 			}
+		}
+		if managedProcess {
+			continue
 		}
 		if len(names) == 0 {
 			names = []string{"pending" + p.Name()}
@@ -231,6 +240,7 @@ func parseSocketAddress(s string) (netip.Addr, int, bool) {
 
 func (m *Manager) external(ctx context.Context, s Snapshot) ([]external, error) {
 	bindings := append([]Binding(nil), m.bindings...)
+	bindings = append(bindings, managedBindings()...)
 	_, liveRunner := m.r.(execRunner)
 	if !m.config.DryRun && liveRunner {
 		auto, e := automaticBindings(ctx, m.r, s, bindings)

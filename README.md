@@ -5,11 +5,11 @@
 <p align="center"><strong>A retro terminal for modern VLESS connections.</strong></p>
 <p align="center">
   A native Ubuntu VPN client with worn brass, green phosphor, and one-click connections.<br>
-  Qt Quick on the desktop. Go behind the scenes. Xray on the wire.
+  Qt Quick on the desktop. Go behind the scenes. VLESS and work OpenVPN in one place.
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Ubuntu-24.04%20%7C%2026.04-E95420?style=flat-square" alt="Ubuntu 24.04 and 26.04">
-  <img src="https://img.shields.io/badge/version-1.0.1-b6a166?style=flat-square" alt="Version 1.0.1">
+  <img src="https://img.shields.io/badge/version-1.1.0-b6a166?style=flat-square" alt="Version 1.1.0">
   <img src="https://img.shields.io/badge/Qt-6%20Quick-41CD52?style=flat-square" alt="Qt 6 Quick">
   <img src="https://img.shields.io/badge/Go-1.22%2B-00ADD8?style=flat-square" alt="Go 1.22 or later">
 </p>
@@ -18,7 +18,7 @@
   <a href="#first-connection">Get started</a> ·
   <a href="#working-alongside-other-vpns">Other VPNs</a> ·
   <a href="#build-from-source">Build</a> ·
-  <a href="docs/RELEASE-1.0.1.md">What's new</a>
+  <a href="docs/RELEASE-1.1.0.md">What's new</a>
 </p>
 <p align="center">
   <a href="docs/images/readme/main.png"><img src="docs/images/readme/main.png" width="472" alt="Vault 443 main window with three demo profiles and an active connection"></a>
@@ -29,13 +29,14 @@
 
 - **Connect with one click.** After an administrator grants access once, everyday connections need no password prompt. Watch connection stages, cancel a pending attempt, or disconnect from the tray.
 - **Bring your own profiles.** Import VLESS links, text files, Base64 lists, or HTTPS subscriptions. Review entries and choose from 23 emblems before saving. Subscription updates retain your choices.
+- **Connect your work VPNs.** Import self-contained `.ovpn` files, run several work connections alongside VLESS, and choose how overlapping work and Docker networks are routed. Each profile has its own status, cancel button, and journal.
 - **Keep control when the tunnel fails.** The network guard blocks direct Internet traffic during recovery, including forwarded Docker bridge traffic. Explicitly disconnect to restore ordinary routing.
 - **Keep local networks reachable.** Attached LANs and verified work VPN routes retain their paths. IPv4 and IPv6 are checked separately; unavailable tunnel IPv6 fails quickly so applications can fall back to IPv4.
 - **Start the way you want.** Launch the interface at login, connect a selected system profile at boot, or use both. Closing the window leaves the VPN running.
 - **Track your session.** One line shows session time, download/upload speed, and accumulated transfer totals. Counters live in the service, survive closing the GUI and automatic reconnection, and reset for a new manual connection or service restart.
 - **See what happened.** Per-profile connection logs retain up to seven days of history, with optional detailed logging. English and Russian interfaces switch instantly without reconnecting.
 
-A valid VLESS server profile is required. Vault 443 does not provide a VPN service or require its own account. Supported transports and import limits are documented in [service and profile behavior](docs/backend.md#supported-imports).
+A valid VLESS or supported OpenVPN server profile is required. Vault 443 does not provide a VPN service or require its own account. Supported transports and import limits are documented in [service and profile behavior](docs/backend.md#supported-imports) and [work VPN details](docs/work-vpn.md).
 
 ## A closer look
 
@@ -50,6 +51,13 @@ A valid VLESS server profile is required. Vault 443 does not provide a VPN servi
   </tr>
 </table>
 
+<table>
+  <tr>
+    <td align="center"><a href="docs/images/readme/work-vpns.png"><img src="docs/images/readme/work-vpns.png" width="236" alt="VLESS and two independent work OpenVPN connections"></a><br><strong>Internet and work, together</strong></td>
+    <td align="center"><a href="docs/images/readme/work-routes.png"><img src="docs/images/readme/work-routes.png" width="236" alt="Work and Docker route conflicts with explicit destination and DNS choices"></a><br><strong>Resolve overlapping networks</strong></td>
+  </tr>
+</table>
+
 All screenshots use the application's demo mode and contain fictional profiles.
 
 ## Install
@@ -57,15 +65,15 @@ All screenshots use the application's demo mode and contain fictional profiles.
 Install a locally built `.deb` from `dist/`. Run these commands in your **normal desktop user's terminal**:
 
 ```sh
-sudo apt install ./dist/vault443_1.0.1_amd64.deb
+sudo apt install ./dist/vault443_1.1.0_amd64.deb
 sudo vault443-access "$USER"
 ```
 
-For ARM64, use `vault443_1.0.1_arm64.deb`. The access command is a one-time setup per local user; an existing Vault 443 account keeps its permissions. Open **Vault 443** from the application launcher afterward. The GUI runs as your regular user, and the service checks current group membership on each request.
+For ARM64, use `vault443_1.1.0_arm64.deb`. The access command is a one-time setup per local user; an existing Vault 443 account keeps its permissions. Open **Vault 443** from the application launcher afterward. The GUI runs as your regular user, and the service checks current group membership on each request.
 
 **Updating Vault 443:** use the same APT command. Updates from **1.0.0 onward** preserve profiles, subscriptions, logs, group membership and startup settings. The service may briefly restart and resumes the requested connection under the traffic guard. Earlier VLESS Terminal installations must first complete their transition using the **1.0.0 release tools**; this source tree no longer includes that migration.
 
-**Release status:** 1.0.1 refines the compact traffic panel and removes pre-1.0 migration code. It does not update Xray or expand platform certification. This remains an early project with isolated networking and desktop validation on Ubuntu 24.04 and 26.04 amd64. ARM64 packages are cross-compiled; ARM64 runtime acceptance is still required. The bundled [Xray 26.9.30](https://github.com/XTLS/Xray-core/releases/tag/v26.9.30) is an upstream **prerelease**, pinned with [archive checksums](packaging/xray-lock.json). Review the [validation record and remaining limitations](docs/VALIDATION.md) before deployment.
+**Release status:** 1.1.0 adds managed OpenVPN connections and explicit route/DNS choices. It keeps the pinned Xray core unchanged. The project uses isolated networking and desktop validation on Ubuntu 24.04 and 26.04 amd64; ARM64 packages are cross-compiled and still require device acceptance. The bundled [Xray 26.9.30](https://github.com/XTLS/Xray-core/releases/tag/v26.9.30) is an upstream **prerelease**, pinned with [archive checksums](packaging/xray-lock.json). See the [validation record](docs/VALIDATION.md) for tested scenarios and remaining limitations.
 
 ### First connection
 
@@ -80,7 +88,26 @@ In **Settings → General**, choose **System default**, **English**, or **Рус
 | Launch the interface at login | Opens the GUI when this user signs in. It does not select a boot VPN profile. |
 | Connect VPN at system boot | Starts the selected system profile before desktop login. Requires an authorized administrator. |
 
-One VPN session is shared by the computer; each user has a private profile library and journal. Operator access requires an active local desktop session. Boot-profile and manual VPN binding changes additionally require membership in `sudo` or `admin`.
+One owner controls the active set of connections: one VLESS session and up to 16 work OpenVPN sessions. Each user has a private profile library and journal. Operator access requires an active local desktop session. Boot-profile and manual VPN binding changes additionally require membership in `sudo` or `admin`.
+
+## Work OpenVPN profiles
+
+Choose **Import → OpenVPN files**, review the detected profiles, choose their emblems, and save. Each OpenVPN card has its own **Connect**, **Cancel**, and **Disconnect** action. Work VPNs start manually; closing the GUI does not disconnect them. They recover after a network interruption or service restart in the same OS boot, but do not start automatically after reboot.
+
+This release accepts certificate-based TUN profiles with inline CA, client certificate, private key, and optional `tls-auth` / `tls-crypt`. Passwords, encrypted private keys, MFA/SSO, external credential files, TAP, user scripts and plugins are not supported. An unsupported directive produces a specific import error instead of being silently ignored.
+
+Open **Settings → Other VPNs → Routes** to inspect received networks, overlaps and DNS zones. Work routes take precedence over overlapping Docker networks. A rule can select a work profile for an IP/CIDR, or preserve access to an existing local/Docker subnet. If two work profiles claim the same prefix or DNS zone, select the intended provider explicitly. Physical Internet bypass rules are not allowed.
+
+The bottom traffic panel continues to measure **VLESS only**. Per-work-profile diagnostics show its interface, routes, DNS and connection stages. During an unexpected work VPN outage, its known destinations stay blocked until recovery; **Disconnect** releases that profile's protection.
+
+| Work routing | Behavior |
+| --- | --- |
+| Specific work networks | Work VPN carries those networks; VLESS continues to carry Internet traffic. |
+| Work subnet overlaps Docker | Work route wins automatically; the Routes window can preserve selected local destinations. |
+| Same prefix or DNS zone claimed twice | Existing choice is retained; the conflict is displayed for explicit resolution. |
+| Full Internet tunnel | VLESS pauses and resumes when the full tunnel is released. |
+
+[Work VPN details and limitations](docs/work-vpn.md).
 
 ## Working alongside other VPNs
 
@@ -100,6 +127,7 @@ The application does not rewrite Pritunl settings or force it into split-tunnel 
 | --- | --- |
 | **Qt 6 Quick / QML · C++20** | Native window, textured controls, translations, tray, and asynchronous D-Bus client. No root GUI or Go–Qt bindings. |
 | **Go system service** | Authenticated per-user profile access, subscriptions, connection lifecycle, recovery, and journal storage. |
+| **OpenVPN 2.6+ · distribution package** | Managed certificate-based work tunnels, private management sockets and validated route/DNS events. |
 | **Xray-core · separate process** | VLESS, REALITY/Vision, supported transports, and TUN traffic. |
 | **systemd · nftables · systemd-resolved** | Boot startup, application-owned routes and traffic guard, and DNS integration. |
 
@@ -171,6 +199,7 @@ This removes only Vault 443's network resources, clears the desired connection a
 
 ## Documentation and third-party components
 
+- [1.1.0 release notes](docs/RELEASE-1.1.0.md) — managed OpenVPN work profiles and route selection.
 - [1.0.1 release notes](docs/RELEASE-1.0.1.md) — single-line traffic counters and source cleanup.
 - [1.0.0 release notes](docs/RELEASE-1.0.0.md) — the Vault 443 baseline.
 - [Service and profiles](docs/backend.md) · [D-Bus API](docs/interfaces.md) · [Qt frontend](ui/README.md).

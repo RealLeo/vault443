@@ -15,6 +15,7 @@ import (
 	"vault443/internal/model"
 	"vault443/internal/service"
 	"vault443/internal/store"
+	"vault443/internal/workvpn"
 )
 
 // Authentication still obtains the real kernel-authenticated D-Bus peer UID.
@@ -96,6 +97,11 @@ func TestPrivateDBusPeerIdentitySignalsAndReappearance(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := service.New(st, &inertRuntime{status: model.RuntimeStatus{State: "disconnected"}})
+	workStore, err := workvpn.Open(filepath.Join(t.TempDir(), "work"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.AttachWork(workStore, &inertWorkRuntime{})
 	if err = serve(ctx, server, s, Authorizer{Source: testIdentity{SystemIdentity{server}}, OperatorGroup: "vault443"}); err != nil {
 		t.Fatal(err)
 	}
@@ -121,6 +127,32 @@ func TestPrivateDBusPeerIdentitySignalsAndReappearance(t *testing.T) {
 		}
 	case <-ctx.Done():
 		t.Fatal("no Changed signal")
+	}
+	var routesReply string
+	if err = object.CallWithContext(ctx, BusName+".GetWorkRoutes", 0).Store(&routesReply); err != nil {
+		t.Fatal("work route method:", err)
+	}
+	if !strings.Contains(routesReply, `"rules":[]`) {
+		t.Fatal("unexpected work routes", routesReply)
+	}
+	if err = object.CallWithContext(ctx, BusName+".PrepareOpenVPNImport", 0, `[{"name":"Unsafe","content":"client\nup /tmp/private-script\n"}]`).Store(&routesReply); err != nil {
+		t.Fatal(err)
+	}
+	var workPreview map[string]interface{}
+	if err = json.Unmarshal([]byte(routesReply), &workPreview); err != nil {
+		t.Fatal(err)
+	}
+	if workPreview["draftId"] == "" || strings.Contains(routesReply, "/tmp/private-script") {
+		t.Fatal("unsafe work preview", routesReply)
+	}
+	if err = object.CallWithContext(ctx, BusName+".CancelOpenVPNImport", 0, workPreview["draftId"]).Err; err != nil {
+		t.Fatal(err)
+	}
+	if err = object.CallWithContext(ctx, BusName+".RequestOpenVPNConnect", 0, "missing").Err; err == nil {
+		t.Fatal("unknown OpenVPN profile accepted")
+	}
+	if err = object.CallWithContext(ctx, BusName+".GetOpenVPNLogs", 0, "missing", "", int32(100)).Err; err == nil {
+		t.Fatal("unknown OpenVPN logs returned")
 	}
 	if err = object.CallWithContext(ctx, BusName+".GetSnapshot", 0).Store(&reply); err != nil {
 		t.Fatal(err)

@@ -23,8 +23,10 @@ done
 test -s "$fixture_dir/address"
 export DBUS_SYSTEM_BUS_ADDRESS="$(cat "$fixture_dir/address")"
 export VAULT443_UI_PRIVATE_BUS_TEST=1 QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software
+export VAULT443_UI_OPENVPN_FILE="$fixture_dir/address.ovpn"
+export VAULT443_UI_OPENVPN_BLOCKED_FILE="$fixture_dir/address.blocked.ovpn"
 if [ "$#" = 0 ]; then
-    set -- realDBusImportDialogWhenFixtureAvailable realDBusRoundTripWhenFixtureAvailable realDBusCompatibilityWhenFixtureAvailable realDBusResponsiveConnectionWhenFixtureAvailable realDBusDiagnosticsDeadlineWhenFixtureAvailable realDBusLanguageSwitchPreservesDraftWithoutMutations
+    set -- realDBusImportDialogWhenFixtureAvailable realDBusRoundTripWhenFixtureAvailable realDBusCompatibilityWhenFixtureAvailable realDBusResponsiveConnectionWhenFixtureAvailable realDBusDiagnosticsDeadlineWhenFixtureAvailable realDBusLanguageSwitchPreservesDraftWithoutMutations realDBusOpenVPNImportControlAndRoutesWhenFixtureAvailable
 fi
 build/vault443-ui-tests "$@"
 rm "$fixture_dir/address"

@@ -15,6 +15,7 @@ import (
 	"vault443/internal/model"
 	"vault443/internal/service"
 	"vault443/internal/store"
+	"vault443/internal/workvpn"
 )
 
 // This opt-in, test-only fixture lets Qt exercise actual asynchronous D-Bus
@@ -52,6 +53,18 @@ func TestPrivateDBusGUIFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := service.New(st, &guiRuntime{inertRuntime: inertRuntime{status: model.RuntimeStatus{State: "disconnected", ExternalVPNs: []string{}}}})
+	workStore, err := workvpn.Open(filepath.Join(t.TempDir(), "work"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.AttachWork(workStore, &guiWorkRuntime{})
+	defer func() {
+		stopCtx, stop := context.WithTimeout(context.Background(), 3*time.Second)
+		defer stop()
+		s.StopWork(stopCtx)
+	}()
+	writeGUIOpenVPNFixture(t, addressFile+".ovpn", "gui-office.example")
+	writeGUIOpenVPNFixture(t, addressFile+".blocked.ovpn", "gui-blocked.example")
 	caller := service.Caller{UID: uint32(os.Geteuid()), Admin: true}
 	_, err = s.ImportProfiles(caller, "vless://11111111-2222-4333-8444-555555555555@vault.example:443?security=tls#VAULT-13\nvless://21111111-2222-4333-8444-555555555555@new-reno.example:443?security=tls&type=ws#NEW%20RENO\nvless://31111111-2222-4333-8444-555555555555@ncr.example:443?security=tls&type=grpc#NCR%20RELAY")
 	if err != nil {

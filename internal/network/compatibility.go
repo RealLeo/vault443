@@ -45,6 +45,7 @@ func (m *Manager) VPNCompatibility(ctx context.Context) model.VPNCompatibility {
 			}
 		}
 	}
+	bindings = append(bindings, managedBindings()...)
 	s, err := collect(ctx, r)
 	if err != nil {
 		out.Message = "Не удалось прочитать интерфейсы и маршруты. Проверьте диагностику и доступность службы."

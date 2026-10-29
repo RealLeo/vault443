@@ -45,6 +45,7 @@ type bootstrapResolver struct {
 	client                   *http.Client
 	close                    func()
 	dnsTimeout, totalTimeout time.Duration
+	ipv6                     bool
 }
 
 func bootstrapDialer() *net.Dialer {
@@ -111,7 +112,7 @@ func (r *bootstrapResolver) resolve(ctx context.Context, server string) (netip.A
 	}
 	if err == nil {
 		for _, address := range addresses {
-			if address.Unmap().Is4() {
+			if address.Unmap().Is4() != r.ipv6 {
 				return address.Unmap(), nil
 			}
 		}
@@ -141,7 +142,13 @@ func (r *bootstrapResolver) resolve(ctx context.Context, server string) (netip.A
 }
 
 func (r *bootstrapResolver) lookupHTTPS(ctx context.Context, server string) (netip.Addr, error) {
-	query := url.Values{"name": {server}, "type": {"A"}}
+	queryType := "A"
+	answerType := 1
+	if r.ipv6 {
+		queryType = "AAAA"
+		answerType = 28
+	}
+	query := url.Values{"name": {server}, "type": {queryType}}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+bootstrapDoHHost+"/dns-query?"+query.Encode(), nil)
 	if err != nil {
 		return netip.Addr{}, bootstrapFailure("dns_invalid_response")
@@ -187,11 +194,14 @@ func (r *bootstrapResolver) lookupHTTPS(ctx context.Context, server string) (net
 	if err != nil || len(data) > 64<<10 {
 		return netip.Addr{}, bootstrapFailure("dns_invalid_response")
 	}
-	return parseBootstrapAnswer(data, server)
+	return parseBootstrapAnswerType(data, server, answerType)
 }
 
 func dnsName(name string) string { return strings.TrimSuffix(strings.ToLower(name), ".") }
 func parseBootstrapAnswer(data []byte, server string) (netip.Addr, error) {
+	return parseBootstrapAnswerType(data, server, 1)
+}
+func parseBootstrapAnswerType(data []byte, server string, answerType int) (netip.Addr, error) {
 	var answer struct {
 		Status   *int
 		TC       bool
@@ -205,7 +215,7 @@ func parseBootstrapAnswer(data []byte, server string) (netip.Addr, error) {
 			Data string
 		}
 	}
-	if json.Unmarshal(data, &answer) != nil || answer.Status == nil || answer.TC || len(answer.Question) != 1 || answer.Question[0].Type != 1 || dnsName(answer.Question[0].Name) != dnsName(server) {
+	if json.Unmarshal(data, &answer) != nil || answer.Status == nil || answer.TC || len(answer.Question) != 1 || answer.Question[0].Type != answerType || dnsName(answer.Question[0].Name) != dnsName(server) {
 		return netip.Addr{}, bootstrapFailure("dns_invalid_response")
 	}
 	switch *answer.Status {
@@ -229,9 +239,9 @@ func parseBootstrapAnswer(data []byte, server string) (netip.Addr, error) {
 			if dnsName(record.Name) != current {
 				continue
 			}
-			if record.Type == 1 {
+			if record.Type == answerType {
 				address, err := netip.ParseAddr(record.Data)
-				if err == nil && address.Is4() {
+				if err == nil && (address.Is4() == (answerType == 1)) {
 					return address, nil
 				}
 				return netip.Addr{}, bootstrapFailure("dns_invalid_response")

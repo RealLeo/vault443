@@ -67,3 +67,39 @@ interface index around sysfs RX/TX reads. `SetTrafficHandler` provides a final
 observation before orderly core shutdown. The service samples independently once
 per second, calculates deltas using Go’s monotonic time, and rejects late
 observations from superseded operations. The accounting state is memory-only.
+
+## Managed OpenVPN additions (1.1.0)
+
+Existing methods and VLESS `profiles`, `runtime`, `operation`, and `traffic`
+semantics are retained. `GetSnapshot` additionally returns `workProfiles`, private
+to the caller. Each row contains `id,name,iconId,debugLogging,kind:"openvpn",server,
+transport,runtime,operation?,lastFailure?`. Operations have the existing shape
+and independent IDs. `busyByOtherUser` covers the complete active connection set;
+foreign session metadata is never returned. A prepared client with no work
+profiles continues to use the 1.0 API unchanged.
+
+Additional methods on `org.vault443.Service1`:
+
+| Method | Result / behavior |
+| --- | --- |
+| `PrepareOpenVPNImport(s filesJSON) → s` | Input `[{name,content}]`; private ten-minute draft. Reply `{draftId,expiresAt,profiles:[{id,name,iconId,duplicate,server,transport}],errors:[{line,message}]}`. Contains no certificates or key material. |
+| `CommitOpenVPNImport(s draftId,s iconsJSON) → s` | Atomically add valid nonduplicate profiles with icon choices. Does not reread files. |
+| `CancelOpenVPNImport(s draftId)` | Discard this caller's draft. |
+| `UpdateOpenVPNProfile(s id,s name,s iconId)` | Edit private display metadata. |
+| `RemoveOpenVPNProfile(s id)` | Requires disconnection and removal of referencing route/DNS rules. |
+| `SetOpenVPNDebug(s id,b enabled)` | Applies to a subsequent connection, without restarting an active process. |
+| `RequestOpenVPNConnect(s id) → s` | Accept `{operationId}` immediately; independent cancellable work actor. |
+| `RequestOpenVPNDisconnect(s id) → s` | Persist cancellation before cleanup; leave other profiles running. |
+| `GetOpenVPNDiagnostics(s id) → s` | Cached runtime, operation, last failure, routes and capture timestamp. |
+| `GetOpenVPNLogs(s id,s cursor,i limit) → s` | Existing private journal paging format and retention limits. |
+| `ClearOpenVPNLogs(s id)` | Clear only the caller's selected work journal. |
+| `GetWorkRoutes() → s` | `{items,rules,dnsRules,profiles,busyByOtherUser,message?}`. Read-only. Items identify CIDR or DNS domain, source, target, interface, state and conflicts. |
+| `SetWorkRoute(s cidr,s target)` | Canonical IP/CIDR to owned work profile ID or `local`; local requires a connected subnet. |
+| `RemoveWorkRoute(s id)` | Restore automatic routing for this destination. |
+| `SetWorkDNS(s domain,s target)` | Canonical DNS routing zone to an owned work profile; `.` identifies the full DNS namespace. |
+| `RemoveWorkDNS(s id)` | Restore automatic DNS provider selection. |
+
+Work state uses a separate versioned private `work-vpn.json`; VLESS schema v2
+and its IDs are unchanged. Canonical work IDs have the `ovpn-` prefix and exclude
+name/icon/logging metadata. No public method accepts executable paths, scripts,
+UIDs or arbitrary privileged configuration. `Changed()` remains payload-free.

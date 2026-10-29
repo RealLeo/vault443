@@ -43,6 +43,8 @@ func guardScript(o guardOptions, exists bool) string {
 		fmt.Fprintf(&b, "delete table inet %s\n", TableName)
 	}
 	fmt.Fprintf(&b, "table inet %s {\n", TableName)
+	fmt.Fprintln(&b, " chain managed_output {\n# vault443-managed-output\n }")
+	fmt.Fprintln(&b, " chain managed_forward {\n# vault443-managed-forward\n }")
 	// Mark externally managed userspace transports before policy routing. Match
 	// both trusted service cgroup and explicit address/port, never uid 0 alone.
 	fmt.Fprintln(&b, " chain transport { type route hook output priority mangle - 10; policy accept;")
@@ -73,6 +75,7 @@ func guardScript(o guardOptions, exists bool) string {
 	fmt.Fprintln(&b, " }")
 	for _, hook := range []string{"output", "forward"} {
 		fmt.Fprintf(&b, " chain %s_guard { type filter hook %s priority filter + 50; policy drop;\n", hook, hook)
+		fmt.Fprintf(&b, " jump managed_%s\n", hook)
 		if hook == "output" {
 			fmt.Fprintln(&b, "  oifname \"lo\" accept")
 		}
@@ -215,7 +218,7 @@ func localRoutes(s Snapshot) []Route {
 		// kernel protocol and an exact assigned subnet; a static or gateway
 		// route must never become a broad LAN exception. Link-local IPv6 keeps
 		// its existing scoped control rules instead of competing across links.
-		if !connected && r.Family == 6 && r.Scope == "" && r.Gateway == "" && string(r.Protocol) == `"kernel"` && !p.Addr().IsLinkLocalUnicast() {
+		if !connected && r.Family == 6 && r.Scope == "" && r.Gateway == "" && (string(r.Protocol) == `"kernel"` || string(r.Protocol) == "2") && !p.Addr().IsLinkLocalUnicast() {
 			for _, address := range l.Addresses {
 				ip, err := netip.ParseAddr(address.Local)
 				if err == nil && ip.Is6() && netip.PrefixFrom(ip, address.PrefixLen).Masked() == p {

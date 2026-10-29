@@ -67,6 +67,102 @@ private:
 private slots:
     void init() { loadWindow(true); }
     void cleanup() { engine.reset(); bridge.reset(); language.reset(); window = nullptr; }
+    void workImportIconsAndConnectionsStayIndependent() {
+        QTemporaryDir files; QVERIFY(files.isValid());
+        QList<QUrl> urls;
+        for (int i = 1; i <= 2; ++i) {
+            const auto path = files.filePath(QString("Office-%1.ovpn").arg(i));
+            QFile file(path); QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write(QString("client\ndev tun\nremote office%1.example.net 1194 udp\n").arg(i).toUtf8()); file.close();
+            urls.append(QUrl::fromLocalFile(path));
+        }
+        click("import-button");
+        bridge->readOpenVPNFiles(urls);
+        QCOMPARE(bridge->preview().value("profiles").toList().size(), 2);
+        click("import-cancel");
+        QCOMPARE(bridge->profiles().size(), 3);
+        click("import-button"); bridge->readOpenVPNFiles(urls);
+        const auto imported = bridge->preview().value("profiles").toList();
+        const auto firstID = imported[0].toMap().value("id").toString();
+        const auto secondID = imported[1].toMap().value("id").toString();
+        bridge->commitImport({{firstID, "key"}, {secondID, "shield"}});
+        QCOMPARE(bridge->profiles().size(), 5);
+        QCOMPARE(bridge->snapshot().value("profiles").toList().size(), 3);
+        auto work = bridge->snapshot().value("workProfiles").toList();
+        QCOMPARE(work[0].toMap().value("iconId").toString(), QString("key"));
+        bridge->connectWorkProfile(firstID); bridge->connectWorkProfile(secondID);
+        QCOMPARE(bridge->snapshot().value("activeProfileId").toString(), QString("demo-main"));
+        work = bridge->snapshot().value("workProfiles").toList();
+        QCOMPARE(work[0].toMap().value("runtime").toMap().value("state").toString(), QString("connected"));
+        QCOMPARE(work[1].toMap().value("runtime").toMap().value("state").toString(), QString("connected"));
+        bridge->disconnectProfile();
+        QCOMPARE(bridge->snapshot().value("workProfiles").toList(), work);
+        bridge->disconnectWorkProfile(firstID);
+        work = bridge->snapshot().value("workProfiles").toList();
+        QCOMPARE(work[0].toMap().value("runtime").toMap().value("state").toString(), QString("disconnected"));
+        QCOMPARE(work[1].toMap().value("runtime").toMap().value("state").toString(), QString("connected"));
+        bridge->loadProfileLogs(secondID, true);
+        QVERIFY(!bridge->profileLogs().isEmpty());
+        QVERIFY(!bridge->profileLogs()[1].toMap().value("message").toString().contains("Xray"));
+        bridge->readOpenVPNFiles(urls);
+        QVERIFY(bridge->preview().value("profiles").toList()[0].toMap().value("duplicate").toBool());
+    }
+    void workRoutesAndDNSCanReturnToAutomatic() {
+        bridge->setDemoState("work-vpns");
+        QVERIFY(QMetaObject::invokeMethod(window, "openRoutes")); QTest::qWait(80);
+        QVERIFY(item("work-route-destination"));
+        item("work-route-destination")->setProperty("text", "192.168.100.15/32");
+        item("work-route-target")->setProperty("currentIndex", 1);
+        click("work-route-save");
+        QCOMPARE(bridge->workRoutes().value("rules").toList().size(), 1);
+        click("work-route-0"); click("work-route-remove");
+        QCOMPARE(bridge->workRoutes().value("rules").toList().size(), 0);
+        item("work-route-kind")->setProperty("currentIndex", 1); QTest::qWait(40);
+        item("work-route-destination")->setProperty("text", "corp.example");
+        click("work-route-save");
+        QCOMPARE(bridge->workRoutes().value("dnsRules").toList().size(), 1);
+        click("work-route-0"); click("work-route-remove");
+        QCOMPARE(bridge->workRoutes().value("dnsRules").toList().size(), 0);
+        bridge->setDemoState("foreign"); bridge->refreshWorkRoutes();
+        QVERIFY(bridge->workRoutes().isEmpty());
+        QVERIFY(!bridge->workRoutesError().isEmpty());
+    }
+    void workButtonLabelsFitBothLanguages() {
+        auto check = [this](const QString &name) {
+            auto *button = item(name); QVERIFY(button);
+            const auto font = button->property("font").value<QFont>();
+            const QFontMetricsF metrics(font);
+            QVERIFY2(metrics.horizontalAdvance(button->property("text").toString()) <= button->width() - 2*button->property("padding").toDouble() + 1,
+                     qPrintable(name + ": " + button->property("text").toString()));
+        };
+        for (const auto &value : {QString("en"), QString("ru")}) {
+            language->setPreference(value); click("import-button"); check("import-openvpn"); click("import-cancel");
+            QVERIFY(QMetaObject::invokeMethod(window, "openRoutes")); QTest::qWait(80);
+            check("work-route-save"); check("work-route-remove"); check("work-route-refresh");
+            QTest::keyClick(window, Qt::Key_Escape); QTest::qWait(30);
+        }
+    }
+    void workMessagesRetranslateWithoutChangingTechnicalValues() {
+        language->setPreference("ru");
+        QVERIFY(language->serviceMessage("OpenVPN line 12: passwords, MFA and external credential providers are unsupported").startsWith(QString::fromUtf8("Строка OpenVPN 12:")));
+        QVERIFY(language->serviceMessage("Several work VPNs claim the same route; select a target").contains(QString::fromUtf8("выберите")));
+        language->setPreference("en");
+        QCOMPARE(language->serviceMessage("OpenVPN line 12: passwords, MFA and external credential providers are unsupported"), QString("OpenVPN line 12: passwords, MFA and external credential providers are unsupported"));
+        QCOMPARE(language->serviceMessage("unknown 192.168.100.15 detail"), QString("unknown 192.168.100.15 detail"));
+    }
+    void workTrayShowsIndependentDisconnectActions() {
+        bridge->setDemoState("work-vpns");
+        TrayController tray(bridge.get(), false);
+        auto *workMenu = tray.menu()->findChild<QMenu *>("tray-work-vpns");
+        QVERIFY(workMenu); QCOMPARE(workMenu->actions().size(), 2);
+        QVERIFY(trayPresentation(bridge->snapshot(), true, false).text.contains("2"));
+        workMenu->actions()[0]->trigger();
+        QCOMPARE(workMenu->actions().size(), 1);
+        QCOMPARE(bridge->snapshot().value("activeProfileId").toString(), QString("demo-main"));
+        bridge->setDemoState("foreign");
+        QVERIFY(!workMenu->menuAction()->isVisible());
+        QVERIFY(!trayPresentation(bridge->snapshot(), true, false).text.contains("Office"));
+    }
     void compactImportAndTrafficFitInBothLanguagesAndScales() {
         for (const auto &locale : {QString("en"), QString("ru")}) {
             for (const auto scale : {0.5, 0.625, 0.75, 1.0}) {
@@ -646,6 +742,97 @@ private slots:
         bridge->Raise(); QTRY_VERIFY(bridge->vpnCompatibilityActive());
         if (QGuiApplication::platformName() != "offscreen") QTRY_VERIFY(window->isActive());
         QTest::keyClick(window, Qt::Key_Escape); QTRY_VERIFY(!bridge->vpnCompatibilityActive());
+    }
+    void realDBusOpenVPNImportControlAndRoutesWhenFixtureAvailable() {
+        if (qEnvironmentVariable("VAULT443_UI_PRIVATE_BUS_TEST") != "1" || qEnvironmentVariableIsEmpty("VAULT443_UI_OPENVPN_FILE")
+            || qEnvironmentVariableIsEmpty("VAULT443_UI_OPENVPN_BLOCKED_FILE")) QSKIP("Private OpenVPN D-Bus fixture required");
+        cleanup(); loadWindow(false);
+        QTRY_VERIFY_WITH_TIMEOUT(bridge->online() && !bridge->busy(), 5000);
+        const auto previousVless = bridge->snapshot().value("activeProfileId").toString();
+        const auto primary = bridge->snapshot().value("profiles").toList().first().toMap().value("id").toString();
+        bridge->connectProfile(primary);
+        QTRY_COMPARE_WITH_TIMEOUT(bridge->snapshot().value("runtime").toMap().value("state").toString(), QString("connected"), 3000);
+        const auto originalCount = bridge->profiles().size();
+        const auto workCount = bridge->snapshot().value("workProfiles").toList().size();
+        auto workProfile = [this](const QString &id) {
+            for (const auto &value : bridge->snapshot().value("workProfiles").toList()) if (value.toMap().value("id").toString() == id) return value.toMap();
+            return QVariantMap{};
+        };
+        const QList<QUrl> files{QUrl::fromLocalFile(qEnvironmentVariable("VAULT443_UI_OPENVPN_FILE")), QUrl::fromLocalFile(qEnvironmentVariable("VAULT443_UI_OPENVPN_BLOCKED_FILE"))};
+        click("import-button"); bridge->readOpenVPNFiles(files);
+        QTRY_VERIFY_WITH_TIMEOUT(item("import-commit")->isEnabled() && !bridge->busy(), 5000);
+        QVERIFY2(bridge->preview().value("errors").toList().isEmpty(), qPrintable(bridge->error()));
+        QCOMPARE(bridge->preview().value("profiles").toList().size(), 2);
+        click("import-cancel"); QTRY_VERIFY_WITH_TIMEOUT(!bridge->busy(), 3000);
+        QCOMPARE(bridge->profiles().size(), originalCount);
+        click("import-button"); bridge->readOpenVPNFiles(files);
+        QTRY_VERIFY_WITH_TIMEOUT(item("import-commit")->isEnabled() && !bridge->busy(), 5000);
+        const auto prepared = bridge->preview().value("profiles").toList();
+        const auto first = prepared[0].toMap().value("id").toString();
+        const auto blocked = prepared[1].toMap().value("id").toString();
+        click("import-icon-0"); click("icon-atom");
+        click("import-icon-1"); click("icon-key");
+        click("import-commit");
+        QTRY_COMPARE_WITH_TIMEOUT(bridge->snapshot().value("workProfiles").toList().size(), workCount+2, 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->busy(), 3000);
+        QCOMPARE(workProfile(first).value("iconId").toString(), QString("atom"));
+        QCOMPARE(workProfile(blocked).value("iconId").toString(), QString("key"));
+        auto *list = item("profile-list"); QVERIFY(list);
+        QVERIFY(QMetaObject::invokeMethod(list, "positionViewAtEnd"));
+        QTRY_VERIFY(item(QString("connect-%1").arg(originalCount+1)));
+        QSignalSpy libraryChanges(bridge.get(), &Bridge::profilesChanged);
+        click(QString("connect-%1").arg(originalCount));
+        click(QString("connect-%1").arg(originalCount+1));
+        QTRY_COMPARE_WITH_TIMEOUT(workProfile(first).value("runtime").toMap().value("state").toString(), QString("connected"), 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(workProfile(blocked).value("operation").toMap().value("stage").toString(), QString("resolving_endpoint"), 3000);
+        QCOMPARE(bridge->snapshot().value("activeProfileId").toString(), primary);
+        QCOMPARE(bridge->snapshot().value("runtime").toMap().value("state").toString(), QString("connected"));
+        QTRY_COMPARE_WITH_TIMEOUT(item(QString("connect-%1").arg(originalCount+1))->property("text").toString(), qmlText("Cancel"), 2000);
+        QElapsedTimer cancelTime; cancelTime.start();
+        click(QString("connect-%1").arg(originalCount+1));
+        QTRY_COMPARE_WITH_TIMEOUT(workProfile(blocked).value("runtime").toMap().value("state").toString(), QString("disconnected"), 2500);
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->workRequests().contains(blocked), 2500);
+        QVERIFY(cancelTime.elapsed() < 2500);
+        QCOMPARE(libraryChanges.size(), 0); // Stage updates preserve scroll/focus and card identity.
+        QCOMPARE(workProfile(first).value("runtime").toMap().value("state").toString(), QString("connected"));
+        QCOMPARE(bridge->snapshot().value("activeProfileId").toString(), primary);
+        QVERIFY(QMetaObject::invokeMethod(window, "openRoutes"));
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->workRoutesPending() && !bridge->workRoutes().isEmpty(), 3000);
+        QVERIFY2(bridge->workRoutesError().isEmpty(), qPrintable(bridge->workRoutesError()));
+        const auto ruleCount = bridge->workRoutes().value("rules").toList().size();
+        item("work-route-destination")->setProperty("text", "192.168.100.15/32");
+        item("work-route-target")->setProperty("currentIndex", int(workCount+1));
+        click("work-route-save");
+        QTRY_COMPARE_WITH_TIMEOUT(bridge->workRoutes().value("rules").toList().size(), ruleCount+1, 3000);
+        QCOMPARE(bridge->workRoutes().value("rules").toList().last().toMap().value("target").toString(), first);
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->workRoutesPending(), 3000);
+        click(QString("work-route-%1").arg(ruleCount)); click("work-route-remove");
+        QTRY_COMPARE_WITH_TIMEOUT(bridge->workRoutes().value("rules").toList().size(), ruleCount, 3000);
+        item("work-route-kind")->setProperty("currentIndex", 1); QTest::qWait(40);
+        item("work-route-destination")->setProperty("text", "corp.example");
+        item("work-route-target")->setProperty("currentIndex", int(workCount));
+        const auto dnsCount = bridge->workRoutes().value("dnsRules").toList().size();
+        click("work-route-save");
+        QTRY_COMPARE_WITH_TIMEOUT(bridge->workRoutes().value("dnsRules").toList().size(), dnsCount+1, 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->workRoutesPending(), 3000);
+        click(QString("work-route-%1").arg(dnsCount)); click("work-route-remove");
+        QTRY_COMPARE_WITH_TIMEOUT(bridge->workRoutes().value("dnsRules").toList().size(), dnsCount, 3000);
+        QTest::keyClick(window, Qt::Key_Escape);
+        bridge->getDiagnostics(first);
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->diagnosticsPending(), 3000);
+        QVERIFY2(bridge->diagnosticsError().isEmpty(), qPrintable(bridge->diagnosticsError()));
+        QCOMPARE(bridge->diagnosticData().value("runtime").toMap().value("state").toString(), QString("connected"));
+        QVERIFY(!bridge->diagnostics().contains("PRIVATE KEY"));
+        bridge->loadProfileLogs(first, true); QTRY_VERIFY_WITH_TIMEOUT(!bridge->busy(), 3000);
+        bridge->disconnectWorkProfile(first);
+        QTRY_COMPARE_WITH_TIMEOUT(workProfile(first).value("runtime").toMap().value("state").toString(), QString("disconnected"), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(bridge->workRequests().isEmpty(), 3000);
+        QCOMPARE(bridge->snapshot().value("activeProfileId").toString(), primary);
+        bridge->removeProfile(first); bridge->removeProfile(blocked);
+        QTRY_COMPARE_WITH_TIMEOUT(bridge->profiles().size(), originalCount, 3000);
+        if (previousVless.isEmpty()) bridge->disconnectProfile(); else if (previousVless != primary) bridge->connectProfile(previousVless);
+        QTRY_COMPARE_WITH_TIMEOUT(bridge->snapshot().value("activeProfileId").toString(), previousVless, 3000);
+        QVERIFY2(bridge->error().isEmpty(), qPrintable(bridge->error()));
     }
     void realDBusLanguageSwitchPreservesDraftWithoutMutations() {
         if (qEnvironmentVariable("VAULT443_UI_PRIVATE_BUS_TEST") != "1" || qEnvironmentVariableIsEmpty("DBUS_SYSTEM_BUS_ADDRESS"))

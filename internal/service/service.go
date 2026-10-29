@@ -45,6 +45,7 @@ type SubscriptionInfo struct {
 	UpdatedAt int64  `json:"updatedAt"`
 }
 type Snapshot struct {
+	WorkProfiles    []WorkProfileInfo   `json:"workProfiles,omitempty"`
 	Profiles        []ProfileInfo       `json:"profiles"`
 	Subscriptions   []SubscriptionInfo  `json:"subscriptions"`
 	Runtime         model.RuntimeStatus `json:"runtime"`
@@ -58,26 +59,28 @@ type Snapshot struct {
 }
 type Fetch func(context.Context, string) (string, error)
 type Service struct {
-	mu            sync.Mutex
-	changeMu      sync.Mutex
-	notifying     bool
-	changePending bool
-	stateMu       sync.Mutex
-	worker        workerState
-	traffic       trafficState
-	draftMu       sync.Mutex
-	drafts        map[string]importDraft
-	now           func() time.Time
-	refreshMu     sync.Mutex
-	store         *store.Store
-	runtime       Runtime
-	journal       *journal.Journal
-	logSession    *journal.Session
-	logOwner      *store.Session
-	fetch         Fetch
-	onChange      func()
-	nextRetry     time.Time
-	retryDelay    time.Duration
+	work            *workService
+	controlChanging bool // guarded by mu; reserves ownership during explicit takeover
+	mu              sync.Mutex
+	changeMu        sync.Mutex
+	notifying       bool
+	changePending   bool
+	stateMu         sync.Mutex
+	worker          workerState
+	traffic         trafficState
+	draftMu         sync.Mutex
+	drafts          map[string]importDraft
+	now             func() time.Time
+	refreshMu       sync.Mutex
+	store           *store.Store
+	runtime         Runtime
+	journal         *journal.Journal
+	logSession      *journal.Session
+	logOwner        *store.Session
+	fetch           Fetch
+	onChange        func()
+	nextRetry       time.Time
+	retryDelay      time.Duration
 }
 
 func New(st *store.Store, r Runtime, journals ...*journal.Journal) *Service {

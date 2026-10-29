@@ -8,6 +8,8 @@
 #include <QDBusVariant>
 #include <QPainter>
 #include <QEvent>
+#include <QJsonDocument>
+#include <QJsonArray>
 
 TrayPresentation trayPresentation(const QVariantMap &snapshot, bool online, bool busy) {
     TrayPresentation out{QObject::tr("Disconnected"), QColor("#92988f"), false};
@@ -43,6 +45,20 @@ TrayPresentation trayPresentation(const QVariantMap &snapshot, bool online, bool
         auto name = profile.value("name").toString().simplified().left(100);
         if (!name.isEmpty()) out.text += " · " + name;
         break;
+    }
+    int activeWork = 0, connectedWork = 0; bool workError = false, workConflict = false;
+    for (const auto &value : snapshot.value("workProfiles").toList()) {
+        const auto profile = value.toMap(); const auto workState = profile.value("runtime").toMap().value("state").toString();
+        if (workState.isEmpty() || workState == "disconnected") continue;
+        ++activeWork;
+        if (workState == "connected") ++connectedWork;
+        if (workState == "error") workError = true;
+        if (workState == "conflict") workConflict = true;
+    }
+    if (activeWork) {
+        out.text = QObject::tr("VLESS: %1 · Work VPNs: %2 connected / %3 active").arg(out.text).arg(connectedWork).arg(activeWork);
+        if (state == "disconnected") out.color = QColor(connectedWork ? "#64e875" : "#f5ca55");
+        if (workError || workConflict) { out.color = QColor(workError ? "#f06b5f" : "#f5ca55"); out.text += " · " + QObject::tr("Work VPN needs attention"); }
     }
     return out;
 }
@@ -80,6 +96,8 @@ TrayController::TrayController(Bridge *bridge, bool enabled, QObject *parent)
             m_bridge->disconnectProfile();
     });
     m_disconnect->setObjectName("tray-disconnect");
+    m_workMenu = m_menu.addMenu(tr("Work VPNs"));
+    m_workMenu->setObjectName("tray-work-vpns");
     m_menu.addSeparator();
     m_menu.addAction(tr("Quit interface (VPN stays connected)"), qApp, &QApplication::quit)->setObjectName("tray-quit");
     qApp->installEventFilter(this);
@@ -114,6 +132,8 @@ void TrayController::retranslate() {
         else if (action->objectName() == "tray-disconnect") action->setText(tr("Disconnect VPN"));
         else if (action->objectName() == "tray-quit") action->setText(tr("Quit interface (VPN stays connected)"));
     }
+    m_workMenuKey.clear();
+    m_workMenu->setTitle(tr("Work VPNs"));
     update();
 }
 
@@ -136,6 +156,27 @@ void TrayController::update() {
     auto menuText = view.text;
     m_status->setText(menuText.replace('&', "&&"));
     m_disconnect->setEnabled(view.canDisconnect);
+    const auto snapshot = m_bridge->snapshot();
+    const bool allowed = m_bridge->online() && !snapshot.value("busyByOtherUser").toBool();
+    const auto work = snapshot.value("workProfiles").toList();
+    const auto key = QString::fromUtf8(QJsonDocument(QJsonArray::fromVariantList(work)).toJson(QJsonDocument::Compact)) + (allowed ? "1" : "0");
+    if (key != m_workMenuKey) {
+        m_workMenuKey = key; m_workMenu->clear();
+        if (allowed) for (const auto &value : work) {
+            const auto profile = value.toMap();
+            const auto state = profile.value("runtime").toMap().value("state").toString();
+            if (state.isEmpty() || state == "disconnected") continue;
+            auto name = profile.value("name").toString().simplified().left(100); name.replace('&', "&&");
+            const auto id = profile.value("id").toString();
+            auto *action = m_workMenu->addAction(tr("Disconnect %1").arg(name), this, [this, id] {
+                if (m_bridge->online() && !m_bridge->snapshot().value("busyByOtherUser").toBool()) m_bridge->disconnectWorkProfile(id);
+            });
+            action->setObjectName("tray-disconnect-" + id);
+            const auto op = profile.value("operation").toMap();
+            action->setEnabled(op.value("action").toString() != "disconnect" || op.value("stage").toString() == "cleanup_failed");
+        }
+        m_workMenu->menuAction()->setVisible(!m_workMenu->isEmpty());
+    }
 }
 
 void TrayController::checkHost() {

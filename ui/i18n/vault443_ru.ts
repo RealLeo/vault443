@@ -134,6 +134,58 @@
       <source>Xray: transport ready</source>
       <translation>Xray: транспортный канал готов</translation>
     </message>
+    <message>
+      <source>Office %1</source>
+      <translation>Офис %1</translation>
+    </message>
+    <message>
+      <source>Expected a self-contained OpenVPN client configuration.</source>
+      <translation>Нужна конфигурация OpenVPN со встроенными сертификатами и ключом.</translation>
+    </message>
+    <message>
+      <source>Work VPN takes priority over the overlapping Docker network.</source>
+      <translation>Рабочий VPN приоритетнее пересекающейся сети Docker.</translation>
+    </message>
+    <message>
+      <source>Starting OpenVPN</source>
+      <translation>Запуск OpenVPN</translation>
+    </message>
+    <message>
+      <source>Server certificate verified</source>
+      <translation>Сертификат сервера проверен</translation>
+    </message>
+    <message>
+      <source>Work routes and DNS configured</source>
+      <translation>Рабочие маршруты и DNS настроены</translation>
+    </message>
+    <message>
+      <source>Select at most 32 OpenVPN files at a time.</source>
+      <translation>Выберите не более 32 файлов OpenVPN за один раз.</translation>
+    </message>
+    <message>
+      <source>An OpenVPN file is unavailable or larger than 1 MB.</source>
+      <translation>Файл OpenVPN недоступен или превышает 1 МБ.</translation>
+    </message>
+    <message>
+      <source>The selected OpenVPN files exceed the 8 MB import limit.</source>
+      <translation>Общий размер файлов OpenVPN превышает 8 МБ.</translation>
+    </message>
+    <message>
+      <source>Service unavailable. Routes could not be loaded.</source>
+      <translation>Служба недоступна. Не удалось загрузить маршруты.</translation>
+    </message>
+    <message>
+      <source>In use by another user</source>
+      <translation>Используется другим пользователем</translation>
+    </message>
+    <message>
+      <source>Routes could not be refreshed. Check the service and try again.</source>
+      <translation>Не удалось обновить маршруты. Проверьте службу и повторите попытку.</translation>
+    </message>
+    <message>
+      <source>The service returned an invalid route list.</source>
+      <translation>Служба вернула некорректный список маршрутов.</translation>
+    </message>
   </context>
   <context>
     <name>IconPicker</name>
@@ -236,13 +288,34 @@
   </context>
   <context>
     <name>Main</name>
-    <message><source>%1 EB</source><translation>%1 ЭБ</translation></message>
-    <message><source>Download speed</source><translation>Скорость загрузки</translation></message>
-    <message><source>Upload speed</source><translation>Скорость отправки</translation></message>
-    <message><source>Downloaded this session</source><translation>Загружено за сеанс</translation></message>
-    <message><source>Uploaded this session</source><translation>Отправлено за сеанс</translation></message>
-    <message><source>Measured every second. Speed is zero while paused or waiting to retry.</source><translation>Измерение каждую секунду. Во время паузы и ожидания повтора скорость равна нулю.</translation></message>
-    <message><source>Reopening the interface does not reset session totals.</source><translation>Повторное открытие интерфейса не сбрасывает итог сеанса.</translation></message>
+    <message>
+      <source>%1 EB</source>
+      <translation>%1 ЭБ</translation>
+    </message>
+    <message>
+      <source>Download speed</source>
+      <translation>Скорость загрузки</translation>
+    </message>
+    <message>
+      <source>Upload speed</source>
+      <translation>Скорость отправки</translation>
+    </message>
+    <message>
+      <source>Downloaded this session</source>
+      <translation>Загружено за сеанс</translation>
+    </message>
+    <message>
+      <source>Uploaded this session</source>
+      <translation>Отправлено за сеанс</translation>
+    </message>
+    <message>
+      <source>Measured every second. Speed is zero while paused or waiting to retry.</source>
+      <translation>Измерение каждую секунду. Во время паузы и ожидания повтора скорость равна нулю.</translation>
+    </message>
+    <message>
+      <source>Reopening the interface does not reset session totals.</source>
+      <translation>Повторное открытие интерфейса не сбрасывает итог сеанса.</translation>
+    </message>
     <message>
       <source>Import</source>
       <comment>toolbar label</comment>
@@ -289,10 +362,6 @@
       <source>Session duration includes automatic retries and pauses. Manual disconnection freezes the last session.</source>
       <translation>Время сессии включает автоматические повторы и паузы. После ручного отключения сохраняется итог последней сессии.</translation>
     </message>
-    
-    
-    
-    
     <message>
       <source>%1
 Retry in %2 s</source>
@@ -991,6 +1060,216 @@ Full tunnel: the requested VLESS connection waits while Pritunl handles the inte
       <source>✓ %1</source>
       <translation>✓ %1</translation>
     </message>
+    <message>
+      <source>VLESS traffic only. IP traffic through its TUN, including internal service requests. OpenVPN traffic and encrypted transport overhead are excluded.</source>
+      <translation>Только трафик VLESS через его TUN, включая служебные запросы. Трафик OpenVPN и накладные расходы шифрования не учитываются.</translation>
+    </message>
+    <message>
+      <source>Starting OpenVPN</source>
+      <translation>Запуск OpenVPN</translation>
+    </message>
+    <message>
+      <source>Connecting to server</source>
+      <translation>Соединение с сервером</translation>
+    </message>
+    <message>
+      <source>Verifying certificate</source>
+      <translation>Проверка сертификата</translation>
+    </message>
+    <message>
+      <source>Receiving configuration</source>
+      <translation>Получение конфигурации</translation>
+    </message>
+    <message>
+      <source>Applying work routes</source>
+      <translation>Настройка рабочих маршрутов</translation>
+    </message>
+    <message>
+      <source>Choose routes</source>
+      <translation>Выберите маршруты</translation>
+    </message>
+    <message>
+      <source>Choose DNS routes</source>
+      <translation>Выберите маршруты DNS</translation>
+    </message>
+    <message>
+      <source>Local network / Docker</source>
+      <translation>Локальная сеть / Docker</translation>
+    </message>
+    <message>
+      <source>Active</source>
+      <translation>Активен</translation>
+    </message>
+    <message>
+      <source>Blocked until VPN recovers</source>
+      <translation>Закрыт до восстановления VPN</translation>
+    </message>
+    <message>
+      <source>Choose a route</source>
+      <translation>Выберите маршрут</translation>
+    </message>
+    <message>
+      <source>Inactive</source>
+      <translation>Неактивен</translation>
+    </message>
+    <message>
+      <source>Waiting for VPN</source>
+      <translation>Ожидание VPN</translation>
+    </message>
+    <message>
+      <source>Selected</source>
+      <translation>Выбран</translation>
+    </message>
+    <message>
+      <source>Import OpenVPN profiles</source>
+      <translation>Импорт профилей OpenVPN</translation>
+    </message>
+    <message>
+      <source>OpenVPN profiles (*.ovpn)</source>
+      <translation>Профили OpenVPN (*.ovpn)</translation>
+    </message>
+    <message>
+      <source>Review the work profiles and choose their emblems. Certificates and keys stay private.</source>
+      <translation>Проверьте рабочие профили и выберите эмблемы. Сертификаты и ключи хранятся приватно.</translation>
+    </message>
+    <message>
+      <source>Paste vless:// links or select OpenVPN files. Review the profiles, then choose their emblems.</source>
+      <translation>Вставьте ссылки vless:// или выберите файлы OpenVPN. После проверки выберите эмблемы профилей.</translation>
+    </message>
+    <message>
+      <source>OpenVPN files</source>
+      <translation>Файлы OpenVPN</translation>
+    </message>
+    <message>
+      <source>Routes</source>
+      <translation>Маршруты</translation>
+    </message>
+    <message>
+      <source>Click the emblem to change it. To change connection details, import a new profile.</source>
+      <translation>Нажмите на эмблему, чтобы изменить её. Для изменения параметров подключения импортируйте новый профиль.</translation>
+    </message>
+    <message>
+      <source>Detailed OpenVPN logging</source>
+      <translation>Подробные логи OpenVPN</translation>
+    </message>
+    <message>
+      <source>Routes and DNS received by this work profile</source>
+      <translation>Маршруты и DNS этого рабочего профиля</translation>
+    </message>
+    <message>
+      <source>Refreshing routes…</source>
+      <translation>Обновление маршрутов…</translation>
+    </message>
+    <message>
+      <source>Manage routes</source>
+      <translation>Настроить маршруты</translation>
+    </message>
+    <message>
+      <source>Import .ovpn files from the main window. Work VPNs connect independently of VLESS.</source>
+      <translation>Импортируйте .ovpn в главном окне. Рабочие VPN подключаются независимо от VLESS.</translation>
+    </message>
+    <message>
+      <source>Work VPN routes take priority over Docker. Select a destination to choose its VPN or local network. Removing a rule restores automatic selection.</source>
+      <translation>Рабочие маршруты приоритетнее Docker. Выберите адрес и нужный VPN или локальную сеть. Удаление правила вернёт автоматический выбор.</translation>
+    </message>
+    <message>
+      <source>Networks</source>
+      <translation>Сети</translation>
+    </message>
+    <message>
+      <source>Domain, e.g. corp.example</source>
+      <translation>Домен, например corp.example</translation>
+    </message>
+    <message>
+      <source>IP or CIDR, e.g. 192.168.100.15</source>
+      <translation>IP или CIDR, например 192.168.100.15</translation>
+    </message>
+    <message>
+      <source>Route destination</source>
+      <translation>Направление маршрута</translation>
+    </message>
+    <message>
+      <source>Save rule</source>
+      <translation>Сохранить</translation>
+    </message>
+    <message>
+      <source>Automatic</source>
+      <translation>Автоматически</translation>
+    </message>
+    <message>
+      <source>Manual rule</source>
+      <translation>Ручное правило</translation>
+    </message>
+    <message>
+      <source>Automatic route</source>
+      <translation>Автоматический маршрут</translation>
+    </message>
+    <message>
+      <source>No work routes yet. Connect an OpenVPN profile to receive its routes and DNS.</source>
+      <translation>Рабочих маршрутов пока нет. Подключите OpenVPN для получения его маршрутов и DNS.</translation>
+    </message>
+    <message>
+      <source>Office West</source>
+      <translation>Западный офис</translation>
+    </message>
+    <message>
+      <source>Office East</source>
+      <translation>Восточный офис</translation>
+    </message>
+    <message>
+      <source>Another route selected</source>
+      <translation>Выбран другой маршрут</translation>
+    </message>
+    <message>
+      <source>Available</source>
+      <translation>Доступен</translation>
+    </message>
+    <message>
+      <source>OpenVPN server</source>
+      <translation>Сервер OpenVPN</translation>
+    </message>
+    <message>
+      <source>External VPN</source>
+      <translation>Внешний VPN</translation>
+    </message>
+    <message>
+      <source>DNS servers: %1
+Domains: %2</source>
+      <translation>Серверы DNS: %1
+Домены: %2</translation>
+    </message>
+    <message>
+      <source>Certificate error</source>
+      <translation>Ошибка сертификата</translation>
+    </message>
+    <message>
+      <source>Connection timed out</source>
+      <translation>Сервер не отвечает</translation>
+    </message>
+    <message>
+      <source>Unsupported sign-in</source>
+      <translation>Вход не поддерживается</translation>
+    </message>
+    <message>
+      <source>OpenVPN is required</source>
+      <translation>Нужен OpenVPN</translation>
+    </message>
+    <message>
+      <source>Network setup failed</source>
+      <translation>Ошибка настройки сети</translation>
+    </message>
+    <message>
+      <source>OpenVPN stopped</source>
+      <translation>OpenVPN остановлен</translation>
+    </message>
+    <message>
+      <source>File %1: %2</source>
+      <translation>Файл %1: %2</translation>
+    </message>
+    <message>
+      <source>Another user is using the VPN. Taking control disconnects all their VLESS and work VPN connections. You can then connect your own profiles.</source>
+      <translation>VPN используется другим пользователем. Передача управления отключит все его соединения VLESS и рабочих VPN. Затем вы сможете подключить свои профили.</translation>
+    </message>
   </context>
   <context>
     <name>QObject</name>
@@ -1037,6 +1316,14 @@ Full tunnel: the requested VLESS connection waits while Pritunl handles the inte
     <message>
       <source>VPN state unknown</source>
       <translation>Состояние VPN неизвестно</translation>
+    </message>
+    <message>
+      <source>VLESS: %1 · Work VPNs: %2 connected / %3 active</source>
+      <translation>VLESS: %1 · Рабочие VPN: подключено %2 / запущено %3</translation>
+    </message>
+    <message>
+      <source>Work VPN needs attention</source>
+      <translation>Рабочий VPN требует внимания</translation>
     </message>
   </context>
   <context>
@@ -1529,6 +1816,782 @@ Full tunnel: the requested VLESS connection waits while Pritunl handles the inte
       <source>unsupported transport; supported: tcp, ws, grpc, xhttp</source>
       <translation>Неподдерживаемый транспорт. Доступны tcp, ws, grpc и xhttp.</translation>
     </message>
+    <message>
+      <source>Several work VPNs claim the same route; select a target</source>
+      <translation>Несколько рабочих VPN используют эту сеть; выберите направление</translation>
+    </message>
+    <message>
+      <source>Another VPN owns Internet routing; choose its owner explicitly</source>
+      <translation>Интернет обслуживает другой VPN; явно выберите нужное подключение</translation>
+    </message>
+    <message>
+      <source>Several work VPNs claim this DNS zone; select a target</source>
+      <translation>Несколько рабочих VPN используют эту зону DNS; выберите направление</translation>
+    </message>
+    <message>
+      <source>Work VPN routes take priority over this local network</source>
+      <translation>Рабочие маршруты приоритетнее этой локальной сети</translation>
+    </message>
+    <message>
+      <source>Choose the work route owner in Routes</source>
+      <translation>Выберите рабочий VPN в окне «Маршруты»</translation>
+    </message>
+    <message>
+      <source>Configuring work tunnel addresses</source>
+      <translation>Настройка адресов рабочего туннеля</translation>
+    </message>
+    <message>
+      <source>Resolving work VPN server</source>
+      <translation>Поиск адреса рабочего VPN</translation>
+    </message>
+    <message>
+      <source>Starting OpenVPN</source>
+      <translation>Запуск OpenVPN</translation>
+    </message>
+    <message>
+      <source>Connecting to work VPN server</source>
+      <translation>Соединение с рабочим VPN</translation>
+    </message>
+    <message>
+      <source>Verifying work VPN certificate</source>
+      <translation>Проверка сертификата рабочего VPN</translation>
+    </message>
+    <message>
+      <source>Receiving work VPN configuration</source>
+      <translation>Получение конфигурации рабочего VPN</translation>
+    </message>
+    <message>
+      <source>Applying work routes and DNS</source>
+      <translation>Настройка рабочих маршрутов и DNS</translation>
+    </message>
+    <message>
+      <source>Connected</source>
+      <translation>Подключено</translation>
+    </message>
+    <message>
+      <source>cannot inspect work firewall</source>
+      <translation>Не удалось проверить защиту рабочих сетей</translation>
+    </message>
+    <message>
+      <source>work routing priority is occupied by another service</source>
+      <translation>Приоритет рабочих маршрутов занят другой службой</translation>
+    </message>
+    <message>
+      <source>work routing table contains foreign routes</source>
+      <translation>Таблица рабочих маршрутов содержит чужие записи</translation>
+    </message>
+    <message>
+      <source>invalid selected work route</source>
+      <translation>Некорректный рабочий маршрут</translation>
+    </message>
+    <message>
+      <source>cannot install work VPN protection</source>
+      <translation>Не удалось включить защиту рабочего VPN</translation>
+    </message>
+    <message>
+      <source>too many work transport endpoints</source>
+      <translation>Слишком много адресов серверов рабочих VPN</translation>
+    </message>
+    <message>
+      <source>cannot configure work split DNS</source>
+      <translation>Не удалось настроить разделение рабочего DNS</translation>
+    </message>
+    <message>
+      <source>cannot clear obsolete work DNS</source>
+      <translation>Не удалось удалить прежние настройки рабочего DNS</translation>
+    </message>
+    <message>
+      <source>expired OpenVPN session</source>
+      <translation>Сессия OpenVPN завершена</translation>
+    </message>
+    <message>
+      <source>cannot activate work tunnel</source>
+      <translation>Не удалось включить рабочий туннель</translation>
+    </message>
+    <message>
+      <source>cannot assign work tunnel IPv4</source>
+      <translation>Не удалось назначить IPv4 рабочего туннеля</translation>
+    </message>
+    <message>
+      <source>cannot assign work tunnel IPv6</source>
+      <translation>Не удалось назначить IPv6 рабочего туннеля</translation>
+    </message>
+    <message>
+      <source>invalid OpenVPN network event</source>
+      <translation>Некорректное сетевое событие OpenVPN</translation>
+    </message>
+    <message>
+      <source>invalid pushed work route</source>
+      <translation>Сервер передал некорректный рабочий маршрут</translation>
+    </message>
+    <message>
+      <source>work profile has no server</source>
+      <translation>В рабочем профиле не указан сервер</translation>
+    </message>
+    <message>
+      <source>work runtime path is too long</source>
+      <translation>Слишком длинный путь рабочего каталога OpenVPN</translation>
+    </message>
+    <message>
+      <source>OpenVPN 2.6 or newer is not installed securely</source>
+      <translation>OpenVPN 2.6 или новее отсутствует либо имеет небезопасные права</translation>
+    </message>
+    <message>
+      <source>OpenVPN executable is not root-owned</source>
+      <translation>Исполняемый файл OpenVPN должен принадлежать root</translation>
+    </message>
+    <message>
+      <source>OpenVPN 2.6 or newer is required</source>
+      <translation>Требуется OpenVPN 2.6 или новее</translation>
+    </message>
+    <message>
+      <source>at most 32 work VPNs may be requested</source>
+      <translation>Разрешено не более 32 рабочих подключений</translation>
+    </message>
+    <message>
+      <source>work tunnel identity collision</source>
+      <translation>Конфликт идентификатора рабочего туннеля</translation>
+    </message>
+    <message>
+      <source>work VPN endpoint is not a usable network address</source>
+      <translation>Некорректный сетевой адрес сервера рабочего VPN</translation>
+    </message>
+    <message>
+      <source>work VPN server address family does not match transport</source>
+      <translation>Семейство адреса сервера не соответствует транспорту рабочего VPN</translation>
+    </message>
+    <message>
+      <source>work management socket path is too long</source>
+      <translation>Слишком длинный путь сокета управления OpenVPN</translation>
+    </message>
+    <message>
+      <source>cannot create private OpenVPN management socket</source>
+      <translation>Не удалось создать приватный сокет управления OpenVPN</translation>
+    </message>
+    <message>
+      <source>cannot start OpenVPN</source>
+      <translation>Не удалось запустить OpenVPN</translation>
+    </message>
+    <message>
+      <source>OpenVPN management connection timed out</source>
+      <translation>Истекло время подключения к управлению OpenVPN</translation>
+    </message>
+    <message>
+      <source>OpenVPN management peer identity mismatch</source>
+      <translation>Не подтверждён владелец соединения управления OpenVPN</translation>
+    </message>
+    <message>
+      <source>cannot start OpenVPN management session</source>
+      <translation>Не удалось начать сеанс управления OpenVPN</translation>
+    </message>
+    <message>
+      <source>OpenVPN stopped; reconnect required</source>
+      <translation>OpenVPN остановлен; требуется переподключение</translation>
+    </message>
+    <message>
+      <source>OpenVPN exited; see the profile log</source>
+      <translation>OpenVPN завершился; откройте журнал профиля</translation>
+    </message>
+    <message>
+      <source>OpenVPN connection timed out</source>
+      <translation>Истекло время подключения OpenVPN</translation>
+    </message>
+    <message>
+      <source>OpenVPN management connection closed</source>
+      <translation>Соединение управления OpenVPN закрыто</translation>
+    </message>
+    <message>
+      <source>this work profile requires unsupported interactive authentication</source>
+      <translation>Рабочий профиль требует неподдерживаемой интерактивной авторизации</translation>
+    </message>
+    <message>
+      <source>OpenVPN reported a fatal error; see the profile log</source>
+      <translation>Критическая ошибка OpenVPN; откройте журнал профиля</translation>
+    </message>
+    <message>
+      <source>OpenVPN transport interrupted; reconnect required</source>
+      <translation>Соединение OpenVPN прервано; требуется переподключение</translation>
+    </message>
+    <message>
+      <source>OpenVPN connection ended</source>
+      <translation>Соединение OpenVPN завершено</translation>
+    </message>
+    <message>
+      <source>VPN ownership is changing; wait for cleanup</source>
+      <translation>Меняется владелец VPN; дождитесь восстановления сети</translation>
+    </message>
+    <message>
+      <source>at most 16 work VPN connections may run simultaneously</source>
+      <translation>Одновременно можно запустить не более 16 рабочих VPN</translation>
+    </message>
+    <message>
+      <source>invalid profile icon</source>
+      <translation>Некорректная эмблема профиля</translation>
+    </message>
+    <message>
+      <source>managed OpenVPN is unavailable; update the system service</source>
+      <translation>Управление OpenVPN недоступно; обновите системную службу</translation>
+    </message>
+    <message>
+      <source>network cleanup is in progress; retry disconnection if cleanup failed</source>
+      <translation>Выполняется восстановление сети; при ошибке повторите отключение</translation>
+    </message>
+    <message>
+      <source>remove this profile's DNS rules first</source>
+      <translation>Сначала удалите правила DNS этого профиля</translation>
+    </message>
+    <message>
+      <source>remove this profile's route rules first</source>
+      <translation>Сначала удалите маршрутные правила этого профиля</translation>
+    </message>
+    <message>
+      <source>work VPN cleanup is incomplete; retry disconnection</source>
+      <translation>Восстановление сети рабочего VPN не завершено; повторите отключение</translation>
+    </message>
+    <message>
+      <source>OpenVPN import exceeds 8 MiB</source>
+      <translation>Размер импорта OpenVPN превышает 8 МиБ</translation>
+    </message>
+    <message>
+      <source>choose between 1 and 32 OpenVPN files</source>
+      <translation>Выберите от 1 до 32 файлов OpenVPN</translation>
+    </message>
+    <message>
+      <source>import contains no usable profiles</source>
+      <translation>В импорте нет пригодных профилей</translation>
+    </message>
+    <message>
+      <source>invalid OpenVPN import document</source>
+      <translation>Некорректные данные импорта OpenVPN</translation>
+    </message>
+    <message>
+      <source>DNS rule not found</source>
+      <translation>Правило DNS не найдено</translation>
+    </message>
+    <message>
+      <source>enter a DNS domain</source>
+      <translation>Введите домен DNS</translation>
+    </message>
+    <message>
+      <source>local rules require a directly connected subnet</source>
+      <translation>Для локального правила нужна непосредственно подключённая подсеть</translation>
+    </message>
+    <message>
+      <source>route rule not found</source>
+      <translation>Маршрутное правило не найдено</translation>
+    </message>
+    <message>
+      <source>route rule requires a unicast IP address or CIDR</source>
+      <translation>Для правила нужен индивидуальный IP-адрес или подсеть CIDR</translation>
+    </message>
+    <message>
+      <source>invalid work VPN route target</source>
+      <translation>Некорректное направление рабочего маршрута</translation>
+    </message>
+    <message>
+      <source>invalid DNS routing domain</source>
+      <translation>Некорректный домен маршрутизации DNS</translation>
+    </message>
+    <message>
+      <source>invalid work VPN DNS target</source>
+      <translation>Некорректное направление рабочего DNS</translation>
+    </message>
+    <message>
+      <source>Another user owns the VPN</source>
+      <translation>VPN используется другим пользователем</translation>
+    </message>
+    <message>
+      <source>OpenVPN profile must be valid UTF-8 and at most 1 MiB</source>
+      <translation>Профиль OpenVPN должен быть в UTF-8 и не превышать 1 МиБ</translation>
+    </message>
+    <message>
+      <source>OpenVPN profile contains unsupported control characters</source>
+      <translation>Профиль OpenVPN содержит неподдерживаемые управляющие символы</translation>
+    </message>
+    <message>
+      <source>unsupported inline block</source>
+      <translation>Неподдерживаемый встроенный блок</translation>
+    </message>
+    <message>
+      <source>duplicate inline credential block</source>
+      <translation>Повторяющийся блок сертификата или ключа</translation>
+    </message>
+    <message>
+      <source>nested or mismatched inline block</source>
+      <translation>Вложенный или несогласованный встроенный блок</translation>
+    </message>
+    <message>
+      <source>unterminated inline credential block</source>
+      <translation>Незавершённый блок сертификата или ключа</translation>
+    </message>
+    <message>
+      <source>directive exceeds 16 KiB</source>
+      <translation>Директива превышает 16 КиБ</translation>
+    </message>
+    <message>
+      <source>invalid quoting or escape sequence</source>
+      <translation>Некорректные кавычки или экранирование</translation>
+    </message>
+    <message>
+      <source>invalid or unsupported directive</source>
+      <translation>Некорректная или неподдерживаемая директива</translation>
+    </message>
+    <message>
+      <source>only the data-ciphers compatibility hint is supported</source>
+      <translation>Поддерживается только указание совместимости data-ciphers</translation>
+    </message>
+    <message>
+      <source>duplicate directive</source>
+      <translation>Повторяющаяся директива</translation>
+    </message>
+    <message>
+      <source>duplicate client metadata variable</source>
+      <translation>Повторяющаяся переменная метаданных клиента</translation>
+    </message>
+    <message>
+      <source>invalid remote server</source>
+      <translation>Некорректный адрес сервера</translation>
+    </message>
+    <message>
+      <source>invalid remote port</source>
+      <translation>Некорректный порт сервера</translation>
+    </message>
+    <message>
+      <source>unsupported OpenVPN transport</source>
+      <translation>Неподдерживаемый транспорт OpenVPN</translation>
+    </message>
+    <message>
+      <source>at most 16 remote servers are supported</source>
+      <translation>Поддерживается не более 16 серверов</translation>
+    </message>
+    <message>
+      <source>unexpected directive arguments</source>
+      <translation>Непредусмотренные аргументы директивы</translation>
+    </message>
+    <message>
+      <source>only TUN client profiles are supported</source>
+      <translation>Поддерживаются только клиентские профили TUN</translation>
+    </message>
+    <message>
+      <source>invalid cipher setting</source>
+      <translation>Некорректные параметры шифрования</translation>
+    </message>
+    <message>
+      <source>unsupported or insecure data cipher</source>
+      <translation>Неподдерживаемый или небезопасный шифр данных</translation>
+    </message>
+    <message>
+      <source>expected one cipher</source>
+      <translation>Ожидается один шифр</translation>
+    </message>
+    <message>
+      <source>unsupported packet authentication algorithm</source>
+      <translation>Неподдерживаемый алгоритм аутентификации пакетов</translation>
+    </message>
+    <message>
+      <source>server certificate validation is required</source>
+      <translation>Необходима проверка сертификата сервера</translation>
+    </message>
+    <message>
+      <source>invalid certificate name constraint</source>
+      <translation>Некорректное ограничение имени сертификата</translation>
+    </message>
+    <message>
+      <source>only TLS 1.2 or newer is supported</source>
+      <translation>Поддерживается только TLS 1.2 или новее</translation>
+    </message>
+    <message>
+      <source>invalid TLS cipher setting</source>
+      <translation>Некорректные параметры шифрования TLS</translation>
+    </message>
+    <message>
+      <source>invalid TLS key direction</source>
+      <translation>Некорректное направление ключа TLS</translation>
+    </message>
+    <message>
+      <source>only bounded UV_ client metadata is supported</source>
+      <translation>Поддерживаются только ограниченные по длине метаданные UV_</translation>
+    </message>
+    <message>
+      <source>supported log verbosity is 0–4</source>
+      <translation>Поддерживаются уровни журналирования 0–4</translation>
+    </message>
+    <message>
+      <source>invalid log repetition limit</source>
+      <translation>Некорректный лимит повторов в журнале</translation>
+    </message>
+    <message>
+      <source>invalid renegotiation interval</source>
+      <translation>Некорректный интервал пересогласования ключей</translation>
+    </message>
+    <message>
+      <source>interactive authentication is unsupported</source>
+      <translation>Интерактивная авторизация не поддерживается</translation>
+    </message>
+    <message>
+      <source>invalid connection timeout</source>
+      <translation>Некорректное время ожидания подключения</translation>
+    </message>
+    <message>
+      <source>invalid retry interval</source>
+      <translation>Некорректный интервал повторных попыток</translation>
+    </message>
+    <message>
+      <source>invalid retry limit</source>
+      <translation>Некорректный лимит повторных попыток</translation>
+    </message>
+    <message>
+      <source>invalid resolver retry setting</source>
+      <translation>Некорректные параметры повторного DNS-запроса</translation>
+    </message>
+    <message>
+      <source>invalid socket buffer size</source>
+      <translation>Некорректный размер буфера сокета</translation>
+    </message>
+    <message>
+      <source>invalid TUN MTU</source>
+      <translation>Некорректный MTU туннеля</translation>
+    </message>
+    <message>
+      <source>invalid MSS setting</source>
+      <translation>Некорректный параметр MSS</translation>
+    </message>
+    <message>
+      <source>invalid exit notification setting</source>
+      <translation>Некорректное уведомление о завершении</translation>
+    </message>
+    <message>
+      <source>active compression is unsupported</source>
+      <translation>Активное сжатие не поддерживается</translation>
+    </message>
+    <message>
+      <source>unsupported TUN topology</source>
+      <translation>Неподдерживаемая топология TUN</translation>
+    </message>
+    <message>
+      <source>unsupported redirect flag</source>
+      <translation>Неподдерживаемый параметр перенаправления</translation>
+    </message>
+    <message>
+      <source>invalid numeric IPv4 route</source>
+      <translation>Некорректный числовой маршрут IPv4</translation>
+    </message>
+    <message>
+      <source>invalid numeric IPv6 route</source>
+      <translation>Некорректный числовой маршрут IPv6</translation>
+    </message>
+    <message>
+      <source>route gateway must be a numeric IPv4 address</source>
+      <translation>Шлюз маршрута должен быть числовым IPv4-адресом</translation>
+    </message>
+    <message>
+      <source>route gateway must be a numeric IPv6 address</source>
+      <translation>Шлюз маршрута должен быть числовым IPv6-адресом</translation>
+    </message>
+    <message>
+      <source>invalid route metric</source>
+      <translation>Некорректная метрика маршрута</translation>
+    </message>
+    <message>
+      <source>invalid route delay</source>
+      <translation>Некорректная задержка маршрута</translation>
+    </message>
+    <message>
+      <source>invalid DNS option</source>
+      <translation>Некорректный параметр DNS</translation>
+    </message>
+    <message>
+      <source>DNS server must be numeric</source>
+      <translation>Сервер DNS должен быть задан IP-адресом</translation>
+    </message>
+    <message>
+      <source>invalid DNS domain</source>
+      <translation>Некорректный домен DNS</translation>
+    </message>
+    <message>
+      <source>unsupported DHCP option</source>
+      <translation>Неподдерживаемый параметр DHCP</translation>
+    </message>
+    <message>
+      <source>credentials must be embedded inline; external file references are unsupported</source>
+      <translation>Сертификаты и ключи должны быть встроены; ссылки на внешние файлы не поддерживаются</translation>
+    </message>
+    <message>
+      <source>passwords, MFA and external credential providers are unsupported</source>
+      <translation>Пароли, MFA и внешние поставщики учётных данных не поддерживаются</translation>
+    </message>
+    <message>
+      <source>unsupported directive; scripts, plugins, includes and runtime overrides are forbidden</source>
+      <translation>Неподдерживаемая директива; скрипты, плагины, вложенные конфигурации и изменение параметров запуска запрещены</translation>
+    </message>
+    <message>
+      <source>OpenVPN profile requires client and dev tun</source>
+      <translation>Профилю OpenVPN нужны директивы client и dev tun</translation>
+    </message>
+    <message>
+      <source>OpenVPN profile requires remote-cert-tls server</source>
+      <translation>Профилю OpenVPN нужна директива remote-cert-tls server</translation>
+    </message>
+    <message>
+      <source>OpenVPN profile has no remote server</source>
+      <translation>В профиле OpenVPN не указан сервер</translation>
+    </message>
+    <message>
+      <source>OpenVPN profile requires embedded CA, client certificate and private key</source>
+      <translation>Профилю OpenVPN нужны встроенные CA, клиентский сертификат и приватный ключ</translation>
+    </message>
+    <message>
+      <source>invalid embedded CA certificate</source>
+      <translation>Некорректный встроенный сертификат CA</translation>
+    </message>
+    <message>
+      <source>encrypted or invalid private keys are unsupported</source>
+      <translation>Зашифрованные или некорректные приватные ключи не поддерживаются</translation>
+    </message>
+    <message>
+      <source>invalid embedded client certificate or mismatched private key</source>
+      <translation>Некорректный сертификат клиента или несоответствующий приватный ключ</translation>
+    </message>
+    <message>
+      <source>tls-auth and tls-crypt cannot be combined</source>
+      <translation>Нельзя одновременно использовать tls-auth и tls-crypt</translation>
+    </message>
+    <message>
+      <source>invalid embedded TLS control-channel key</source>
+      <translation>Некорректный встроенный ключ канала управления TLS</translation>
+    </message>
+    <message>
+      <source>key-direction requires an embedded tls-auth key</source>
+      <translation>Для key-direction нужен встроенный ключ tls-auth</translation>
+    </message>
+    <message>
+      <source>invalid OpenVPN profile identity</source>
+      <translation>Некорректный идентификатор профиля OpenVPN</translation>
+    </message>
+    <message>
+      <source>unsupported credential block</source>
+      <translation>Неподдерживаемый блок учётных данных</translation>
+    </message>
+    <message>
+      <source>OpenVPN line %1: %2</source>
+      <translation>Строка OpenVPN %1: %2</translation>
+    </message>
+    <message>
+      <source>Network cleanup is incomplete; retry disconnection</source>
+      <translation>Восстановление сети не завершено; повторите отключение</translation>
+    </message>
+    <message>
+      <source>OpenVPN event helper requires the system service</source>
+      <translation>Обработчику событий OpenVPN требуется системная служба</translation>
+    </message>
+    <message>
+      <source>OpenVPN event supervisor unavailable</source>
+      <translation>Обработчик событий OpenVPN недоступен</translation>
+    </message>
+    <message>
+      <source>OpenVPN exited during startup; see the profile log</source>
+      <translation>OpenVPN завершился при запуске; откройте журнал профиля</translation>
+    </message>
+    <message>
+      <source>OpenVPN helper route metadata did not arrive</source>
+      <translation>Не получены параметры маршрутов от обработчика OpenVPN</translation>
+    </message>
+    <message>
+      <source>OpenVPN management listener closed</source>
+      <translation>Сокет управления OpenVPN закрыт</translation>
+    </message>
+    <message>
+      <source>OpenVPN network setup failed</source>
+      <translation>Не удалось настроить сеть OpenVPN</translation>
+    </message>
+    <message>
+      <source>cannot deliver OpenVPN event</source>
+      <translation>Не удалось передать событие OpenVPN</translation>
+    </message>
+    <message>
+      <source>cannot prepare persistent work tunnel</source>
+      <translation>Не удалось подготовить постоянный рабочий туннель</translation>
+    </message>
+    <message>
+      <source>cannot read work network recovery state</source>
+      <translation>Не удалось прочитать состояние восстановления рабочей сети</translation>
+    </message>
+    <message>
+      <source>cannot select work VPN server securely</source>
+      <translation>Не удалось безопасно выбрать сервер рабочего VPN</translation>
+    </message>
+    <message>
+      <source>cannot verify installed work routes</source>
+      <translation>Не удалось проверить установленные рабочие маршруты</translation>
+    </message>
+    <message>
+      <source>duplicate OpenVPN route event</source>
+      <translation>Повторное событие маршрутов OpenVPN</translation>
+    </message>
+    <message>
+      <source>duplicate pushed Internet routing policy</source>
+      <translation>Сервер повторно передал политику интернет-маршрутизации</translation>
+    </message>
+    <message>
+      <source>empty pushed OpenVPN option</source>
+      <translation>Сервер передал пустой параметр OpenVPN</translation>
+    </message>
+    <message>
+      <source>event directory is not private</source>
+      <translation>Каталог событий доступен посторонним пользователям</translation>
+    </message>
+    <message>
+      <source>invalid IPv4 route gateway</source>
+      <translation>Недопустимый шлюз маршрута IPv4</translation>
+    </message>
+    <message>
+      <source>invalid IPv6 route</source>
+      <translation>Недопустимый маршрут IPv6</translation>
+    </message>
+    <message>
+      <source>invalid IPv6 route gateway</source>
+      <translation>Недопустимый шлюз маршрута IPv6</translation>
+    </message>
+    <message>
+      <source>invalid OpenVPN IPv4 route</source>
+      <translation>Недопустимый маршрут IPv4 OpenVPN</translation>
+    </message>
+    <message>
+      <source>invalid OpenVPN event destination</source>
+      <translation>Недопустимый адрес назначения события OpenVPN</translation>
+    </message>
+    <message>
+      <source>invalid OpenVPN lifecycle message</source>
+      <translation>Недопустимое сообщение состояния OpenVPN</translation>
+    </message>
+    <message>
+      <source>invalid OpenVPN pushed policy notification</source>
+      <translation>Недопустимое уведомление политики сервера OpenVPN</translation>
+    </message>
+    <message>
+      <source>invalid OpenVPN route mask</source>
+      <translation>Недопустимая маска маршрута OpenVPN</translation>
+    </message>
+    <message>
+      <source>invalid full-tunnel route</source>
+      <translation>Недопустимый маршрут полного туннеля</translation>
+    </message>
+    <message>
+      <source>invalid managed tunnel identity</source>
+      <translation>Недопустимый идентификатор управляемого туннеля</translation>
+    </message>
+    <message>
+      <source>invalid protected work route</source>
+      <translation>Недопустимый защищённый рабочий маршрут</translation>
+    </message>
+    <message>
+      <source>invalid pushed DNS server</source>
+      <translation>Сервер передал недопустимый адрес DNS</translation>
+    </message>
+    <message>
+      <source>invalid pushed DNS suffix</source>
+      <translation>Сервер передал недопустимый суффикс DNS</translation>
+    </message>
+    <message>
+      <source>invalid tunnel IPv6 prefix</source>
+      <translation>Недопустимый префикс IPv6 туннеля</translation>
+    </message>
+    <message>
+      <source>invalid tunnel MTU</source>
+      <translation>Недопустимый MTU туннеля</translation>
+    </message>
+    <message>
+      <source>invalid tunnel address</source>
+      <translation>Недопустимый адрес туннеля</translation>
+    </message>
+    <message>
+      <source>invalid work network recovery state</source>
+      <translation>Повреждено состояние восстановления рабочей сети</translation>
+    </message>
+    <message>
+      <source>invalid work recovery tunnel</source>
+      <translation>Недопустимый туннель восстановления рабочей сети</translation>
+    </message>
+    <message>
+      <source>managed name is occupied by a foreign interface</source>
+      <translation>Имя рабочего туннеля занято сторонним интерфейсом</translation>
+    </message>
+    <message>
+      <source>managed tunnel name belongs to another interface</source>
+      <translation>Имя рабочего туннеля принадлежит другому интерфейсу</translation>
+    </message>
+    <message>
+      <source>missing tunnel IPv6 prefix length</source>
+      <translation>Не задана длина префикса IPv6 туннеля</translation>
+    </message>
+    <message>
+      <source>noncontiguous OpenVPN route mask</source>
+      <translation>Несмежная маска маршрута OpenVPN</translation>
+    </message>
+    <message>
+      <source>pushed DNS settings exceed limits</source>
+      <translation>Настройки DNS сервера превышают ограничения</translation>
+    </message>
+    <message>
+      <source>stop the OpenVPN process before releasing its routes</source>
+      <translation>Перед удалением маршрутов остановите процесс OpenVPN</translation>
+    </message>
+    <message>
+      <source>too many OpenVPN routes</source>
+      <translation>Слишком много маршрутов OpenVPN</translation>
+    </message>
+    <message>
+      <source>too many pushed OpenVPN options</source>
+      <translation>Сервер передал слишком много параметров OpenVPN</translation>
+    </message>
+    <message>
+      <source>unsupported OpenVPN Internet routing flag</source>
+      <translation>Неподдерживаемый флаг интернет-маршрутизации OpenVPN</translation>
+    </message>
+    <message>
+      <source>unsupported OpenVPN lifecycle event</source>
+      <translation>Неподдерживаемое событие состояния OpenVPN</translation>
+    </message>
+    <message>
+      <source>unsupported pushed DHCP option</source>
+      <translation>Сервер передал неподдерживаемый параметр DHCP</translation>
+    </message>
+    <message>
+      <source>unsupported pushed network option</source>
+      <translation>Сервер передал неподдерживаемый сетевой параметр</translation>
+    </message>
+    <message>
+      <source>untrusted OpenVPN lifecycle sender</source>
+      <translation>Недоверенный отправитель событий OpenVPN</translation>
+    </message>
+    <message>
+      <source>work VPN interface disappeared; reconnect required</source>
+      <translation>Интерфейс рабочего VPN исчез; требуется переподключение</translation>
+    </message>
+    <message>
+      <source>work VPN requests IPv6 Internet but supplies no IPv6 tunnel address</source>
+      <translation>Рабочий VPN запрашивает интернет IPv6 без адреса IPv6 туннеля</translation>
+    </message>
+    <message>
+      <source>work recovery state belongs to another user</source>
+      <translation>Состояние восстановления рабочего VPN принадлежит другому пользователю</translation>
+    </message>
+    <message>
+      <source>work state directory must be private</source>
+      <translation>Каталог состояния рабочего VPN должен быть закрыт для посторонних</translation>
+    </message>
+    <message>
+      <source>cannot clear prior work tunnel IPv4 lease</source>
+      <translation>Не удалось удалить прежний адрес IPv4 рабочего туннеля</translation>
+    </message>
+    <message>
+      <source>cannot clear prior work tunnel IPv6 lease</source>
+      <translation>Не удалось удалить прежний адрес IPv6 рабочего туннеля</translation>
+    </message>
+    <message>
+      <source>local route must be contained in an existing connected network</source>
+      <translation>Локальный маршрут должен входить в существующую напрямую подключённую сеть</translation>
+    </message>
   </context>
   <context>
     <name>TerminalDialog</name>
@@ -1550,6 +2613,14 @@ Full tunnel: the requested VLESS connection waits while Pritunl handles the inte
     <message>
       <source>Quit interface (VPN stays connected)</source>
       <translation>Закрыть интерфейс (VPN продолжит работу)</translation>
+    </message>
+    <message>
+      <source>Work VPNs</source>
+      <translation>Рабочие VPN</translation>
+    </message>
+    <message>
+      <source>Disconnect %1</source>
+      <translation>Отключить %1</translation>
     </message>
   </context>
 </TS>

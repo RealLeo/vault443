@@ -30,7 +30,11 @@ type Binding struct {
 	Remove     bool       `json:"remove,omitempty"`
 	// RootOnly is derived from verified local process metadata, never accepted
 	// from the public binding JSON.
-	RootOnly bool `json:"-"`
+	RootOnly      bool `json:"-"`
+	Managed       bool `json:"-"`
+	ManagedActive bool `json:"-"`
+	ManagedFull4  bool `json:"-"`
+	ManagedFull6  bool `json:"-"`
 }
 type Endpoint struct {
 	Address    string `json:"address"`
@@ -117,6 +121,13 @@ type external struct {
 func detectExternal(ctx context.Context, r runner, s Snapshot, bindings []Binding) ([]external, error) {
 	var out []external
 	for _, b := range bindings {
+		if b.Managed {
+			l, _ := s.Link(b.Interface)
+			l.Name = b.Interface
+			l.Kind = "tun"
+			out = append(out, external{Binding: b, Link: l, Active: b.ManagedActive, Full4: b.ManagedFull4, Full6: b.ManagedFull6})
+			continue
+		}
 		// Automatically discovered bindings do not pass ParseBinding. Their
 		// kernel mark must not redirect one of our private probes/transports.
 		for _, endpoint := range b.Endpoints {

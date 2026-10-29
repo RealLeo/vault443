@@ -133,7 +133,7 @@ func (s *Service) busyFor(c Caller) bool {
 	s.stateMu.Lock()
 	defer s.stateMu.Unlock()
 	owner := s.ownerLocked(st)
-	return owner != nil && owner.UID != c.UID
+	return (owner != nil && owner.UID != c.UID) || s.workBusyFor(c)
 }
 func (s *Service) latestFailureLocked(uid uint32, profileID string) *Failure {
 	var latest *Failure
@@ -159,7 +159,7 @@ func (s *Service) GetSnapshot(c Caller) Snapshot {
 	u := st.User(c.UID)
 	s.stateMu.Lock()
 	defer s.stateMu.Unlock()
-	out := Snapshot{Profiles: []ProfileInfo{}, Subscriptions: []SubscriptionInfo{}, Runtime: copyStatus(s.worker.runtime), CanAdmin: c.Admin}
+	out := Snapshot{Profiles: []ProfileInfo{}, Subscriptions: []SubscriptionInfo{}, Runtime: copyStatus(s.worker.runtime), CanAdmin: c.Admin, WorkProfiles: s.workProfiles(c)}
 	for _, p := range u.Profiles {
 		out.Profiles = append(out.Profiles, ProfileInfo{ID: p.ID, Name: p.Name, Server: p.Server, Transport: p.Transport, Security: p.Security, IconID: p.Icon(), DebugLogging: p.DebugLogging})
 	}
@@ -172,7 +172,9 @@ func (s *Service) GetSnapshot(c Caller) Snapshot {
 			out.ActiveProfileID = owner.ProfileID
 		}
 	}
+	out.BusyByOtherUser = out.BusyByOtherUser || s.workBusyFor(c)
 	if out.BusyByOtherUser {
+		out.ActiveProfileID = ""
 		// Even an error message or external interface may identify another session.
 		out.Runtime = model.RuntimeStatus{State: out.Runtime.State, GuardArmed: out.Runtime.GuardArmed}
 	} else {
@@ -206,7 +208,7 @@ func (s *Service) profileDiagnostics(c Caller, id string) (interface{}, error) {
 	}
 	s.stateMu.Lock()
 	defer s.stateMu.Unlock()
-	if owner := s.ownerLocked(st); owner != nil && owner.UID != c.UID {
+	if owner := s.ownerLocked(st); (owner != nil && owner.UID != c.UID) || s.workBusyFor(c) {
 		return map[string]interface{}{"state": s.worker.runtime.State, "busyByOtherUser": true}, nil
 	}
 	subs := []map[string]interface{}{}
@@ -353,10 +355,13 @@ func (s *Service) requestConnect(ctx context.Context, c Caller, id string) (stri
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.controlChanging {
+		return "", nil, errors.New("VPN ownership is changing; wait for cleanup")
+	}
 	st := s.store.Snapshot()
 	s.stateMu.Lock()
 	owner := s.ownerLocked(st)
-	if owner != nil && owner.UID != c.UID {
+	if (owner != nil && owner.UID != c.UID) || s.workBusyFor(c) {
 		s.stateMu.Unlock()
 		return "", nil, errors.New("another user owns the VPN; explicitly take control first")
 	}
@@ -418,7 +423,7 @@ func (s *Service) requestDisconnect(ctx context.Context, c Caller, takeover bool
 	st := s.store.Snapshot()
 	s.stateMu.Lock()
 	owner := copyOwner(s.ownerLocked(st))
-	if owner != nil && owner.UID != c.UID && !takeover {
+	if ((owner != nil && owner.UID != c.UID) || s.workBusyFor(c)) && !takeover {
 		s.stateMu.Unlock()
 		return "", nil, errors.New("another user owns the VPN; explicitly take control first")
 	}
@@ -493,6 +498,17 @@ func (s *Service) Disconnect(ctx context.Context, c Caller) error {
 	return waitJob(ctx, job)
 }
 func (s *Service) TakeControl(ctx context.Context, c Caller) error {
+	s.mu.Lock()
+	if s.controlChanging {
+		s.mu.Unlock()
+		return errors.New("VPN ownership is changing; wait for cleanup")
+	}
+	s.controlChanging = true
+	s.mu.Unlock()
+	defer func() { s.mu.Lock(); s.controlChanging = false; s.mu.Unlock() }()
+	if err := s.disconnectAllWork(ctx); err != nil {
+		return err
+	}
 	_, job, err := s.requestDisconnect(ctx, c, true)
 	if err != nil {
 		return err
@@ -620,6 +636,9 @@ func (s *Service) BootGuard(ctx context.Context, bootID string) error {
 	})
 }
 func (s *Service) ReleaseNetwork(ctx context.Context) error {
+	if err := s.disconnectAllWork(ctx); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	err := s.store.Update(func(st *store.State) error { st.Desired = nil; st.Boot = nil; return nil })
 	s.stateMu.Lock()
@@ -702,6 +721,11 @@ func (s *Service) Start(ctx context.Context, bootID string) error {
 	})
 }
 func (s *Service) tickJob(ctx context.Context, now time.Time) *workItem {
+	if s.work != nil {
+		s.work.mu.Lock()
+		s.pruneWorkDraftsLocked()
+		s.work.mu.Unlock()
+	}
 	s.draftMu.Lock()
 	s.pruneDrafts(now)
 	s.draftMu.Unlock()

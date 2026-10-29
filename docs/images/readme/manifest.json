@@ -1,36 +1,66 @@
 {
-  "version": "1.0.1",
+  "version": "1.1.0",
   "language": "en",
   "mode": "demo",
   "logicalSize": [
     472,
     480
   ],
+  "capture": {
+    "platform": "Qt offscreen",
+    "renderer": "software",
+    "config": "temporary XDG_CONFIG_HOME, discarded after capture",
+    "network": "demo bridge; no D-Bus service or network operations",
+    "command": "XDG_CONFIG_HOME=<temporary> QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software LANGUAGE=en build/vault443 --demo --demo-state <demoState> --demo-screen <demoScreen> --screenshot docs/images/readme/<file>"
+  },
   "screens": [
     {
       "file": "main.png",
       "demoScreen": "main",
-      "sha256": "780d2e0517d75a5587dac5ba4637ad53d517ad3d3ac413a88853a913142b547d"
+      "demoState": "connected",
+      "sha256": "4364a920c852dd7b9d59530bffd86aafed7254e284c97de63b96da004f094296"
     },
     {
       "file": "import.png",
       "demoScreen": "import-preview",
-      "sha256": "a5458ca13562a66dd2d84d947fd47144dd819f36f638c42af1b8f4d85200922b"
+      "demoState": "connected",
+      "sha256": "46c11beb6cb2eb3a487c06dca437517ccb79a76fcb2b5e7cfba03b6288f3e63c"
     },
     {
       "file": "settings.png",
       "demoScreen": "settings",
-      "sha256": "0825f38c94c21467965b3b96b683707dfcd11ed7d9636b00641fa697a339a216"
+      "demoState": "connected",
+      "sha256": "19291eea8966db5e066d6a99937452e1aecb81c178b885c510faeaea9c21f4e9"
     },
     {
       "file": "icons.png",
       "demoScreen": "icons",
-      "sha256": "03c52c0e167e2bbba572978f3d851343946b1308dc147ce7b000cbed2a865944"
+      "demoState": "connected",
+      "sha256": "e9604d05e29225bb9413b9d1694f1d7b637086a0b80d611a3504f59eaed9addb"
     },
     {
       "file": "logs.png",
       "demoScreen": "logs",
-      "sha256": "03ccf71c3504b38e34a262f30b1bac53b07a9050fed735aa6c32d967e0435917"
+      "demoState": "connected",
+      "sha256": "0b1b2f95319d23b9febbb62730c9016681549022fe79eac54812ad2a0b6cdf9a"
+    },
+    {
+      "file": "work-vpns.png",
+      "demoScreen": "main",
+      "demoState": "work-vpns",
+      "sha256": "93b909df0c1e49ee793e48e771a3aacee463fbafd2ea343496cf07ae664212b7"
+    },
+    {
+      "file": "work-routes.png",
+      "demoScreen": "routes",
+      "demoState": "work-vpns",
+      "sha256": "d7e038c21d21dd624a77014bd8317a3465b4a2752405e552654a0363425bed18"
+    },
+    {
+      "file": "work-import.png",
+      "demoScreen": "work-import",
+      "demoState": "work-vpns",
+      "sha256": "5fd1c37ef9466b7d2c30525e74982ca21a96630e8ef7ed31f94ad2508c8f4e42"
     }
   ]
 }

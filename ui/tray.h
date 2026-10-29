@@ -37,6 +37,8 @@ private:
     QMenu m_menu;
     QAction *m_status;
     QAction *m_disconnect;
+    QMenu *m_workMenu;
+    QString m_workMenuKey;
     QTimer m_hostTimer;
     QColor m_color;
     quint64 m_hostGeneration = 0;

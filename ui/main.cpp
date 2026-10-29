@@ -32,8 +32,8 @@ int main(int argc, char **argv) {
     parser.addOption({"demo", "Run isolated in-memory demo; never contact the VPN service"});
     parser.addOption({"screenshot", "Write a demo screenshot and exit", "path"});
     parser.addOption({"scale", "Interface scale relative to 944×960 reference", "factor", "0.5"});
-    parser.addOption({"demo-screen", "Open demo screen: main/import/import-preview/settings/subscriptions/vpn/vpn-actions/diagnostics/profile/logs/icons/combo/error", "screen", "main"});
-    parser.addOption({"demo-state", "Demo runtime: connected/disconnected/connecting/reconnecting/paused_external/error/empty/single/many/stage-resolving_endpoint/retry-wait/disconnecting", "state", "connected"});
+    parser.addOption({"demo-screen", "Open demo screen: main/import/import-preview/settings/subscriptions/vpn/vpn-actions/diagnostics/profile/logs/icons/combo/error/routes/work-import/work-profile", "screen", "main"});
+    parser.addOption({"demo-state", "Demo runtime: connected/disconnected/connecting/reconnecting/paused_external/error/empty/single/many/stage-resolving_endpoint/retry-wait/disconnecting/work-vpns", "state", "connected"});
     parser.process(app);
     bool ok = false; const double scale = parser.value("scale").toDouble(&ok);
     if (!ok || scale < 0.4 || scale > 3.0) { qCritical("--scale must be between 0.4 and 3.0"); return 2; }

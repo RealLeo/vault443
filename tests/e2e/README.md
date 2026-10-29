@@ -1,4 +1,4 @@
-# Isolated VLESS integration tests
+# Isolated VLESS and OpenVPN integration tests
 
 These tests exercise the production `network.Manager` and pinned Xray binary with
 real Linux TUN, nftables, policy routing, TLS and systemd-resolved. They run inside
@@ -53,6 +53,41 @@ host networking to the runtime, or mount the host's `/etc`, `/run` or `/var/lib`
 container. They do not give the tests a host network namespace. The fixture and
 test binaries are static Go binaries; the Ubuntu images provide the real distro
 network tools and resolver.
+
+## Managed work VPN fixture
+
+Build the current daemon and test executable before the work run:
+
+```sh
+CGO_ENABLED=0 go build -buildvcs=false -o build/vault443d ./cmd/vault443d
+CGO_ENABLED=0 go test -c -o .cache/workvpn-e2e.test ./tests/e2e
+```
+
+Use the same isolated container command above, adding these environment values:
+
+```sh
+--env VAULT443_WORKVPN_E2E=1 \
+--sysctl net.ipv4.ip_forward=1 --sysctl net.ipv6.conf.all.forwarding=1 \
+--env VAULT443_E2E_TEST_BINARY=/src/.cache/workvpn-e2e.test \
+--env VAULT443_E2E_TEST_PATTERN='^TestRealWorkVPN'
+```
+
+The opt-in fixture generates certificate-authenticated OpenVPN servers and client
+profiles inside `/fixture`, a Docker-like bridge at `192.168.96.0/20`, and a work
+HTTP endpoint at `192.168.100.15`. It checks both VLESS/work startup orders,
+independent work destinations and split DNS, explicit route choices, conflicting
+providers, full-tunnel pause/resume, cancellation protection and retained desired
+connections after supervisor restart. It also exercises a Docker-like source
+namespace and actual IPv6 work traffic; reverse-path filtering is not weakened.
+Run this separately from the VLESS suite:
+the latter deliberately rejects unexpected fixture interfaces.
+
+The package PID1 runner additionally seeds generated work profiles while the
+daemon is stopped and tests the installed hardened unit, event helper, two work
+connections, crash recovery and removal. This does not relax production D-Bus
+authorization. It requires the current `.cache/workvpn-e2e.test` and the prior
+`dist/vault443_1.0.1_amd64.deb` upgrade baseline. All raw journals and captures stay
+in ignored `test-results/` directories.
 
 this runner also applies the packaged unit's seccomp syscall deny-list.
 The E2E fixture retains its container capabilities for network namespace setup;

@@ -37,7 +37,8 @@ for platform in xcb wayland; do
         /app/vault443 --demo --screenshot "/artifacts/$tag.png" >"/artifacts/$tag.log" 2>&1
       LANGUAGE="$language" QT_QPA_PLATFORM="$platform" QT_SCALE_FACTOR="$dpi" \
         /app/vault443-ui-tests compactImportAndTrafficFitInBothLanguagesAndScales \
-        trafficStaysAfterDisconnectAndHidesWhenUnavailableOrForeign >>"/artifacts/$tag.log" 2>&1
+        trafficStaysAfterDisconnectAndHidesWhenUnavailableOrForeign \
+        workButtonLabelsFitBothLanguages workRoutesAndDNSCanReturnToAutomatic >>"/artifacts/$tag.log" 2>&1
       echo "PASS: $tag screenshot and traffic/import layout"
     done
     LANGUAGE="$language" QT_QPA_PLATFORM="$platform" /app/vault443-ui-tests \

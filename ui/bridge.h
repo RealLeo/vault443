@@ -15,6 +15,10 @@ class Bridge final : public QObject {
     Q_PROPERTY(QVariantMap snapshot READ snapshot NOTIFY snapshotChanged)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY profilesChanged)
     Q_PROPERTY(QVariantMap preview READ preview NOTIFY previewChanged)
+    Q_PROPERTY(QVariantMap workRequests READ workRequests NOTIFY workRequestsChanged)
+    Q_PROPERTY(QVariantMap workRoutes READ workRoutes NOTIFY workRoutesChanged)
+    Q_PROPERTY(QString workRoutesError READ workRoutesError NOTIFY workRoutesChanged)
+    Q_PROPERTY(bool workRoutesPending READ workRoutesPending NOTIFY workRoutesChanged)
     Q_PROPERTY(QVariantList profileLogs READ profileLogs NOTIFY profileLogsChanged)
     Q_PROPERTY(QString logPreviousCursor READ logPreviousCursor NOTIFY profileLogsChanged)
     Q_PROPERTY(QString logCursor READ logCursor NOTIFY profileLogsChanged)
@@ -43,6 +47,19 @@ public:
     QVariantMap snapshot() const { return m_snapshot; }
     QVariantList profiles() const { return m_profiles; }
     QVariantMap preview() const { return m_preview; }
+    QVariantMap workRequests() const { return m_workRequests; }
+    QVariantMap workRoutes() const { return m_workRoutes; }
+    QString workRoutesError() const { return m_workRoutesError; }
+    bool workRoutesPending() const { return m_workRoutesPending; }
+    Q_INVOKABLE void readOpenVPNFiles(const QList<QUrl> &urls);
+    Q_INVOKABLE void prepareOpenVPNImport(const QVariantList &files);
+    Q_INVOKABLE void connectWorkProfile(const QString &id);
+    Q_INVOKABLE void disconnectWorkProfile(const QString &id);
+    Q_INVOKABLE void refreshWorkRoutes();
+    Q_INVOKABLE void setWorkRoute(const QString &cidr, const QString &target);
+    Q_INVOKABLE void removeWorkRoute(const QString &id);
+    Q_INVOKABLE void setWorkDNS(const QString &domain, const QString &target);
+    Q_INVOKABLE void removeWorkDNS(const QString &id);
     QVariantList profileLogs() const { return m_profileLogs; }
     QString logPreviousCursor() const { return m_logPreviousCursor; }
     QString logCursor() const { return m_logCursor; }
@@ -100,6 +117,9 @@ signals:
     void snapshotChanged();
     void profilesChanged();
     void previewChanged();
+    void workRequestsChanged();
+    void workRoutesChanged();
+    void openVPNFilesRead();
     void diagnosticsChanged();
     void connectionRequestChanged();
     void profileLogsChanged();
@@ -126,10 +146,17 @@ private:
     void updateDemo(const QString &state, const QString &id = {});
     void invalidateVPNCompatibility();
     void requestConnection(const QString &action, const QString &profileId);
+    void requestWorkConnection(const QString &action, const QString &profileId);
+    void workRouteCall(const QString &method, const QVariantList &args = {});
     void acceptSnapshot(const QVariantMap &snapshot);
     void finishDiagnostics(const QVariantMap &data, const QString &error);
     QString autostartPath() const;
     QVariantMap m_snapshot, m_preview;
+    QString m_importKind = "text";
+    QVariantMap m_workRequests, m_workRoutes;
+    QString m_workRoutesError;
+    bool m_workRoutesPending = false;
+    quint64 m_workRoutesGeneration = 0;
     QVariantList m_profiles, m_profileLogs;
     QString m_logProfile, m_logCursor, m_logPreviousCursor;
     QVariantMap m_demoDraft, m_demoLogs;

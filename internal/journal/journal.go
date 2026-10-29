@@ -208,7 +208,7 @@ func (s *Session) RecordFailure(code, message string, at int64) (string, uint64)
 // Only controller-defined classifications are allowed in unredacted metadata.
 func NormalizeFailureCode(code string) string {
 	switch code {
-	case "dns_timeout", "dns_no_answer", "dns_not_found", "dns_tls", "dns_transport", "dns_invalid_response", "dns_unavailable", "connection_failed", "core_exited", "cleanup_failed", "previous_failure", "vpn_dns_failed", "vpn_https_timeout", "vpn_https_tls", "vpn_https_response", "vpn_https_failed":
+	case "dns_timeout", "dns_no_answer", "dns_not_found", "dns_tls", "dns_transport", "dns_invalid_response", "dns_unavailable", "connection_failed", "openvpn_failed", "core_exited", "cleanup_failed", "previous_failure", "vpn_dns_failed", "vpn_https_timeout", "vpn_https_tls", "vpn_https_response", "vpn_https_failed":
 		return code
 	default:
 		return "connection_failed"

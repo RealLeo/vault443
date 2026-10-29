@@ -9,7 +9,7 @@ test "$(cat /proc/1/comm)" = systemd
 systemctl is-active --quiet NetworkManager.service systemd-resolved.service dbus.service
 version=$(cat /src/VERSION)
 package=/src/dist/vault443_${version}_amd64.deb
-baseline=/src/dist/vault443_1.0.0_amd64.deb
+baseline=/src/dist/vault443_1.0.1_amd64.deb
 nft add table inet unrelated_test
 # Refuse pre-1.0 stores before installing binaries or touching private data.
 install -d -m700 /var/lib/vless-terminal
@@ -33,7 +33,7 @@ printf retained >/var/lib/vault443-migration/backups/completed/marker
 chmod 600 /var/lib/vault443-migration/backups/completed/marker
 useradd -u 11000 -m vaultoperator
 useradd -u 11001 -m vaultcolleague
-# Defer the initial 1.0.0 startup until the synthetic profiles are present.
+# Defer the initial 1.0.1 startup until the synthetic profiles are present.
 printf '#!/bin/sh\nexit 101\n' >/usr/sbin/policy-rc.d
 chmod 755 /usr/sbin/policy-rc.d
 dpkg -i "$baseline"
@@ -70,7 +70,16 @@ test -f /tmp/guard-monitor-ready
 dpkg -i "$package"
 new_pid=$(systemctl show -p MainPID --value vault443.service)
 busctl --xml-interface introspect org.vault443.Service1 /org/vault443/Service1 > /tmp/api-after.xml
-cmp /tmp/api-before.xml /tmp/api-after.xml
+python3 - <<'PYAPI'
+import xml.etree.ElementTree as E
+def methods(path):
+ root=E.parse(path).getroot()
+ return {(i.get('name'), m.get('name')): [(a.get('type'),a.get('direction','in')) for a in m.findall('arg')]
+         for i in root.findall('interface') for m in i.findall('method')}
+before,after=methods('/tmp/api-before.xml'),methods('/tmp/api-after.xml')
+assert all(after.get(k)==v for k,v in before.items()), '1.0 D-Bus method removed or signature changed'
+assert ('org.vault443.Service1','PrepareOpenVPNImport') in after
+PYAPI
 test "$old_pid" != "$new_pid"
 python3 /src/tests/package-network-check.py connected
 touch /tmp/guard-monitor-stop
@@ -99,10 +108,22 @@ mkdir -m700 /tmp/lifecycle-runtime
 XDG_RUNTIME_DIR=/tmp/lifecycle-runtime QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
   timeout 15s /usr/bin/vault443 --demo --screenshot /tmp/installed-gui.png
 test -s /tmp/installed-gui.png
+/bin/bash /src/tests/package-workvpn.sh
 dpkg --purge vault443
 test -f /var/lib/vault443/private-marker
 nft list table inet unrelated_test >/dev/null
 if nft list table inet vault443 >/dev/null 2>&1; then exit 1; fi
+if nft list table inet vault443_work >/dev/null 2>&1; then exit 1; fi
+test "$(ip -j link show | jq '[.[] | select(.ifname | startswith("v443w"))] | length')" = 0
+for family in 4 6; do
+  ip -N -j -"$family" route show table all | python3 -c '
+import json,sys
+for r in json.load(sys.stdin):
+    try: table=int(r.get("table",254))
+    except (TypeError,ValueError): continue
+    assert table not in range(52783,52788) and table not in range(52800,52833), "owned work route survived removal"
+'
+done
 # Fresh APT install uses the new package, without any previous application state.
 mv /var/lib/vault443 /tmp/preserved-vault443
 apt-get -y install "$package"
@@ -113,4 +134,4 @@ dpkg --purge vault443
 test -f /tmp/preserved-vault443/private-marker
 nft list table inet unrelated_test >/dev/null
 systemctl is-active --quiet NetworkManager.service systemd-resolved.service dbus.service
-echo "PASS: 1.0.0 upgrade, active connection and continuous guard, preserved multiuser state/GID, legacy refusal, reinstall, purge and fresh APT installation"
+echo "PASS: 1.0.1 upgrade, active connection and continuous guard, preserved multiuser state/GID, legacy refusal, reinstall, purge and fresh APT installation"

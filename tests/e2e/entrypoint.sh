@@ -95,6 +95,10 @@ for attempt in $(seq 1 50); do
 done
 resolvectl status >/results/resolved-status-before.txt
 
+if [ "${VAULT443_WORKVPN_E2E:-}" = 1 ]; then
+  /bin/bash /src/tests/e2e/workvpn-fixture.sh
+fi
+
 set +e
 if [ "${VAULT443_PACKAGE_NETWORK:-}" = 1 ]; then
   /bin/bash /src/tests/package-lifecycle.sh 2>&1 | tee /results/package-lifecycle.log

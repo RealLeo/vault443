@@ -38,6 +38,23 @@ type runner interface {
 type execRunner struct{}
 
 func (execRunner) Run(ctx context.Context, c command) ([]byte, error) {
+	var out []byte
+	var err error
+	err = WithKernel(ctx, func(k Kernel) error { out, err = k.Run(ctx, c.Path, c.Args, c.Input); return err })
+	return out, err
+}
+func runCommand(ctx context.Context, c command) ([]byte, error) {
+	if c.Path == "/usr/sbin/ip" {
+		isJSON, isRoute := false, false
+		for _, a := range c.Args {
+			isJSON = isJSON || a == "-j"
+			isRoute = isRoute || a == "route" || a == "rule"
+		}
+		if isJSON && isRoute {
+			c.Args = append([]string{"-N"}, c.Args...)
+		}
+	}
+
 	child, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(child, c.Path, c.Args...)
@@ -76,6 +93,7 @@ type Route struct {
 	Protocol    json.RawMessage `json:"protocol,omitempty"`
 	Metric      int             `json:"metric,omitempty"`
 	Family      int             `json:"-"`
+	Nexthops    []Route         `json:"nexthops,omitempty"`
 }
 
 func (r Route) Prefix() (netip.Prefix, bool) {
@@ -96,7 +114,8 @@ func (r Route) Prefix() (netip.Prefix, bool) {
 	return p.Masked(), true
 }
 func (r Route) owned() bool {
-	return r.Device == TunName || string(r.Table) == strconv.Itoa(ProxyTable) || string(r.Table) == strconv.Itoa(BypassTable) || string(r.Table) == strconv.Itoa(UnderlayTable)
+	t, _ := strconv.Atoi(string(r.Table))
+	return (t >= 52783 && t <= 52787 || t >= 52800 && t <= 52832) || r.Device == TunName || string(r.Table) == strconv.Itoa(ProxyTable) || string(r.Table) == strconv.Itoa(BypassTable) || string(r.Table) == strconv.Itoa(UnderlayTable)
 }
 
 type Snapshot struct {
@@ -170,6 +189,14 @@ func collect(ctx context.Context, r runner) (Snapshot, error) {
 		}
 		for i := range routes {
 			routes[i].Family = f
+			routes[i].Table = normalizeNumber(routes[i].Table)
+			routes[i].Protocol = normalizeNumber(routes[i].Protocol)
+			if n, ok := map[string]string{"0": "global", "200": "site", "253": "link", "254": "host", "255": "nowhere"}[routes[i].Scope]; ok {
+				routes[i].Scope = n
+			}
+			if n, ok := map[string]string{"1": "unicast", "2": "local", "3": "broadcast", "5": "multicast", "6": "blackhole", "7": "unreachable", "8": "prohibit", "9": "throw"}[routes[i].Type]; ok {
+				routes[i].Type = n
+			}
 		}
 		s.Routes = append(s.Routes, routes...)
 		b, e = r.Run(ctx, command{Path: "/usr/sbin/ip", Args: []string{"-j", fmt.Sprint("-", f), "rule", "show"}})
@@ -191,6 +218,11 @@ func collect(ctx context.Context, r runner) (Snapshot, error) {
 
 func ChooseSubnets(s Snapshot) (netip.Prefix, netip.Prefix, error) {
 	var occupied []netip.Prefix
+	for _, r := range CurrentManagedPolicy().Routes {
+		if p, e := netip.ParsePrefix(r.CIDR); e == nil && p.Bits() > 0 {
+			occupied = append(occupied, p)
+		}
+	}
 	for _, r := range s.Routes {
 		p, ok := r.Prefix()
 		if ok && p.Bits() > 0 && !r.owned() {
@@ -239,4 +271,16 @@ func ChooseSubnets(s Snapshot) (netip.Prefix, netip.Prefix, error) {
 		return v4, v6, errors.New("no collision-free TUN subnet available")
 	}
 	return v4, v6, nil
+}
+
+// iproute2 emits numeric table IDs as JSON strings on several supported
+// releases even in numeric mode. Normalize before ownership and flush checks.
+func normalizeNumber(raw json.RawMessage) json.RawMessage {
+	var s string
+	if json.Unmarshal(raw, &s) == nil {
+		if n, e := strconv.ParseUint(s, 10, 32); e == nil {
+			return json.RawMessage(strconv.FormatUint(n, 10))
+		}
+	}
+	return raw
 }

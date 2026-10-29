@@ -19,6 +19,7 @@ cleanup() {
 trap cleanup EXIT
 docker run --detach --pull never --name "$name" --network none --cgroupns private \
   --cap-add SYS_ADMIN --cap-add NET_ADMIN --cap-add SYS_PTRACE \
+  --sysctl net.ipv4.ip_forward=1 --sysctl net.ipv6.conf.all.forwarding=1 \
   --device /dev/net/tun --security-opt apparmor=unconfined \
   --tmpfs /run --tmpfs /run/lock --tmpfs /tmp \
   --mount "type=bind,src=$PWD,dst=/src,readonly" \

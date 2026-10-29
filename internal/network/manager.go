@@ -220,6 +220,11 @@ func (m *Manager) load() error {
 	}
 	m.v4, _ = netip.ParsePrefix(p.Gateway4)
 	m.v6, _ = netip.ParsePrefix(p.Gateway6)
+	// A previous clean disconnect retains allocated subnet identity. This also
+	// permits cleanup of old iproute2-string-ID routes left by pre-1.1 clients.
+	if m.v4.IsValid() && m.v6.IsValid() {
+		m.ownedRules = true
+	}
 	if e := read("dns-backup.json", &m.dnsSaved); e != nil {
 		return e
 	}

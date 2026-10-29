@@ -3,6 +3,6 @@ FROM ${BASE_IMAGE}
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get -o Acquire::http::Timeout=20 -o Acquire::Retries=1 update && \
     apt-get -o Acquire::http::Timeout=20 -y --no-install-recommends install \
-      network-manager curl openssl jq iproute2 nftables wireguard-tools \
+      network-manager curl openssl jq iproute2 nftables wireguard-tools openvpn \
       dbus systemd systemd-resolved python3 adduser passwd init-system-helpers ca-certificates && \
     rm -rf /var/lib/apt/lists/*
