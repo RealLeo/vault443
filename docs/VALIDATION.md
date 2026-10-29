@@ -1,9 +1,18 @@
 # Validation
 
-Current release: **Vault 443 1.1.0**. Tests use generated credentials and disposable,
+Current release: **Vault 443 1.1.1**. Tests use generated credentials and disposable,
 network-isolated containers. The workstation's installed service, VPNs and network
 were not switched. The user's real work profile was parsed read-only; its keys
 were not copied into the source tree or test fixtures.
+
+## 1.1.1 import regression
+
+Bracketed IPv6 imports are checked against the equivalent bare address, including
+identity, IPv4 fallback order, persistence and invalid-address rejection. A
+generated IPv6 profile also exercises the Qt/private D-Bus import path. The
+reported user profile passes read-only validation without copying its credentials.
+Network policy is unchanged; the network and platform matrix below records the
+1.1.0 baseline. ARM64 remains a cross-build.
 
 ## Desktop and service
 

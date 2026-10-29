@@ -121,9 +121,14 @@ func Parse(name, source string) (Profile, error) {
 		seen[identity] = true
 		switch key {
 		case "remote":
-			if len(args) < 1 || len(args) > 3 || !validRemoteHost(args[0]) {
+			if len(args) < 1 || len(args) > 3 {
 				return fail("invalid remote server")
 			}
+			host, ok := normalizeRemoteHost(args[0])
+			if !ok {
+				return fail("invalid remote server")
+			}
+			args[0] = host
 			if len(args) >= 2 && !integer(args[1], 1, 65535) {
 				return fail("invalid remote port")
 			}
@@ -407,6 +412,21 @@ func validRemoteHost(s string) bool {
 		return !a.IsUnspecified() && !a.IsMulticast() && !a.IsLoopback() && a.Zone() == ""
 	}
 	return true
+}
+
+// Some exporters wrap IPv6 remote addresses in brackets even though the port
+// is a separate argument. Store the bare address expected by the resolver and
+// runtime. Leave all previously accepted host spellings unchanged so existing
+// profile identities are preserved.
+func normalizeRemoteHost(s string) (string, bool) {
+	if strings.HasPrefix(s, "[") && strings.HasSuffix(s, "]") {
+		s = s[1 : len(s)-1]
+		a, err := netip.ParseAddr(s)
+		if err != nil || !a.Is6() || a.Zone() != "" {
+			return "", false
+		}
+	}
+	return s, validRemoteHost(s)
 }
 func ipv4(s string) bool { a, e := netip.ParseAddr(s); return e == nil && a.Is4() }
 func ipv6(s string) bool { a, e := netip.ParseAddr(s); return e == nil && a.Is6() && a.Zone() == "" }

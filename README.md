@@ -9,7 +9,7 @@
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Ubuntu-24.04%20%7C%2026.04-E95420?style=flat-square" alt="Ubuntu 24.04 and 26.04">
-  <img src="https://img.shields.io/badge/version-1.1.0-b6a166?style=flat-square" alt="Version 1.1.0">
+  <img src="https://img.shields.io/badge/version-1.1.1-b6a166?style=flat-square" alt="Version 1.1.1">
   <img src="https://img.shields.io/badge/Qt-6%20Quick-41CD52?style=flat-square" alt="Qt 6 Quick">
   <img src="https://img.shields.io/badge/Go-1.22%2B-00ADD8?style=flat-square" alt="Go 1.22 or later">
 </p>
@@ -18,7 +18,7 @@
   <a href="#first-connection">Get started</a> ·
   <a href="#working-alongside-other-vpns">Other VPNs</a> ·
   <a href="#build-from-source">Build</a> ·
-  <a href="docs/RELEASE-1.1.0.md">What's new</a>
+  <a href="docs/RELEASE-1.1.1.md">What's new</a>
 </p>
 <p align="center">
   <a href="docs/images/readme/main.png"><img src="docs/images/readme/main.png" width="472" alt="Vault 443 main window with three demo profiles and an active connection"></a>
@@ -65,15 +65,15 @@ All screenshots use the application's demo mode and contain fictional profiles.
 Install a locally built `.deb` from `dist/`. Run these commands in your **normal desktop user's terminal**:
 
 ```sh
-sudo apt install ./dist/vault443_1.1.0_amd64.deb
+sudo apt install ./dist/vault443_1.1.1_amd64.deb
 sudo vault443-access "$USER"
 ```
 
-For ARM64, use `vault443_1.1.0_arm64.deb`. The access command is a one-time setup per local user; an existing Vault 443 account keeps its permissions. Open **Vault 443** from the application launcher afterward. The GUI runs as your regular user, and the service checks current group membership on each request.
+For ARM64, use `vault443_1.1.1_arm64.deb`. The access command is a one-time setup per local user; an existing Vault 443 account keeps its permissions. Open **Vault 443** from the application launcher afterward. The GUI runs as your regular user, and the service checks current group membership on each request.
 
 **Updating Vault 443:** use the same APT command. Updates from **1.0.0 onward** preserve profiles, subscriptions, logs, group membership and startup settings. The service may briefly restart and resumes the requested connection under the traffic guard. Earlier VLESS Terminal installations must first complete their transition using the **1.0.0 release tools**; this source tree no longer includes that migration.
 
-**Release status:** 1.1.0 adds managed OpenVPN connections and explicit route/DNS choices. It keeps the pinned Xray core unchanged. The project uses isolated networking and desktop validation on Ubuntu 24.04 and 26.04 amd64; ARM64 packages are cross-compiled and still require device acceptance. The bundled [Xray 26.9.30](https://github.com/XTLS/Xray-core/releases/tag/v26.9.30) is an upstream **prerelease**, pinned with [archive checksums](packaging/xray-lock.json). See the [validation record](docs/VALIDATION.md) for tested scenarios and remaining limitations.
+**Release status:** 1.1.1 fixes import of bracketed IPv6 OpenVPN servers. It includes the managed work connections and route/DNS choices introduced in 1.1.0. It keeps the pinned Xray core unchanged. The project uses isolated networking and desktop validation on Ubuntu 24.04 and 26.04 amd64; ARM64 packages are cross-compiled and still require device acceptance. The bundled [Xray 26.9.30](https://github.com/XTLS/Xray-core/releases/tag/v26.9.30) is an upstream **prerelease**, pinned with [archive checksums](packaging/xray-lock.json). See the [validation record](docs/VALIDATION.md) for tested scenarios and remaining limitations.
 
 ### First connection
 
@@ -199,6 +199,7 @@ This removes only Vault 443's network resources, clears the desired connection a
 
 ## Documentation and third-party components
 
+- [1.1.1 release notes](docs/RELEASE-1.1.1.md) — bracketed IPv6 OpenVPN import compatibility.
 - [1.1.0 release notes](docs/RELEASE-1.1.0.md) — managed OpenVPN work profiles and route selection.
 - [1.0.1 release notes](docs/RELEASE-1.0.1.md) — single-line traffic counters and source cleanup.
 - [1.0.0 release notes](docs/RELEASE-1.0.0.md) — the Vault 443 baseline.

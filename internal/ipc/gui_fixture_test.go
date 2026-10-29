@@ -63,7 +63,8 @@ func TestPrivateDBusGUIFixture(t *testing.T) {
 		defer stop()
 		s.StopWork(stopCtx)
 	}()
-	writeGUIOpenVPNFixture(t, addressFile+".ovpn", "gui-office.example")
+	// Exercise exported bracketed IPv6 through the actual GUI/private-bus import.
+	writeGUIOpenVPNFixture(t, addressFile+".ovpn", "[2001:db8::42]")
 	writeGUIOpenVPNFixture(t, addressFile+".blocked.ovpn", "gui-blocked.example")
 	caller := service.Caller{UID: uint32(os.Geteuid()), Admin: true}
 	_, err = s.ImportProfiles(caller, "vless://11111111-2222-4333-8444-555555555555@vault.example:443?security=tls#VAULT-13\nvless://21111111-2222-4333-8444-555555555555@new-reno.example:443?security=tls&type=ws#NEW%20RENO\nvless://31111111-2222-4333-8444-555555555555@ncr.example:443?security=tls&type=grpc#NCR%20RELAY")

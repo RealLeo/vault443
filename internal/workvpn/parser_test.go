@@ -174,6 +174,38 @@ func TestRemoteDefaultsAndExplicitRoutes(t *testing.T) {
 	}
 }
 
+func TestBracketedIPv6RemotePreservesIdentityAndFallback(t *testing.T) {
+	base := fixture(t)
+	bare := strings.Replace(base, "remote vpn.example.test 16743 udp", "remote 2001:db8::42 443 tcp6-client\nremote 192.0.2.42 443 tcp-client\nremote-random", 1)
+	bracketed := strings.Replace(bare, "remote 2001:db8::42", "remote [2001:db8::42]", 1)
+	before, err := Parse("Bare address", bare)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := Parse("Exported address", bracketed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.ID != before.ID || len(after.Remotes) != 2 || after.Remotes[0] != (Remote{"2001:db8::42", 443, "tcp6-client"}) || after.Remotes[1] != (Remote{"192.0.2.42", 443, "tcp-client"}) {
+		t.Fatal("IPv6 normalization changed identity, transport or fallback order")
+	}
+	if err = ValidateProfile(after); err != nil {
+		t.Fatal(err)
+	}
+	round, err := Parse("Round trip", after.Source())
+	if err != nil || round.ID != before.ID {
+		t.Fatal("normalized profile did not survive persistence", err)
+	}
+	for _, host := range []string{"[2001:db8::42", "2001:db8::42]", "[[2001:db8::42]]", "[2001:db8::42]:443", "[vpn.example.test]", "[192.0.2.42]", "[::]", "[::1]", "[ff02::1]", "[fe80::1%eth0]", "[]"} {
+		t.Run(host, func(t *testing.T) {
+			input := strings.Replace(base, "remote vpn.example.test", "remote "+host, 1)
+			if _, err := Parse("Invalid address", input); err == nil || !strings.Contains(err.Error(), "OpenVPN line 3: invalid remote server") {
+				t.Fatal("invalid bracketed address was accepted or lost its line number", err)
+			}
+		})
+	}
+}
+
 func TestDNSPreferenceOrderPreserved(t *testing.T) {
 	p, e := Parse("Ordered DNS", fixture(t)+"dhcp-option DNS 10.0.0.2\ndhcp-option DNS 10.0.0.1\n")
 	if e != nil {
