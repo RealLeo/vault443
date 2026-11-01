@@ -4,7 +4,7 @@
 <h1 align="center">Vault 443</h1>
 <p align="center"><strong>A retro terminal for modern VPN connections.</strong></p>
 <p align="center">
-  A native Ubuntu VPN client with worn brass, green phosphor, and one-click connections.<br>
+  A native Linux VPN client with worn brass, green phosphor, and one-click connections.<br>
   Qt Quick on the desktop. Go behind the scenes. VLESS, Trojan, Shadowsocks/Outline and your work VPNs in one place.
 </p>
 <p align="center">
@@ -71,6 +71,11 @@ All screenshots use the application's demo mode and contain fictional profiles.
 
 ## Install
 
+Native x86-64 packages are also available for **Debian 13, Fedora 44 and Arch Linux**.
+See the [Linux package guide](docs/linux-packages.md) for artifact names, commands,
+DNS prerequisites and validation limits. Fedora/Arch are initial distribution
+ports; Ubuntu remains the established desktop target.
+
 Install a locally built `.deb` from `dist/`. Run these commands in your **normal desktop user's terminal**:
 
 ```sh
@@ -101,7 +106,7 @@ In **Settings → General**, choose **System default**, **English**, or **Рус
 | Launch the interface at login | Opens the GUI when this user signs in. It does not select a boot VPN profile. |
 | Connect VPN at system boot | Starts the selected system profile before desktop login. Requires an authorized administrator. |
 
-One owner controls the active set of connections: one main Internet session (VLESS, Trojan or Shadowsocks/Outline) and up to 16 work sessions shared by OpenVPN, WireGuard and AmneziaWG. Each user has a private profile library and journal. Operator access requires an active local desktop session. Boot autoconnect applies to the selected main Internet profile; work profiles start manually. Boot-profile and manual VPN binding changes additionally require membership in `sudo` or `admin`.
+One owner controls the active set of connections: one main Internet session (VLESS, Trojan or Shadowsocks/Outline) and up to 16 work sessions shared by OpenVPN, WireGuard and AmneziaWG. Each user has a private profile library and journal. Operator access requires an active local desktop session. Boot autoconnect applies to the selected main Internet profile; work profiles start manually. Boot-profile and manual VPN binding changes additionally require membership in `sudo`, `admin` or `wheel`.
 
 ## Work VPN profiles
 

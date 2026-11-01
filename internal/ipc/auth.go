@@ -41,7 +41,7 @@ func (a Authorizer) Authorize(sender dbus.Sender) (service.Caller, error) {
 		if g == a.OperatorGroup {
 			operator = true
 		}
-		if g == "sudo" || g == "admin" {
+		if g == "sudo" || g == "admin" || g == "wheel" {
 			admin = true
 		}
 	}

@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-source scripts/qt-env.sh
+if [ "${VAULT443_SYSTEM_QT:-0}" != 1 ]; then source scripts/qt-env.sh; fi
 export GOMODCACHE="$PWD/.cache/go-mod" GOCACHE="$PWD/.cache/go-build"
-python3 scripts/go.py test -c -o .cache/gui-ipc.test ./internal/ipc
+fixture_binary=${VAULT443_GUI_FIXTURE_BINARY:-.cache/gui-ipc.test}
+if [ -z "${VAULT443_GUI_FIXTURE_BINARY:-}" ]; then
+    python3 scripts/go.py test -c -o "$fixture_binary" ./internal/ipc
+fi
 fixture_dir=$(mktemp -d)
 fixture_pid=
 cleanup() {
@@ -12,7 +15,7 @@ cleanup() {
     rm -rf "$fixture_dir"
 }
 trap cleanup EXIT
-VAULT443_GUI_DBUS_ADDRESS_FILE="$fixture_dir/address" .cache/gui-ipc.test \
+VAULT443_GUI_DBUS_ADDRESS_FILE="$fixture_dir/address" "$fixture_binary" \
     -test.run '^TestPrivateDBusGUIFixture$' -test.v > "$fixture_dir/fixture.log" 2>&1 &
 fixture_pid=$!
 for ((i=0; i<100; i++)); do

@@ -31,6 +31,9 @@ func TestIdentityPolicy(t *testing.T) {
 	}{
 		{"operator", identity{uid: 1000, groups: []string{"vault443"}, active: true}, true, false},
 		{"admin", identity{uid: 1000, groups: []string{"vault443", "sudo"}, active: true}, true, true},
+		{"wheel admin", identity{uid: 1000, groups: []string{"vault443", "wheel"}, active: true}, true, true},
+		{"wheel without enrollment", identity{uid: 1000, groups: []string{"wheel"}, active: true}, false, false},
+		{"inactive wheel", identity{uid: 1000, groups: []string{"vault443", "wheel"}}, false, false},
 		{"inactive", identity{uid: 1000, groups: []string{"vault443"}}, false, false},
 		{"not enrolled", identity{uid: 1000, groups: []string{"sudo"}, active: true}, false, false},
 		{"peer lookup failed", identity{fail: true}, false, false},

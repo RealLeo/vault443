@@ -1,0 +1,17 @@
+# Local binary packaging recipe. Inputs are generated and SHA-256 checked by
+# scripts/build-linux-packages.sh, not downloaded from an unversioned URL.
+pkgname=vault443
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc='Native desktop client for proxy and work VPN connections'
+arch=('x86_64')
+license=('LicenseRef-Unknown')
+depends=('qt6-base>=@QT_MIN@' 'qt6-declarative>=@QT_MIN@' 'qt6-wayland' 'systemd' 'dbus'
+         'ca-certificates' 'iproute2' 'nftables' 'wireguard-tools' 'openvpn>=2.6' 'shadow')
+options=('!strip' '!debug')
+install=vault443.install
+source=('payload.tar')
+sha256sums=('@SHA256@')
+package() {
+  cp -a "$srcdir/payload/." "$pkgdir/"
+}

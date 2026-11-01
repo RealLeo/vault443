@@ -27,8 +27,18 @@ EOF
 openssl x509 -req -in /fixture/server.csr -CA /fixture/ca.crt -CAkey /fixture/ca.key \
   -CAcreateserial -out /fixture/server.crt -days 2 -sha256 \
   -extfile /fixture/extensions >>/results/cert.log 2>&1
-install -m 0644 /fixture/ca.crt /usr/local/share/ca-certificates/vault443-e2e.crt
-update-ca-certificates >/results/ca-install.log 2>&1
+if command -v update-ca-certificates >/dev/null; then
+  install -m 0644 /fixture/ca.crt /usr/local/share/ca-certificates/vault443-e2e.crt
+  update-ca-certificates >/results/ca-install.log 2>&1
+else
+  if [ -d /etc/pki/ca-trust/source/anchors ]; then
+    anchors=/etc/pki/ca-trust/source/anchors
+  else
+    anchors=/etc/ca-certificates/trust-source/anchors
+  fi
+  install -m 0644 /fixture/ca.crt "$anchors/vault443-e2e.crt"
+  update-ca-trust extract >/results/ca-install.log 2>&1
+fi
 
 # Server is reachable solely by a veth pair inside this disposable container.
 ip netns add fixture
@@ -112,7 +122,7 @@ fi
 
 set +e
 if [ "${VAULT443_PACKAGE_NETWORK:-}" = 1 ]; then
-  /bin/bash /src/tests/package-lifecycle.sh 2>&1 | tee /results/package-lifecycle.log
+  /bin/bash "${VAULT443_PACKAGE_LIFECYCLE:-/src/tests/package-lifecycle.sh}" 2>&1 | tee /results/package-lifecycle.log
   result=${PIPESTATUS[0]}
 else
   "${VAULT443_E2E_TEST_BINARY:-/src/.cache/e2e.test}" -test.v -test.run "${VAULT443_E2E_TEST_PATTERN:-^TestRealVLESS}" -test.timeout="${VAULT443_E2E_TIMEOUT:-240s}" 2>&1 | tee /results/e2e.log

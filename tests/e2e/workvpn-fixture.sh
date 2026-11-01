@@ -109,7 +109,7 @@ ip netns exec work-docker ip route add default via 192.168.96.1
 ip netns exec work-docker ip route add 192.168.100.15/32 via 192.168.96.1
 # The Docker runner enables forwarding only in this disposable namespace.
 # Keep default reverse-path filtering to exercise production routing correctly.
-if [ "$(sysctl -n net.ipv4.ip_forward)" != 1 ]; then
+if [ "$(cat /proc/sys/net/ipv4/ip_forward)" != 1 ]; then
   echo 'Work forwarding fixture requires container --sysctl net.ipv4.ip_forward=1' >&2
   exit 1
 fi

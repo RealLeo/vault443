@@ -1,0 +1,13 @@
+FROM fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80 AS runtime
+RUN dnf install -y qt6-qtbase-gui qt6-qtdeclarative qt6-qtwayland \
+    systemd systemd-resolved dbus ca-certificates iproute nftables wireguard-tools \
+    openvpn shadow-utils && dnf clean all
+FROM runtime AS builder
+RUN dnf install -y gcc-c++ cmake ninja-build pkgconf-pkg-config qt6-qtbase-devel \
+    qt6-qtdeclarative-devel qt6-qttools-devel qt6-linguist rpm-build \
+    python3 file binutils xorg-x11-server-Xvfb xorg-x11-xauth weston \
+    dejavu-sans-fonts NetworkManager curl openssl jq && dnf clean all
+# Fedora uses dbus-broker for the system bus. The separate daemon is test-only:
+# our private GUI fixture starts its own session bus without touching PID1.
+RUN dnf install -y dbus-daemon && dnf clean all
+WORKDIR /src

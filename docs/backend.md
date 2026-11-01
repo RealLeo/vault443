@@ -12,7 +12,7 @@ subscription URLs, and original share links. The `Changed` signal has no payload
 
 The service authenticates each call using the unique D-Bus sender's Unix UID.
 The UID must have an active local logind user session and membership of the
-`vault443` group. Membership of `sudo` or `admin` additionally permits boot
+`vault443` group. Membership of `sudo`, `admin` or `wheel` additionally permits boot
 profile selection and external VPN binding changes. Method arguments cannot
 select or impersonate another UID. Each UID has an independent profile library.
 Taking control of another user's active connection is an explicit operation.

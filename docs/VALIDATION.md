@@ -5,6 +5,46 @@ network tests run in disposable containers with no external network. Development
 does not change the installed application or workstation VPNs. ARM64 is a
 cross-build, pending physical-device acceptance.
 
+## Native x86-64 distribution packages
+
+Packaging revision 1 of 1.3.1 adds Debian 13, Fedora 44 and Arch Linux alongside
+the Ubuntu 24.04-baseline package (also exercised on 26.04). No engine pin,
+profile schema or D-Bus method changes are involved. The only service behavior
+change is recognition of `wheel` as an administrator group; enrollment and
+active-local-session checks remain mandatory and pass Go race tests.
+
+- Native Qt builds: Debian 13 **6.8.2**, Fedora 44 **6.11.2**, Arch **6.12.0**.
+  Runtime-only containers install each native package and launch the installed
+  EN/RU GUI without development packages. Native GUI suites pass in all three.
+- Xvfb X11 and Weston Wayland: EN/RU, scale factors 1 / 1.25 / 1.5 / 2, compact
+  layout and screenshots on each new distribution; all 48 combinations pass.
+  Each platform/language full demo suite reports 49 passed and 14 intentionally
+  skipped private-bus cases. The focused private D-Bus EN/RU suite separately
+  checks a dropdown kept open for 15 seconds, non-blinking polling, journal
+  actions, import and switch cancellation (7 cases per language).
+- Real systemd PID1, private cgroups and network-none containers: Ubuntu 24.04,
+  Ubuntu 26.04, Debian 13, Fedora 44 and Arch all pass initial install, reinstall
+  while connected, profile/permission preservation and removal. Continuous
+  physical-bypass monitoring remains blocked while the supervisor restarts.
+- Each lifecycle run establishes a synthetic VLESS connection, exercises the
+  packaged Outline adapter and protected source refresh, two OpenVPN work
+  tunnels with a Docker-subnet overlap, and WireGuard/AmneziaWG. Process crashes
+  preserve guards and reconnect. Removal releases application-owned firewall
+  resources, retains unrelated rules/private data and leaves NetworkManager
+  and systemd-resolved active.
+- Fresh `govulncheck` reports pass for the service, Outline and standalone AWG;
+  every format uses the shared compiler/manifest/architecture/RPATH gate.
+
+These results do not establish physical boot/suspend behavior, GNOME tray-host
+recovery, Fedora enforcing SELinux or firewalld policy compatibility. The host
+kernel is Ubuntu's; distro kernels and bare-metal environments remain acceptance
+work. The new ports are initial packages, not official distro repository builds.
+An active reinstall exercises each native package manager's replacement hooks;
+it is not a claim of upgrading from a previously released Fedora/Arch version.
+No new ARM64 distro builds were requested. Logs and screenshots are ignored under
+`test-results/linux-1.3.1/`; package provenance is alongside artifacts in
+`dist/linux/`. See [package commands and prerequisites](linux-packages.md).
+
 ## Audit regressions
 
 - Go race tests cover preparation failure, provider denial, post-cutover failure,

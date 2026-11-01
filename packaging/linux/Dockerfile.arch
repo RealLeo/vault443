@@ -1,0 +1,9 @@
+FROM archlinux:base@sha256:e82623936fa1a69700b48e98b058df6eaab18b737c27473a7234a40fdecb9413 AS runtime
+RUN pacman -Syu --noconfirm --needed qt6-base qt6-declarative qt6-wayland \
+    systemd dbus ca-certificates iproute2 nftables wireguard-tools openvpn shadow \
+    && pacman -Scc --noconfirm
+FROM runtime AS builder
+RUN pacman -Syu --noconfirm --needed base-devel cmake ninja qt6-tools python \
+    xorg-server-xvfb xorg-xauth weston ttf-dejavu networkmanager curl openssl jq \
+    && pacman -Scc --noconfirm
+WORKDIR /src

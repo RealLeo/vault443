@@ -8,6 +8,8 @@
 
 # Generated diagnostics, coverage and compiler/interpreter output
 *.deb
+*.rpm
+*.pkg.tar.*
 *.log
 *.test
 *.prof

@@ -1,0 +1,15 @@
+FROM debian:13-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4 AS runtime
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libqt6widgets6 libqt6quickcontrols2-6 libqt6dbus6 qt6-qpa-plugins qt6-wayland \
+    qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+    qml6-module-qtquick-window qml6-module-qtquick-templates qml6-module-qtquick-dialogs \
+    qml6-module-qtqml qml6-module-qtqml-workerscript systemd systemd-resolved \
+    dbus ca-certificates iproute2 nftables wireguard-tools openvpn adduser passwd \
+    init-system-helpers && rm -rf /var/lib/apt/lists/*
+FROM runtime AS builder
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake ninja-build pkg-config qt6-base-dev qt6-declarative-dev \
+    qt6-l10n-tools python3 file binutils xvfb xauth weston fonts-dejavu-core \
+    network-manager curl openssl jq && rm -rf /var/lib/apt/lists/*
+WORKDIR /src

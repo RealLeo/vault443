@@ -1,0 +1,25 @@
+pre_install() {
+  if test -e /var/lib/vless-terminal/state.json || test -L /var/lib/vless-terminal/state.json ||
+     test -e /var/lib/vault443-migration/active.json || test -L /var/lib/vault443-migration/active.json ||
+     pacman -Q vless-terminal >/dev/null 2>&1; then
+    echo 'Complete the VLESS Terminal transition with Vault 443 1.0.0 first.' >&2
+    return 1
+  fi
+}
+pre_upgrade() { pre_install; }
+post_install() {
+  /usr/lib/vault443/package-lifecycle configure
+  echo 'Enable systemd-resolved, then: systemctl enable --now vault443-guard.service vault443.service'
+  echo 'Grant desktop access once: vault443-access USER'
+}
+post_upgrade() {
+  /usr/lib/vault443/package-lifecycle configure
+  /usr/lib/vault443/package-lifecycle upgrade
+}
+pre_remove() { /usr/lib/vault443/package-lifecycle remove; }
+post_remove() {
+  if test -d /run/systemd/system; then
+    systemctl daemon-reload
+    systemctl stop vault443-guard.service || :
+  fi
+}

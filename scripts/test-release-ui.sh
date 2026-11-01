@@ -51,4 +51,10 @@ for platform in xcb wayland; do
   done
 done
 cat /etc/os-release > /artifacts/runtime.txt
-dpkg-query -W 'libqt6core6*' weston xvfb >> /artifacts/runtime.txt
+if command -v dpkg-query >/dev/null; then
+  dpkg-query -W 'libqt6core6*' weston xvfb >> /artifacts/runtime.txt
+elif command -v rpm >/dev/null; then
+  rpm -q qt6-qtbase weston xorg-x11-server-Xvfb >> /artifacts/runtime.txt
+else
+  pacman -Q qt6-base weston xorg-server-xvfb >> /artifacts/runtime.txt
+fi

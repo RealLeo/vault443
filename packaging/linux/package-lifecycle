@@ -1,0 +1,40 @@
+#!/bin/sh
+# Installed only by RPM/pacman. No network reconfiguration on install/upgrade.
+set -eu
+case "${1:-}" in
+  check)
+    if [ -e /var/lib/vless-terminal/state.json ] || [ -L /var/lib/vless-terminal/state.json ] ||
+       [ -e /var/lib/vault443-migration/active.json ] || [ -L /var/lib/vault443-migration/active.json ]; then
+      echo 'Complete the VLESS Terminal transition with Vault 443 1.0.0 before installing.' >&2
+      exit 1
+    fi
+    ;;
+  configure)
+    getent group vault443 >/dev/null || groupadd --system vault443
+    if [ -d /run/systemd/system ]; then systemctl daemon-reload; fi
+    ;;
+  upgrade)
+    # Restart only an already running service. Stopping it preserves the guard
+    # and saved intent. Never call --release-network during a package upgrade.
+    if [ -d /run/systemd/system ]; then
+      systemctl daemon-reload
+      systemctl try-restart vault443.service
+    fi
+    ;;
+  remove)
+    if [ -d /run/systemd/system ]; then
+      systemctl disable --now vault443.service
+    fi
+    /usr/bin/vault443d --release-network
+    if [ -d /run/systemd/system ]; then
+      # Its drop-ins still make NM/networkd depend on it until the package
+      # files are removed and daemon-reload runs. Do not stop networking here.
+      systemctl disable vault443-guard.service
+    fi
+    # Keep private profiles, logs, group membership and resolved settings.
+    ;;
+  reload)
+    if [ -d /run/systemd/system ]; then systemctl daemon-reload; fi
+    ;;
+  *) echo 'Unknown package lifecycle action' >&2; exit 2;;
+esac
