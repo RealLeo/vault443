@@ -39,7 +39,9 @@ CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_SYS_PTR
 # Discovery reads kernel metadata only; debugging/memory syscalls are forbidden.
 SystemCallFilter=~ptrace process_vm_readv process_vm_writev
 SystemCallErrorNumber=EPERM
-RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET AF_INET6
+# AF_PACKET sends bounded handshake probes only to a verified owned WG/TUN
+# interface while its ordinary destination routes remain fail-closed.
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET AF_INET6 AF_PACKET
 ReadWritePaths=/var/lib/vault443 /run/vault443
 # No ExecStopPost cleanup: a supervisor failure MUST leave the kill switch armed.
 

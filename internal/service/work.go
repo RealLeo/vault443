@@ -6,8 +6,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -120,7 +120,7 @@ func (s *Service) recoverWorkFailure(uid uint32, id string) *Failure {
 }
 func (s *Service) requireWork() error {
 	if s.work == nil {
-		return errors.New("managed OpenVPN is unavailable; update the system service")
+		return errors.New("managed work VPN is unavailable; update the system service")
 	}
 	return nil
 }
@@ -158,14 +158,30 @@ func (s *Service) workProfiles(c Caller) []WorkProfileInfo {
 	defer s.work.mu.Unlock()
 	out := make([]WorkProfileInfo, 0, len(user.Profiles))
 	for _, p := range user.Profiles {
-		v := WorkProfileInfo{ID: p.ID, Name: p.Name, IconID: p.IconID, DebugLogging: p.DebugLogging, Kind: "openvpn", Runtime: worknet.Status{State: "disconnected"}}
+		v := WorkProfileInfo{ID: p.ID, Name: p.Name, IconID: p.IconID, DebugLogging: p.DebugLogging, Kind: p.Protocol(), Runtime: worknet.Status{State: "disconnected"}}
 		if len(p.Remotes) > 0 {
 			v.Server = p.Remotes[0].Host
 			v.Transport = p.Remotes[0].Protocol
 		}
+		if p.WireGuard != nil && len(p.WireGuard.Peers) > 0 {
+			v.Server = p.WireGuard.Peers[0].Endpoint.Host
+			v.Transport = "udp"
+		}
 		if a := s.work.actors[p.ID]; a != nil && a.uid == c.UID {
 			v.Runtime = a.status
 			v.Operation = copyOperation(&a.operation)
+		}
+		if p.WireGuard != nil && len(v.Runtime.Peers) == 0 {
+			state := "disconnected"
+			if v.Operation != nil {
+				state = "waiting_handshake"
+			}
+			for _, peer := range p.WireGuard.Peers {
+				v.Runtime.Peers = append(v.Runtime.Peers, worknet.PeerStatus{ID: workvpn.PeerID(peer.PublicKey), Endpoint: net.JoinHostPort(peer.Endpoint.Host, strconv.Itoa(peer.Endpoint.Port)), State: state, AllowedIPs: append([]string(nil), peer.AllowedIPs...)})
+				v.Runtime.Routes = append(v.Runtime.Routes, peer.AllowedIPs...)
+			}
+			v.Runtime.DNSServers = append([]string(nil), p.WireGuard.DNSServers...)
+			v.Runtime.DNSDomains = append([]string(nil), p.WireGuard.DNSDomains...)
 		}
 		if f, ok := s.work.failures[c.UID][p.ID]; ok && time.Since(time.UnixMilli(f.Time)) <= 7*24*time.Hour {
 			value := f
@@ -175,7 +191,7 @@ func (s *Service) workProfiles(c Caller) []WorkProfileInfo {
 	}
 	return out
 }
-func (s *Service) RequestOpenVPNConnect(ctx context.Context, c Caller, id string) (string, error) {
+func (s *Service) RequestWorkConnect(ctx context.Context, c Caller, id string) (string, error) {
 	if err := s.requireWork(); err != nil {
 		return "", err
 	}
@@ -231,21 +247,7 @@ func (s *Service) runWork(ctx context.Context, a *workActor) {
 	defer close(a.done)
 	var log *journal.Session
 	if s.journal != nil {
-		secrets := []string{}
-		for _, v := range a.profile.Inline {
-			secrets = append(secrets, v)
-			for _, line := range strings.Split(v, "\n") {
-				if len(line) > 8 {
-					secrets = append(secrets, line)
-				}
-			}
-		}
-		for _, o := range a.profile.Options {
-			if o.Key == "setenv" && len(o.Args) > 1 {
-				secrets = append(secrets, o.Args[1])
-			}
-		}
-		log = s.journal.NewSession(a.uid, a.profile.ID, secrets...)
+		log = s.journal.NewSession(a.uid, a.profile.ID, a.profile.Secrets()...)
 	}
 	log.Log("info", "Work VPN connection requested")
 	delay := time.Second
@@ -283,7 +285,7 @@ func (s *Service) runWork(ctx context.Context, a *workActor) {
 						a.operation.StageStartedAt = status.StageStartedAt
 					}
 				}
-				if status.State == "connected" {
+				if status.State == "connected" || status.State == "partial" {
 					successful.Store(true)
 				}
 				s.work.mu.Unlock()
@@ -297,16 +299,17 @@ func (s *Service) runWork(ctx context.Context, a *workActor) {
 			break
 		}
 		if err == nil {
-			err = errors.New("OpenVPN connection ended")
+			err = errors.New("work VPN connection ended")
 		}
+		failureCode := a.profile.Protocol() + "_failed"
 		reason := journal.Sanitize(err.Error())
 		at := time.Now().UnixMilli()
 		s.work.mu.Lock()
-		reason, epoch := log.RecordFailure("openvpn_failed", reason, at)
+		reason, epoch := log.RecordFailure(failureCode, reason, at)
 		if s.work.failures[a.uid] == nil {
 			s.work.failures[a.uid] = map[string]Failure{}
 		}
-		s.work.failures[a.uid][a.profile.ID] = Failure{ProfileID: a.profile.ID, Time: at, Code: "openvpn_failed", Message: reason, journalEpoch: epoch}
+		s.work.failures[a.uid][a.profile.ID] = Failure{ProfileID: a.profile.ID, Time: at, Code: failureCode, Message: reason, journalEpoch: epoch}
 		a.status = worknet.Status{State: "error", Stage: "retry_wait", Message: reason, StageStartedAt: at}
 		a.operation.Stage = "retry_wait"
 		a.operation.StageStartedAt = at
@@ -353,7 +356,7 @@ func (s *Service) finishWorkDisconnect(a *workActor, log *journal.Session) {
 	}
 	s.changed()
 }
-func (s *Service) RequestOpenVPNDisconnect(ctx context.Context, c Caller, id string) (string, error) {
+func (s *Service) RequestWorkDisconnect(ctx context.Context, c Caller, id string) (string, error) {
 	if err := s.requireWork(); err != nil {
 		return "", err
 	}
@@ -439,7 +442,7 @@ func (s *Service) StartWork(ctx context.Context, bootID string) error {
 	}
 	desired := s.work.store.Snapshot().Desired
 	for _, d := range desired {
-		if _, err := s.RequestOpenVPNConnect(ctx, Caller{UID: d.UID}, d.ProfileID); err != nil {
+		if _, err := s.RequestWorkConnect(ctx, Caller{UID: d.UID}, d.ProfileID); err != nil {
 			return err
 		}
 	}
@@ -475,7 +478,7 @@ func (s *Service) disconnectAllWork(ctx context.Context) error {
 	}
 	s.work.mu.Unlock()
 	for _, d := range ids {
-		if _, err := s.RequestOpenVPNDisconnect(ctx, Caller{UID: d.UID}, d.ProfileID); err != nil {
+		if _, err := s.RequestWorkDisconnect(ctx, Caller{UID: d.UID}, d.ProfileID); err != nil {
 			return err
 		}
 	}
@@ -502,7 +505,7 @@ func (s *Service) disconnectAllWork(ctx context.Context) error {
 		}
 	}
 }
-func (s *Service) UpdateOpenVPNProfile(c Caller, id, name, icon string) error {
+func (s *Service) UpdateWorkProfile(c Caller, id, name, icon string) error {
 	if err := s.requireWork(); err != nil {
 		return err
 	}
@@ -531,7 +534,7 @@ func (s *Service) UpdateOpenVPNProfile(c Caller, id, name, icon string) error {
 	}
 	return err
 }
-func (s *Service) SetOpenVPNDebug(c Caller, id string, enabled bool) error {
+func (s *Service) SetWorkDebug(c Caller, id string, enabled bool) error {
 	if err := s.requireWork(); err != nil {
 		return err
 	}
@@ -551,7 +554,7 @@ func (s *Service) SetOpenVPNDebug(c Caller, id string, enabled bool) error {
 	}
 	return err
 }
-func (s *Service) RemoveOpenVPNProfile(c Caller, id string) error {
+func (s *Service) RemoveWorkProfile(c Caller, id string) error {
 	if err := s.requireWork(); err != nil {
 		return err
 	}
@@ -589,7 +592,7 @@ func (s *Service) RemoveOpenVPNProfile(c Caller, id string) error {
 	}
 	return err
 }
-func (s *Service) GetOpenVPNDiagnostics(c Caller, id string) (interface{}, error) {
+func (s *Service) GetWorkDiagnostics(c Caller, id string) (interface{}, error) {
 	if err := s.requireWork(); err != nil {
 		return nil, err
 	}
@@ -613,7 +616,7 @@ func (s *Service) GetOpenVPNDiagnostics(c Caller, id string) (interface{}, error
 	}
 	return nil, errors.New("profile not found")
 }
-func (s *Service) GetOpenVPNLogs(c Caller, id, cursor string, limit int) (journal.Page, error) {
+func (s *Service) GetWorkLogs(c Caller, id, cursor string, limit int) (journal.Page, error) {
 	if err := s.requireWork(); err != nil {
 		return journal.Page{}, err
 	}
@@ -625,7 +628,7 @@ func (s *Service) GetOpenVPNLogs(c Caller, id, cursor string, limit int) (journa
 	}
 	return s.journal.Read(c.UID, id, cursor, limit)
 }
-func (s *Service) ClearOpenVPNLogs(c Caller, id string) error {
+func (s *Service) ClearWorkLogs(c Caller, id string) error {
 	if err := s.requireWork(); err != nil {
 		return err
 	}

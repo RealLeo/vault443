@@ -75,11 +75,11 @@ ApplicationWindow {
         if (!backend.online) return qsTr("Service unavailable — traffic statistics are unknown.")
         if (snap.busyByOtherUser) return qsTr("Traffic statistics belong to another user.")
         if (!traffic.valid) return qsTr("Waiting for a reliable TUN traffic measurement.")
-        return qsTr("VLESS traffic only. IP traffic through its TUN, including internal service requests. OpenVPN traffic and encrypted transport overhead are excluded.")
+        return qsTr("VLESS traffic only. IP traffic through its TUN, including internal service requests. OpenVPN, WireGuard, AmneziaWG and encrypted transport overhead are excluded.")
     }
     function stageName(stage, action) {
         i18n.language
-        var names = {requested: action === "disconnect" ? qsTr("Requesting disconnect…") : qsTr("Requesting connection…"), checking_vpn:qsTr("Checking VPNs"), enabling_guard:qsTr("Enabling protection"), resolving_endpoint:qsTr("Resolving server"), starting_core:qsTr("Starting Xray"), configuring_network:qsTr("Configuring network"), checking_connection:qsTr("Checking connection"), restoring_network:qsTr("Restoring network"), connected:qsTr("Connected"), paused_external:qsTr("Paused: another VPN"), disconnected:qsTr("Disconnected"), starting_openvpn:qsTr("Starting OpenVPN"), connecting_server:qsTr("Connecting to server"), verifying_certificate:qsTr("Verifying certificate"), receiving_config:qsTr("Receiving configuration"), applying_routes:qsTr("Applying work routes"), route_conflict:qsTr("Choose routes"), dns_conflict:qsTr("Choose DNS routes")}
+        var names = {requested: action === "disconnect" ? qsTr("Requesting disconnect…") : qsTr("Requesting connection…"), checking_vpn:qsTr("Checking VPNs"), enabling_guard:qsTr("Enabling protection"), resolving_endpoint:qsTr("Resolving server"), starting_core:qsTr("Starting Xray"), configuring_network:qsTr("Configuring network"), checking_connection:qsTr("Checking connection"), restoring_network:qsTr("Restoring network"), connected:qsTr("Connected"), paused_external:qsTr("Paused: another VPN"), disconnected:qsTr("Disconnected"), starting_openvpn:qsTr("Starting OpenVPN"), connecting_server:qsTr("Connecting to server"), verifying_certificate:qsTr("Verifying certificate"), receiving_config:qsTr("Receiving configuration"), applying_routes:qsTr("Applying work routes"), route_conflict:qsTr("Choose routes"), dns_conflict:qsTr("Choose DNS routes"), creating_interface:qsTr("Creating interface"), exchanging_keys:qsTr("Exchanging keys"), partial:qsTr("Partially connected")}
         return names[stage] || qsTr("Connecting…")
     }
     function failureName(failure) {
@@ -95,9 +95,20 @@ ApplicationWindow {
             if (message.indexOf("route") >= 0 || message.indexOf("firewall") >= 0 || message.indexOf("protection") >= 0) return qsTr("Network setup failed")
             return qsTr("OpenVPN stopped")
         }
+        if (failure.code === "wireguard_failed" || failure.code === "amneziawg_failed") {
+            var detail = String(failure.message || "").toLowerCase()
+            if (detail.indexOf("handshake") >= 0) return qsTr("No handshake response")
+            if (detail.indexOf("dns") >= 0 || detail.indexOf("resolve") >= 0) return qsTr("DNS unavailable")
+            if (detail.indexOf("route") >= 0 || detail.indexOf("firewall") >= 0 || detail.indexOf("protection") >= 0) return qsTr("Network setup failed")
+            return qsTr("VPN tunnel stopped")
+        }
         return names[failure.code] || qsTr("Connection failed")
     }
-    function isWork(profile) { return profile.kind === "openvpn" || String(profile.id || "").indexOf("ovpn-") === 0 }
+    function isWork(profile) { return ["openvpn", "wireguard", "amneziawg"].indexOf(profile.kind) >= 0 || /^(ovpn|wg|awg)-/.test(String(profile.id || "")) }
+    function isWireGuard(profile) { return profile.kind === "wireguard" || profile.kind === "amneziawg" || /^(wg|awg)-/.test(String(profile.id || "")) }
+    function protocolName(profile) { return {openvpn:"OpenVPN", wireguard:"WireGuard", amneziawg:"AmneziaWG"}[profile.kind] || (isWork(profile) ? "OpenVPN" : "VLESS") }
+    function profileTabCount() { return isWireGuard(selectedProfile) ? 4 : isWork(selectedProfile) ? 3 : 2 }
+    function peerState(value) { i18n.language; return {connected:qsTr("Connected"), connecting:qsTr("Waiting for handshake"), waiting_handshake:qsTr("Waiting for handshake"), reconnecting:qsTr("Reconnecting…"), error:qsTr("Peer unavailable"), disconnected:qsTr("Disconnected")}[value] || value }
     function liveProfile(profile) { return isWork(profile) ? ((snap.workProfiles || []).filter(function(p) { return p.id === profile.id })[0] || profile) : profile }
     function profileRuntime(profile) { return isWork(profile) ? (liveProfile(profile).runtime || ({})) : (profile.id === activeId ? runtime : {state:"disconnected"}) }
     function profileOperation(profile) { return isWork(profile) ? (backend.workRequests[profile.id] || liveProfile(profile).operation || ({})) : operation.profileId === profile.id ? operation : ({}) }
@@ -124,12 +135,12 @@ ApplicationWindow {
         if (op.stage === "route_conflict" || op.stage === "dns_conflict") return qsTr("Choose routes")
         if (op.stage === "cleanup_failed") return qsTr("Disconnect failed\nRetry cleanup")
         if (op.stage === "retry_wait") return qsTr("%1\nRetry in %2 s").arg(failureName(failure)).arg(Math.max(0, Math.ceil((Number(op.nextRetryAt) - Date.now()) / 1000)))
-        if (op.stage && op.stage !== "disconnected" && op.stage !== "connected" && op.stage !== "paused_external") {
+        if (op.stage && op.stage !== "disconnected" && op.stage !== "connected" && op.stage !== "partial" && op.stage !== "paused_external") {
             var elapsed = op.stageStartedAt ? Math.max(0, Math.floor((Date.now() - Number(op.stageStartedAt)) / 1000)) : 0
             return elapsed > 0 ? qsTr("%1 · %2 s").arg(stageName(op.stage, op.action)).arg(elapsed) : stageName(op.stage, op.action)
         }
         if (!isWork(profile) && profile.id !== activeId) return qsTr("Disconnected")
-        var names = {connected:qsTr("Connected"), connecting:qsTr("Connecting…"), reconnecting:qsTr("Reconnecting…"), paused_external:qsTr("Another VPN is active"), error:qsTr("Connection failed"), conflict:qsTr("Choose routes"), disconnected:qsTr("Disconnected")}
+        var names = {connected:qsTr("Connected"), partial:qsTr("Partially connected"), connecting:qsTr("Connecting…"), reconnecting:qsTr("Reconnecting…"), paused_external:qsTr("Another VPN is active"), error:qsTr("Connection failed"), conflict:qsTr("Choose routes"), disconnected:qsTr("Disconnected")}
         return names[profileRuntime(profile).state] || qsTr("Disconnected")
     }
     function statusDetail(profile) {
@@ -154,7 +165,7 @@ ApplicationWindow {
         if (op.stage === "cleanup_failed") return qsTr("Retry")
         if (op.action === "disconnect" && op.stage !== "disconnected") return qsTr("Disconnecting…")
         if (!profileActive(profile)) return qsTr("Connect")
-        if (op.stage && op.stage !== "connected" && op.stage !== "paused_external" && op.stage !== "retry_wait") return qsTr("Cancel")
+        if (op.stage && op.stage !== "connected" && op.stage !== "partial" && op.stage !== "paused_external" && op.stage !== "retry_wait") return qsTr("Cancel")
         var current = profileRuntime(profile)
         return current.state === "connecting" || current.state === "reconnecting" ? qsTr("Cancel") : qsTr("Disconnect")
     }
@@ -177,7 +188,7 @@ ApplicationWindow {
         } else if (profileActive(profile)) backend.disconnectProfile()
         else backend.connectProfile(profile.id)
     }
-    function openSettings() { settingsDialog.open() }
+    function openSettings() { bootProfile.beginEdit(); settingsDialog.open() }
     function openRoutes() { routesDialog.open(); backend.refreshWorkRoutes() }
     function routeTargetName(target) {
         if (target === "local") return qsTr("Local network / Docker")
@@ -186,7 +197,7 @@ ApplicationWindow {
     }
     function routeSource(source) {
         i18n.language
-        var values = {manual:qsTr("Manual rule"), server:qsTr("OpenVPN server"), openvpn:qsTr("OpenVPN server"), local:qsTr("Local network / Docker"), external:qsTr("External VPN"), dns:"DNS"}
+        var values = {manual:qsTr("Manual rule"), server:qsTr("VPN configuration"), openvpn:qsTr("OpenVPN server"), wireguard:"WireGuard · AllowedIPs", amneziawg:"AmneziaWG · AllowedIPs", local:qsTr("Local network / Docker"), external:qsTr("External VPN"), dns:"DNS"}
         return values[source] || qsTr("Automatic route")
     }
     function routeState(state) {
@@ -206,11 +217,15 @@ ApplicationWindow {
     Component.onCompleted: demoTimer.start()
     Timer { id: demoTimer; interval: 80; onTriggered: {
         if (demoScreen === "import") openImport()
+        else if (demoScreen === "wireguard") backend.setDemoState("wireguard-vpns")
+        else if (demoScreen === "peers") { backend.setDemoState("wireguard-vpns"); appWindow.showProfile(appWindow.profiles[2]); profileTabs.currentIndex = 3 }
         else if (demoScreen === "routes") { backend.setDemoState("work-vpns"); openRoutes() }
         else if (demoScreen === "work-profile") { backend.setDemoState("work-vpns"); appWindow.showProfile(appWindow.profiles[1]); profileTabs.currentIndex = 2 }
         else if (demoScreen === "work-import") {
-            openImport(); importDialog.sourceKind = "openvpn"
-            backend.prepareOpenVPNImport([{name:qsTr("Office West"), content:"client\ndev tun\nremote west.example.net 1194 udp\n"}, {name:qsTr("Office East"), content:"client\ndev tun\nremote east.example.net 1194 udp\n"}])
+            openImport(); importDialog.sourceKind = "work"
+            backend.prepareWorkImport([{name:qsTr("Office West"), content:"client\ndev tun\nremote west.example.net 1194 udp\n"},
+                {name:qsTr("Office East"), content:"[Interface]\nAddress = 10.72.0.2/32\n[Peer]\nEndpoint = east.example.net:51820\nAllowedIPs = 10.72.0.0/16\n"},
+                {name:qsTr("Backup"), content:"[Interface]\nAddress = 10.73.0.2/32\nJc = 4\nJmin = 40\nJmax = 70\n[Peer]\nEndpoint = backup.example.net:443\nAllowedIPs = 10.73.0.0/16\n"}])
         }
         else if (demoScreen === "settings" || demoScreen === "subscriptions" || demoScreen === "vpn" || demoScreen === "vpn-actions") { settingsTabs.currentIndex = demoScreen === "settings" ? 0 : (demoScreen === "subscriptions" ? 1 : 2); openSettings(); if (demoScreen === "vpn-actions") vpnPreviewTimer.start() }
         else if (demoScreen === "diagnostics") openDiagnostics()
@@ -234,9 +249,10 @@ ApplicationWindow {
     Connections {
         target: backend
         function onProfileLogsAboutToChange() { appWindow.logFollowEnd = logList.atYEnd; appWindow.logSavedPosition = logList.contentY }
+        function onSnapshotChanged() { if (!bootProfile.dirty) bootProfile.beginEdit() }
         function onProfileLogsChanged() { Qt.callLater(function() { if (!appWindow.logHistoryMode && appWindow.logFollowEnd) logList.positionViewAtEnd(); else if (!appWindow.logHistoryMode) logList.contentY = appWindow.logSavedPosition }) }
         function onRaiseRequested() { appWindow.showNormal(); appWindow.requestActivate() }
-        function onOpenVPNFilesRead() { importDialog.sourceKind = "openvpn"; importDialog.previewReady = false }
+        function onWorkFilesRead() { importDialog.sourceKind = "work"; importDialog.previewReady = false }
         function onImportFileRead(text) { importArea.text = text; importDialog.previewReady = false }
         function onPreviewChanged() {
             importDialog.previewReady = !!backend.preview.draftId && (importDialog.sourceKind !== "text" || importArea.text === importDialog.previewInput)
@@ -249,12 +265,13 @@ ApplicationWindow {
         function onErrorChanged() { if (backend.error.length) errorDialog.open() }
         function onOperationDone(operation, result) {
             if (result.error) return
-            if (operation === "ImportProfiles" || operation === "CommitImport" || operation === "CommitOpenVPNImport") { importDialog.close(); importArea.text = ""; if (importDialog.sourceKind === "subscription") { subscriptionUrl.text = ""; subscriptionName.text = "" } }
-            if (operation === "UpdateProfile" || operation === "RemoveProfile" || operation === "UpdateOpenVPNProfile" || operation === "RemoveOpenVPNProfile") detailDialog.close()
+            if (operation === "ImportProfiles" || operation === "CommitImport" || operation === "CommitWorkImport") { importDialog.close(); importArea.text = ""; if (importDialog.sourceKind === "subscription") { subscriptionUrl.text = ""; subscriptionName.text = "" } }
+            if (operation === "UpdateProfile" || operation === "RemoveProfile" || operation === "UpdateWorkProfile" || operation === "RemoveWorkProfile") detailDialog.close()
             if (operation === "RefreshSubscriptions") {
                 var failed = (result.results || []).filter(function(r) { return !r.updated })
                 appWindow.subscriptionFailureCount = failed.length; appWindow.subscriptionRefreshDone = true
             }
+            if (operation === "SetBootProfile") bootProfile.beginEdit()
             if (operation === "SetVPNBinding") appWindow.vpnBindingSaved = true
         }
     }
@@ -330,7 +347,7 @@ ApplicationWindow {
                     elide: Text.ElideRight
                     verticalAlignment: Text.AlignVCenter
                 }
-                Text { objectName: "profile-kind-" + row.index; x: 224; y: [20,21,20][row.variant]; width: 302; height: 20; text: appWindow.isWork(row.modelData) ? "OpenVPN" : "VLESS"; textFormat: Text.PlainText; color: "#90a68a"; font.family: appWindow.bodyFont; font.pixelSize: 18 }
+                Text { objectName: "profile-kind-" + row.index; x: 224; y: [20,21,20][row.variant]; width: 302; height: 20; text: appWindow.protocolName(row.modelData); textFormat: Text.PlainText; color: "#90a68a"; font.family: appWindow.bodyFont; font.pixelSize: 18 }
                 Button { PointerHover {}
                     id: profileStatus
                     objectName: "status-" + row.index
@@ -473,15 +490,15 @@ ApplicationWindow {
         }
     }
 
-    FileDialog { id: importFile; title: qsTr("Import VLESS profiles"); nameFilters: [qsTr("Text files (*.txt *.conf)"), qsTr("All files (*)")]; onAccepted: {
-        if (String(selectedFile).toLowerCase().endsWith(".ovpn")) backend.readOpenVPNFiles([selectedFile])
+    FileDialog { id: importFile; title: qsTr("Import profiles"); nameFilters: [qsTr("VPN and text files (*.txt *.conf *.ovpn *.vpn)"), qsTr("All files (*)")]; onAccepted: {
+        if (String(selectedFile).toLowerCase().endsWith(".ovpn")) backend.readWorkFiles([selectedFile])
         else backend.readImportFile(selectedFile)
     } }
-    FileDialog { id: openVPNFiles; title: qsTr("Import OpenVPN profiles"); fileMode: FileDialog.OpenFiles; nameFilters: [qsTr("OpenVPN profiles (*.ovpn)"), qsTr("All files (*)")]; onAccepted: backend.readOpenVPNFiles(selectedFiles) }
+    FileDialog { id: workVPNFiles; title: qsTr("Import VPN configurations"); fileMode: FileDialog.OpenFiles; nameFilters: [qsTr("VPN configurations (*.ovpn *.conf *.vpn)"), qsTr("All files (*)")]; onAccepted: backend.readWorkFiles(selectedFiles) }
     TerminalDialog {
         id: importDialog
         objectName: "import-dialog"
-        title: sourceKind === "subscription" ? qsTr("Import subscription") : sourceKind === "openvpn" ? qsTr("Import OpenVPN profiles") : qsTr("Import profiles")
+        title: sourceKind === "subscription" ? qsTr("Import subscription") : sourceKind === "work" ? qsTr("Import VPN configurations") : qsTr("Import profiles")
         property bool previewReady: false
         property string previewInput: ""
         property string sourceKind: "text"
@@ -489,26 +506,27 @@ ApplicationWindow {
         onClosed: { backend.cancelImport(); previewReady = false }
         ColumnLayout {
             anchors.fill: parent; spacing: 13
-            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: importDialog.sourceKind === "subscription" ? qsTr("Review subscription profiles and choose their emblems. The subscription is saved after confirmation.") : importDialog.sourceKind === "openvpn" ? qsTr("Review the work profiles and choose their emblems. Certificates and keys stay private.") : qsTr("Paste vless:// links or select OpenVPN files. Review the profiles, then choose their emblems."); color: "#c3b38e"; wrapMode: Text.Wrap; font.pixelSize: 21 }
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: importDialog.sourceKind === "subscription" ? qsTr("Review subscription profiles and choose their emblems. The subscription is saved after confirmation.") : importDialog.sourceKind === "work" ? qsTr("Review the VPN profiles and choose their emblems. Certificates and keys stay private.") : qsTr("Paste VLESS links, a WireGuard configuration or Amnezia vpn:// keys. You can also select VPN files."); color: "#c3b38e"; wrapMode: Text.Wrap; font.pixelSize: 21 }
             ScrollView {
                 visible: importDialog.sourceKind === "text"
                 Layout.fillWidth: true; Layout.preferredHeight: 175
                 TextArea {
                     id: importArea; wrapMode: TextEdit.WrapAnywhere; color: "#88d995"; font.family: appWindow.monoFont; font.pixelSize: 18
                     objectName: "import-text"
-                    placeholderText: "vless://…"; placeholderTextColor: "#667969"; selectByMouse: true
+                    placeholderText: "vless://…  ·  vpn://…  ·  [Interface]…"; placeholderTextColor: "#667969"; selectByMouse: true
                     background: Rectangle { color: "#09120c"; border.color: "#6d6046"; radius: 5 }
+                    enabled: !backend.importCommitting
                     onTextChanged: { importDialog.previewReady = false; backend.cancelImport() }
                 }
             }
             RowLayout {
                 visible: importDialog.sourceKind !== "subscription"
-                MetalButton { visible: importDialog.sourceKind === "text"; text: qsTr("From file"); small: true; enabled: !backend.busy; onClicked: importFile.open() }
-                MetalButton { objectName: "import-openvpn"; text: qsTr("OpenVPN files"); small: true; implicitWidth: 220; enabled: !backend.busy; onClicked: openVPNFiles.open() }
+                MetalButton { visible: importDialog.sourceKind === "text"; text: qsTr("From file"); small: true; enabled: !backend.importPreparing && !backend.importCommitting; onClicked: importFile.open() }
+                MetalButton { objectName: "import-work"; text: qsTr("VPN files"); small: true; implicitWidth: 220; enabled: !backend.importPreparing && !backend.importCommitting; onClicked: workVPNFiles.open() }
                 Item { Layout.fillWidth: true }
-                MetalButton { visible: importDialog.sourceKind === "text"; objectName: "import-preview"; text: qsTr("Review"); small: true; enabled: importArea.text.trim().length > 0 && !backend.busy; onClicked: { importDialog.previewInput = importArea.text; backend.prepareImport(importArea.text, "text", "") } }
+                MetalButton { visible: importDialog.sourceKind === "text"; objectName: "import-preview"; text: qsTr("Review"); small: true; enabled: importArea.text.trim().length > 0 && !backend.importPreparing && !backend.importCommitting; onClicked: { importDialog.previewInput = importArea.text; backend.prepareImport(importArea.text, "text", "") } }
             }
-            Text { textFormat: Text.PlainText; visible: backend.busy && !importDialog.previewReady; text: qsTr("Preparing profiles…"); color: "#a8b794"; font.pixelSize: 21 }
+            Text { textFormat: Text.PlainText; objectName: "import-preparing"; visible: backend.importPreparing; text: qsTr("Preparing profiles…"); color: "#a8b794"; font.pixelSize: 21 }
             ListView {
                 objectName: "import-profiles"
                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true
@@ -521,22 +539,22 @@ ApplicationWindow {
                     Button { PointerHover {}
                         objectName: "import-icon-" + parent.index
                         x: 2; y: 4; width: 70; height: 71; padding: 2
-                        enabled: !parent.modelData.duplicate
+                        enabled: !parent.modelData.duplicate && !backend.importCommitting
                         contentItem: ProfileIcon { iconId: importDialog.iconChoices[importRow.modelData.id] || "antenna" }
                         background: Rectangle { color: parent.down ? "#33000000" : "transparent"; border.color: parent.visualFocus ? "#a0e8a4" : "transparent"; radius: 6 }
                         Accessible.name: qsTr("Choose an emblem for %1").arg(parent.modelData.name)
                         onClicked: appWindow.chooseIcon("import", parent.modelData.id, importDialog.iconChoices[parent.modelData.id])
                     }
                     Text { textFormat: Text.PlainText; x: 86; y: 8; width: parent.width - 98; height: 32; text: parent.modelData.duplicate ? qsTr("Already added: %1").arg(parent.modelData.name) : qsTr("✓ %1").arg(parent.modelData.name); color: parent.modelData.duplicate ? "#a69671" : "#8dd49a"; font.pixelSize: 22; elide: Text.ElideRight }
-                    Text { textFormat: Text.PlainText; x: 86; y: 41; width: parent.width - 98; height: 29; text: parent.modelData.server; color: "#9b9e88"; font.pixelSize: 18; elide: Text.ElideRight }
+                    Text { textFormat: Text.PlainText; x: 86; y: 41; width: parent.width - 98; height: 29; text: appWindow.protocolName(parent.modelData) + " · " + (parent.modelData.server || ""); color: "#9b9e88"; font.pixelSize: 18; elide: Text.ElideRight }
                 }
                 ScrollBar.vertical: ScrollBar {}
             }
-            Text { textFormat: Text.PlainText; Layout.fillWidth: true; visible: importDialog.previewReady; text: { var errors = backend.preview.errors || []; return errors.map(function(e) { return (importDialog.sourceKind === "openvpn" ? qsTr("File %1: %2") : qsTr("Line %1: %2")).arg(e.line).arg(appWindow.localizedMessage(e.message)) }).join("\n") } color: "#e4a187"; wrapMode: Text.Wrap; font.pixelSize: 18; maximumLineCount: 3; elide: Text.ElideRight }
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; visible: importDialog.previewReady; text: { var errors = backend.preview.errors || []; return errors.map(function(e) { return (importDialog.sourceKind === "work" ? qsTr("File %1: %2") : qsTr("Entry %1: %2")).arg(e.line).arg(appWindow.localizedMessage(e.message)) }).join("\n") } color: "#e4a187"; wrapMode: Text.Wrap; font.pixelSize: 18; maximumLineCount: 3; elide: Text.ElideRight }
             RowLayout {
                 MetalButton { objectName: "import-cancel"; text: qsTr("Cancel"); onClicked: importDialog.close() }
                 Item { Layout.fillWidth: true }
-                MetalButton { objectName: "import-commit"; text: qsTr("Import"); enabled: importDialog.previewReady && (backend.preview.profiles || []).length > 0 && !backend.busy; onClicked: backend.commitImport(importDialog.iconChoices) }
+                MetalButton { objectName: "import-commit"; text: qsTr("Import"); enabled: importDialog.previewReady && (backend.preview.profiles || []).length > 0 && !backend.importPreparing && !backend.importCommitting; onClicked: backend.commitImport(importDialog.iconChoices) }
             }
         }
     }
@@ -554,9 +572,10 @@ ApplicationWindow {
             anchors.fill: parent; spacing: 14
             TabBar {
                 id: profileTabs; Layout.fillWidth: true; implicitWidth: 0
-                TerminalTabButton { width: profileTabs.width / (appWindow.isWork(appWindow.selectedProfile) ? 3 : 2); text: qsTr("Profile") }
-                TerminalTabButton { objectName: "logs-tab"; width: profileTabs.width / (appWindow.isWork(appWindow.selectedProfile) ? 3 : 2); text: qsTr("Logs") }
-                TerminalTabButton { objectName: "profile-routes-tab"; visible: appWindow.isWork(appWindow.selectedProfile); enabled: visible; width: visible ? profileTabs.width / 3 : 0; text: qsTr("Routes") }
+                TerminalTabButton { width: profileTabs.width / (appWindow.profileTabCount()); text: qsTr("Profile") }
+                TerminalTabButton { objectName: "logs-tab"; width: profileTabs.width / (appWindow.profileTabCount()); text: qsTr("Logs") }
+                TerminalTabButton { objectName: "profile-routes-tab"; visible: appWindow.isWork(appWindow.selectedProfile); enabled: visible; width: visible ? profileTabs.width / appWindow.profileTabCount() : 0; text: qsTr("Routes") }
+                TerminalTabButton { objectName: "profile-peers-tab"; visible: appWindow.isWireGuard(appWindow.selectedProfile); enabled: visible; width: visible ? profileTabs.width / appWindow.profileTabCount() : 0; text: qsTr("Peers") }
             }
             StackLayout {
                 currentIndex: profileTabs.currentIndex; Layout.fillWidth: true; Layout.fillHeight: true
@@ -574,7 +593,7 @@ ApplicationWindow {
                         }
                         TerminalField { id: renameField; objectName: "profile-name"; Layout.fillWidth: true; placeholderText: qsTr("Profile name"); maximumLength: 80 }
                     }
-                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Server: %1\nTransport: %2\nSecurity: %3").arg(appWindow.selectedProfile.server || "").arg(appWindow.selectedProfile.transport || "").arg(appWindow.isWork(appWindow.selectedProfile) ? "TLS" : appWindow.selectedProfile.security || ""); color: "#bcb294"; font.pixelSize: 23; lineHeight: 1.4; wrapMode: Text.WrapAnywhere }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Server: %1\nTransport: %2\nSecurity: %3").arg(appWindow.selectedProfile.server || "").arg(appWindow.selectedProfile.transport || "").arg(appWindow.isWireGuard(appWindow.selectedProfile) ? appWindow.protocolName(appWindow.selectedProfile) : appWindow.isWork(appWindow.selectedProfile) ? "TLS" : appWindow.selectedProfile.security || ""); color: "#bcb294"; font.pixelSize: 23; lineHeight: 1.4; wrapMode: Text.WrapAnywhere }
                     Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Click the emblem to change it. To change connection details, import a new profile."); color: "#829485"; font.pixelSize: 20; wrapMode: Text.Wrap }
                     Item { Layout.fillHeight: true }
                     RowLayout {
@@ -585,8 +604,8 @@ ApplicationWindow {
                 }
                 ColumnLayout {
                     spacing: 10
-                    TerminalCheckBox { id: debugLogging; objectName: "debug-logging"; Layout.fillWidth: true; text: appWindow.isWork(appWindow.selectedProfile) ? qsTr("Detailed OpenVPN logging") : qsTr("Detailed Xray logging"); onClicked: backend.setProfileDebug(appWindow.selectedProfile.id, checked) }
-                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Log detail changes at the next connection. History lasts 7 days. Up to 2,000 entries are shown and copied."); color: "#a5aa8c"; wrapMode: Text.Wrap; font.pixelSize: 18 }
+                    TerminalCheckBox { id: debugLogging; objectName: "debug-logging"; Layout.fillWidth: true; text: appWindow.isWork(appWindow.selectedProfile) ? qsTr("Detailed VPN logging") : qsTr("Detailed Xray logging"); onClicked: backend.setProfileDebug(appWindow.selectedProfile.id, checked) }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; objectName: "logs-hint"; text: !backend.online ? qsTr("Service unavailable — the last received log is shown.") : backend.logsError ? appWindow.localizedMessage(backend.logsError) : qsTr("Log detail changes at the next connection. History lasts 7 days. Up to 2,000 entries are shown and copied."); color: "#a5aa8c"; wrapMode: Text.Wrap; font.pixelSize: 18 }
                     Rectangle {
                         Layout.fillWidth: true; Layout.fillHeight: true
                         color: "#08110b"; border.color: "#625b40"; radius: 4
@@ -604,16 +623,16 @@ ApplicationWindow {
                         }
                     }
                     RowLayout {
-                        MetalButton { objectName: "logs-older"; text: qsTr("Older"); small: true; implicitWidth: 124; enabled: !backend.busy && backend.logPreviousCursor.length > 0; onClicked: { appWindow.logHistoryMode = true; backend.loadOlderProfileLogs(appWindow.selectedProfile.id); logList.positionViewAtBeginning() } }
-                        MetalButton { objectName: "logs-more"; text: qsTr("Latest"); small: true; implicitWidth: 160; enabled: !backend.busy; onClicked: { appWindow.logHistoryMode = false; appWindow.logFollowEnd = true; backend.loadProfileLogs(appWindow.selectedProfile.id, true); logList.positionViewAtEnd() } }
+                        MetalButton { objectName: "logs-older"; text: qsTr("Older"); small: true; implicitWidth: 124; enabled: backend.online && !backend.logActionPending && backend.logPreviousCursor.length > 0; onClicked: { appWindow.logHistoryMode = true; backend.loadOlderProfileLogs(appWindow.selectedProfile.id); logList.positionViewAtBeginning() } }
+                        MetalButton { objectName: "logs-more"; text: qsTr("Latest"); small: true; implicitWidth: 160; enabled: backend.online && !backend.logActionPending; onClicked: { appWindow.logHistoryMode = false; appWindow.logFollowEnd = true; backend.loadProfileLogs(appWindow.selectedProfile.id, true); logList.positionViewAtEnd() } }
                         Item { Layout.fillWidth: true }
                         MetalButton { objectName: "logs-copy"; text: qsTr("Copy"); small: true; implicitWidth: 170; enabled: backend.profileLogs.length > 0; onClicked: backend.copyProfileLogs() }
-                        MetalButton { objectName: "logs-clear"; text: qsTr("Clear"); small: true; implicitWidth: 160; danger: true; enabled: !backend.busy; onClicked: backend.clearProfileLogs(appWindow.selectedProfile.id) }
+                        MetalButton { objectName: "logs-clear"; text: qsTr("Clear"); small: true; implicitWidth: 160; danger: true; enabled: backend.online && !backend.logActionPending; onClicked: backend.clearProfileLogs(appWindow.selectedProfile.id) }
                     }
                 }
                 ColumnLayout {
                     spacing: 12
-                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Routes and DNS received by this work profile"); color: "#a5d897"; font.pixelSize: 24; wrapMode: Text.Wrap }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Routes and DNS for this VPN profile"); color: "#a5d897"; font.pixelSize: 24; wrapMode: Text.Wrap }
                     Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("DNS servers: %1\nDomains: %2").arg((appWindow.profileRuntime(appWindow.selectedProfile).dnsServers || []).join(", ") || "—").arg((appWindow.profileRuntime(appWindow.selectedProfile).dnsDomains || []).join(", ") || "—"); color: "#b1aa92"; font.pixelSize: 20; wrapMode: Text.WrapAnywhere }
                     Text { textFormat: Text.PlainText; Layout.fillWidth: true; visible: backend.workRoutesPending; text: qsTr("Refreshing routes…"); color: "#b1aa92"; font.pixelSize: 20 }
                     Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: appWindow.localizedMessage(backend.workRoutesError); color: "#e6af72"; wrapMode: Text.Wrap; font.pixelSize: 20; visible: text.length > 0 }
@@ -624,6 +643,25 @@ ApplicationWindow {
                         ScrollBar.vertical: ScrollBar {}
                     }
                     MetalButton { text: qsTr("Manage routes"); Layout.fillWidth: true; onClicked: appWindow.openRoutes() }
+                }
+                ColumnLayout {
+                    spacing: 12
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: !backend.online ? qsTr("Service unavailable — showing the last received peer status.") : qsTr("A successful handshake confirms the peer, not access to every application. Idle peers do not need a recent handshake."); color: "#a5aa8c"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                    ListView {
+                        id: peerList; objectName: "profile-peers"; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 18; clip: true
+                        model: appWindow.profileRuntime(appWindow.selectedProfile).peers || []
+                        delegate: Column {
+                            required property var modelData
+                            required property int index
+                            width: ListView.view.width - 14; spacing: 5
+                            Text { objectName: "peer-state-" + parent.index; textFormat: Text.PlainText; width: parent.width; text: qsTr("Peer %1 · %2").arg(parent.index + 1).arg(appWindow.peerState(parent.modelData.state)); color: parent.modelData.state === "connected" ? "#a5d897" : "#e6af72"; font.pixelSize: 23; wrapMode: Text.Wrap }
+                            Text { textFormat: Text.PlainText; width: parent.width; text: qsTr("Endpoint: %1").arg(parent.modelData.endpoint || "—"); color: "#b1aa92"; font.family: appWindow.monoFont; font.pixelSize: 21; wrapMode: Text.WrapAnywhere }
+                            Text { objectName: "peer-handshake-" + parent.index; textFormat: Text.PlainText; width: parent.width; text: qsTr("Last handshake: %1").arg(parent.modelData.lastHandshakeAt ? appWindow.displayDateTime(Number(parent.modelData.lastHandshakeAt) * 1000) : qsTr("Not received yet")); color: "#b1aa92"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                            Text { textFormat: Text.PlainText; width: parent.width; text: qsTr("Allowed networks: %1").arg((parent.modelData.allowedIPs || []).join(", ") || "—"); color: "#93b39a"; font.family: appWindow.monoFont; font.pixelSize: 20; wrapMode: Text.WrapAnywhere }
+                        }
+                        ScrollBar.vertical: ScrollBar {}
+                        Text { anchors.centerIn: parent; width: parent.width; visible: peerList.count === 0; text: backend.online ? qsTr("Connect the profile to see peer status.") : qsTr("Service unavailable — peer status is unknown."); textFormat: Text.PlainText; color: "#96a68d"; font.pixelSize: 22; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter }
+                    }
                 }
             }
         }
@@ -669,17 +707,29 @@ ApplicationWindow {
                     Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("The system service connects the selected profile at boot. Only administrators can change this setting."); color: "#b1aa92"; font.pixelSize: 20; wrapMode: Text.Wrap }
                     TerminalCombo {
                         id: bootProfile; objectName: "boot-profile"; Layout.fillWidth: true
-                        property string selectedProfileId: appWindow.snap.bootProfileId || ""
-                        model: [{id:"", name:""}].concat(appWindow.snap.profiles || [])
+                        property string selectedProfileId: ""
+                        property bool dirty: false
+                        property bool missingSelection: false
+                        model: backend.bootProfiles
                         firstItemText: qsTr("Off")
                         textRole: "name"; valueRole: "id"
-                        function restoreSelection() { currentIndex = Math.max(0, indexOfValue(selectedProfileId)) }
-                        Component.onCompleted: restoreSelection()
+                        function restoreSelection() {
+                            const index = indexOfValue(selectedProfileId)
+                            missingSelection = index < 0 && selectedProfileId.length > 0
+                            currentIndex = index
+                        }
+                        function beginEdit() {
+                            dirty = false
+                            selectedProfileId = appWindow.snap.bootProfileId || ""
+                            restoreSelection()
+                        }
+                        Component.onCompleted: beginEdit()
                         onModelChanged: Qt.callLater(restoreSelection)
-                        onActivated: selectedProfileId = currentValue || ""
-                        enabled: !!appWindow.snap.canAdmin && !backend.busy; font.pixelSize: 21
+                        onActivated: { selectedProfileId = currentValue || ""; dirty = true; missingSelection = false }
+                        enabled: backend.online && !!appWindow.snap.canAdmin && !backend.bootPending; font.pixelSize: 21
                     }
-                    MetalButton { objectName: "boot-apply"; text: qsTr("Apply"); enabled: !!appWindow.snap.canAdmin && !backend.busy; onClicked: backend.setBootProfile(bootProfile.currentValue || "") }
+                    Text { objectName: "boot-selection-missing"; textFormat: Text.PlainText; Layout.fillWidth: true; visible: bootProfile.missingSelection; text: qsTr("The selected profile was removed. Choose another profile or Off."); color: "#e6af72"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                    MetalButton { objectName: "boot-apply"; text: qsTr("Apply"); enabled: backend.online && !!appWindow.snap.canAdmin && !backend.bootPending && !bootProfile.missingSelection && bootProfile.currentIndex >= 0; onClicked: backend.setBootProfile(bootProfile.selectedProfileId) }
                     Text { textFormat: Text.PlainText; visible: !appWindow.snap.canAdmin; Layout.fillWidth: true; text: qsTr("This user cannot change the system startup settings."); color: "#c5a16c"; font.pixelSize: 20; wrapMode: Text.Wrap }
                     Item { Layout.fillHeight: true }
                     Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Closing the interface keeps the VPN running. Disconnect using the connection button or tray menu."); color: "#94a28c"; font.pixelSize: 20; wrapMode: Text.Wrap }
@@ -825,7 +875,7 @@ ApplicationWindow {
                     onClicked: routesDialog.editRule(modelData)
                 }
                 ScrollBar.vertical: ScrollBar {}
-                Text { anchors.centerIn: parent; width: parent.width - 30; visible: workRouteList.count === 0 && !backend.workRoutesPending; text: qsTr("No work routes yet. Connect an OpenVPN profile to receive its routes and DNS."); textFormat: Text.PlainText; color: "#96a68d"; font.pixelSize: 22; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter }
+                Text { anchors.centerIn: parent; width: parent.width - 30; visible: workRouteList.count === 0 && !backend.workRoutesPending; text: qsTr("No work routes yet. Connect an OpenVPN, WireGuard or AmneziaWG profile."); textFormat: Text.PlainText; color: "#96a68d"; font.pixelSize: 22; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter }
             }
         }
     }

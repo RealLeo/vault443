@@ -12,6 +12,8 @@ import urllib.request
 assert Path('/.dockerenv').exists() and os.getenv('VAULT443_E2E_ISOLATED') == '1'
 assert os.getenv('VAULT443_PACKAGE_TEST') == '1'
 targets = [('192.168.100.15', '10.70.'), ('10.42.0.15', '10.71.')]
+if os.getenv('VAULT443_PACKAGE_WIREGUARD') == '1':
+    targets = [('192.168.100.15', '10.80.'), ('10.42.0.15', '10.81.')]
 
 def bypass(address):
     with socket.socket() as s:
@@ -47,4 +49,4 @@ else:
             subprocess.run(['journalctl','--no-pager','-u','vault443.service','-n','40'])
             raise AssertionError('Work connection did not recover through its own tunnel')
         assert not bypass(address), 'Work route allowed physical bypass'
-    print('PASS: two work destinations use independent OpenVPN tunnels, including Docker overlap')
+    print('PASS: two work destinations use independent managed tunnels, including Docker overlap')

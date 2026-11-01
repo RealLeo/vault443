@@ -14,6 +14,7 @@
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QTimer>
@@ -24,6 +25,9 @@ namespace {
 constexpr auto Service = "org.vault443.Service1";
 constexpr auto Object = "/org/vault443/Service1";
 constexpr auto Interface = "org.vault443.Service1";
+bool isWorkID(const QString &id) {
+    return id.startsWith("ovpn-") || id.startsWith("wg-") || id.startsWith("awg-");
+}
 QVariantMap defaultSnapshot() {
     return {{"profiles", QVariantList{}}, {"workProfiles", QVariantList{}}, {"subscriptions", QVariantList{}},
             {"runtime", QVariantMap{{"state", "disconnected"}, {"message", ""}, {"rxBytes", 0}, {"txBytes", 0}}},
@@ -35,6 +39,12 @@ QVariantMap defaultSnapshot() {
 Bridge::Bridge(bool demo, QObject *parent)
     : QObject(parent), m_snapshot(defaultSnapshot()), m_bus(demo ? QDBusConnection(QString()) : QDBusConnection::systemBus()), m_demo(demo) {
     connect(this, &Bridge::snapshotChanged, this, [this] {
+        QVariantList bootProfiles{QVariantMap{{"id", ""}, {"name", ""}}};
+        for (const auto &value : m_snapshot.value("profiles").toList()) {
+            const auto profile = value.toMap();
+            bootProfiles.append(QVariantMap{{"id", profile.value("id")}, {"name", profile.value("name")}});
+        }
+        if (m_bootProfiles != bootProfiles) { m_bootProfiles = bootProfiles; emit bootProfilesChanged(); }
         auto profiles = m_snapshot.value("profiles").toList();
         for (auto &value : profiles) { auto profile = value.toMap(); profile["kind"] = "vless"; value = profile; }
         // Runtime stages change independently of the library. Replacing a
@@ -163,35 +173,72 @@ void Bridge::refreshVPNCompatibility() {
     });
 }
 
-void Bridge::call(const QString &method, const QVariantList &args, Reply reply) {
-    if (m_demo) { demoCall(method, args, std::move(reply)); return; }
+bool Bridge::hasRequest(RequestScope scope) const {
+    for (auto value : m_requests) if (value == scope) return true;
+    return false;
+}
+quint64 Bridge::beginRequest(RequestScope scope) {
+    if (scope == RequestScope::Background) return 0;
+    const bool wasPending = hasRequest(scope);
+    const auto token = ++m_nextRequest;
+    m_requests.insert(token, scope);
+    if (!wasPending) { if (scope == RequestScope::Foreground) emit busyChanged(); else emit requestStateChanged(); }
+    return token;
+}
+void Bridge::endRequest(quint64 token) {
+    if (!m_requests.contains(token)) return;
+    const auto scope = m_requests.take(token);
+    if (!hasRequest(scope)) { if (scope == RequestScope::Foreground) emit busyChanged(); else emit requestStateChanged(); }
+}
+void Bridge::retireRequests(RequestScope scope) {
+    const auto tokens = m_requests.keys();
+    for (auto token : tokens) if (m_requests.value(token) == scope) endRequest(token);
+}
+
+void Bridge::call(const QString &method, const QVariantList &args, Reply reply,
+                  RequestScope scope, std::function<bool()> current, Reply failed) {
+    // Polling and best-effort draft cleanup must never disable unrelated UI.
+    const bool background = method.startsWith("Get") || method == "CancelImport" || method == "CancelWorkImport";
+    if (background && scope == RequestScope::Foreground) scope = RequestScope::Background;
+    const auto token = beginRequest(scope);
+    if (m_demo) {
+        demoCall(method, args, std::move(reply));
+        endRequest(token); return;
+    }
     auto message = QDBusMessage::createMethodCall(Service, Object, Interface, method);
     message.setArguments(args);
     const bool networkOperation = method == "Connect" || method == "Disconnect" || method == "TakeControl";
-    if (networkOperation) ++m_networkPending;
-    ++m_pending; emit busyChanged();
+    if (networkOperation) { ++m_networkPending; emit busyChanged(); }
     const auto generation = m_serviceGeneration;
-    const int timeout = method == "GetSnapshot" ? 3000 : (method == "RefreshSubscriptions" ? 720000 : 60000);
+    const int timeout = method.startsWith("Get") ? 3000 : (method == "RefreshSubscriptions" ? 720000 : 60000);
     auto *watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(message, timeout), this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this,
-            [this, watcher, method, networkOperation, generation, reply = std::move(reply)]() {
+            [this, watcher, method, token, networkOperation, generation, current = std::move(current), failed = std::move(failed), reply = std::move(reply)]() {
         const auto message = watcher->reply();
         watcher->deleteLater();
-        --m_pending; if (networkOperation) --m_networkPending; emit busyChanged();
-        if (generation != m_serviceGeneration) {
+        endRequest(token);
+        if (networkOperation) { --m_networkPending; emit busyChanged(); }
+        if (generation != m_serviceGeneration) return;
+        if (current && !current()) {
+            // A canceled prepare may still have created a service-side draft.
+            if (message.type() != QDBusMessage::ErrorMessage && (method == "PrepareImport" || method == "PrepareWorkImport")) {
+                const auto json = QJsonDocument::fromJson(message.arguments().value(0).toString().toUtf8());
+                const auto draft = json.object().value("draftId").toString();
+                if (!draft.isEmpty()) call(method == "PrepareWorkImport" ? "CancelWorkImport" : "CancelImport", {draft});
+            }
             return;
         }
-        if (message.type() == QDBusMessage::ErrorMessage) {
-            // Closing/replacing a preview is best-effort. Expiry or a restarted
-            // daemon must not reopen an error dialog after the user dismissed it.
-            if (method == "CancelImport" || method == "CancelOpenVPNImport") { emit operationDone(method, {}); return; }
-            if (message.errorName().contains("ServiceUnknown") || message.errorName().contains("NoReply") || message.errorName().contains("Disconnected")) setOnline(false);
-            // Daemon errors are already sanitized; never append input/profile URI.
-            const auto error = message.errorMessage().isEmpty() ? QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "System service unavailable")) : message.errorMessage();
+        auto reportError = [this, &method, &failed](const QString &error) {
+            const QVariantMap result{{"error", error}};
             if (method == "GetSnapshot") { m_refreshing = false; m_refreshAgain = false; setOnline(false); }
+            else if (failed) failed(result);
             else setError(error);
-            if (method == "GetProfileLogs" || method == "GetOpenVPNLogs") m_logsPending = false;
-            emit operationDone(method, {{"error", error}});
+            emit operationDone(method, result);
+        };
+        if (message.type() == QDBusMessage::ErrorMessage) {
+            if (method == "CancelImport" || method == "CancelWorkImport") { emit operationDone(method, {}); return; }
+            if (message.errorName().contains("ServiceUnknown") || message.errorName().contains("Disconnected")) setOnline(false);
+            reportError(message.errorMessage().isEmpty() ? QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "System service unavailable")) : message.errorMessage());
             return;
         }
         QVariantMap result;
@@ -199,12 +246,7 @@ void Bridge::call(const QString &method, const QVariantList &args, Reply reply) 
             QJsonParseError parseError;
             auto json = QJsonDocument::fromJson(message.arguments().first().toString().toUtf8(), &parseError);
             if (parseError.error != QJsonParseError::NoError || (!json.isObject() && !json.isArray())) {
-                const auto error = QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "The service returned an invalid response"));
-                if (method == "GetSnapshot") { m_refreshing = false; m_refreshAgain = false; setOnline(false); }
-                else setError(error);
-                if (method == "GetProfileLogs" || method == "GetOpenVPNLogs") m_logsPending = false;
-                emit operationDone(method, {{"error", error}});
-                return;
+                reportError(QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "The service returned an invalid response"))); return;
             }
             result = json.isObject() ? json.object().toVariantMap() : QVariantMap{{"results", json.array().toVariantList()}};
         }
@@ -261,6 +303,10 @@ void Bridge::acceptSnapshot(const QVariantMap &snapshot) {
 
 void Bridge::serviceChanged(const QString &, const QString &, const QString &newOwner) {
     ++m_serviceGeneration;
+    const auto pendingTokens = m_requests.keys();
+    for (auto token : pendingTokens) endRequest(token);
+    ++m_importGeneration;
+    m_preview.clear(); emit previewChanged();
     ++m_workRoutesGeneration; m_workRoutesPending = false;
     m_workRequests.clear(); m_workRoutes.clear(); emit workRequestsChanged(); emit workRoutesChanged();
     ++m_diagnosticsGeneration;
@@ -280,11 +326,23 @@ void Bridge::mutate(const QString &method, const QVariantList &args) {
 }
 void Bridge::cancelImport() {
     ++m_importGeneration;
+    retireRequests(RequestScope::ImportPrepare);
+    retireRequests(RequestScope::ImportCommit);
     const auto draft = m_preview.value("draftId").toString();
     m_preview.clear(); emit previewChanged();
-    if (!draft.isEmpty()) call(m_importKind == "openvpn" ? "CancelOpenVPNImport" : "CancelImport", {draft});
+    if (!draft.isEmpty()) call(m_importKind == "work" ? "CancelWorkImport" : "CancelImport", {draft});
 }
 void Bridge::prepareImport(const QString &source, const QString &kind, const QString &name) {
+    const auto text = source.trimmed();
+    if (kind == "text" && (text.startsWith("vpn://") || text.contains("[Interface]") || text.startsWith("client\n") || text.startsWith("client\r\n"))) {
+        QVariantList files;
+        if (text.startsWith("vpn://")) {
+            for (const auto &line : text.split('\n', Qt::SkipEmptyParts))
+                files.append(QVariantMap{{"name", name.isEmpty() ? tr("Imported connection") : name}, {"content", line.trimmed()}});
+        } else files.append(QVariantMap{{"name", name.isEmpty() ? tr("Imported connection") : name}, {"content", source}});
+        prepareWorkImport(files);
+        return;
+    }
     cancelImport(); clearError(); m_importKind = kind;
     const auto generation = m_importGeneration;
     call("PrepareImport", {source, kind, name.trimmed()}, [this, generation](const QVariantMap &result) {
@@ -294,13 +352,14 @@ void Bridge::prepareImport(const QString &source, const QString &kind, const QSt
             return;
         }
         m_preview = result; emit previewChanged();
-    });
+    }, RequestScope::ImportPrepare, [this, generation] { return generation == m_importGeneration; });
 }
 void Bridge::commitImport(const QVariantMap &icons) {
     const auto draft = m_preview.value("draftId").toString();
-    if (draft.isEmpty()) return;
+    if (draft.isEmpty() || importCommitting()) return;
+    const auto generation = m_importGeneration;
     clearError();
-    call(m_importKind == "openvpn" ? "CommitOpenVPNImport" : "CommitImport", {draft, QString::fromUtf8(QJsonDocument(QJsonObject::fromVariantMap(icons)).toJson(QJsonDocument::Compact))},
+    call(m_importKind == "work" ? "CommitWorkImport" : "CommitImport", {draft, QString::fromUtf8(QJsonDocument(QJsonObject::fromVariantMap(icons)).toJson(QJsonDocument::Compact))},
          [this, draft](const QVariantMap &) {
         // The service consumed this draft. Forget it before operationDone closes
         // the dialog and its cleanup calls cancelImport(). Keep failed drafts.
@@ -309,46 +368,66 @@ void Bridge::commitImport(const QVariantMap &icons) {
             m_preview.clear(); emit previewChanged();
         }
         refresh();
-    });
+    }, RequestScope::ImportCommit, [this, generation] { return generation == m_importGeneration; });
 }
-void Bridge::updateProfile(const QString &id, const QString &name, const QString &iconId) { mutate(id.startsWith("ovpn-") ? "UpdateOpenVPNProfile" : "UpdateProfile", {id, name.trimmed(), iconId}); }
-void Bridge::setProfileDebug(const QString &id, bool enabled) { mutate(id.startsWith("ovpn-") ? "SetOpenVPNDebug" : "SetProfileDebug", {id, enabled}); }
+void Bridge::updateProfile(const QString &id, const QString &name, const QString &iconId) { mutate(isWorkID(id) ? "UpdateWorkProfile" : "UpdateProfile", {id, name.trimmed(), iconId}); }
+void Bridge::setProfileDebug(const QString &id, bool enabled) { mutate(isWorkID(id) ? "SetWorkDebug" : "SetProfileDebug", {id, enabled}); }
 void Bridge::loadProfileLogs(const QString &id, bool reset) {
-    if (reset || id != m_logProfile) {
-        ++m_logGeneration; m_logProfile = id; m_logCursor = "tail"; m_logPreviousCursor.clear(); emit profileLogsAboutToChange(); m_profileLogs.clear(); m_logsPending = false; emit profileLogsChanged();
+    if (id.isEmpty()) return;
+    const bool changed = id != m_logProfile;
+    if (!changed && logActionPending()) return;
+    if (changed || reset) {
+        ++m_logGeneration; m_logsPending = false; retireRequests(RequestScope::Logs);
+        m_logProfile = id;
+        if (changed) {
+            emit profileLogsAboutToChange(); m_profileLogs.clear(); emit profileLogsChanged();
+            m_logCursor = "tail"; m_logPreviousCursor.clear(); emit logsStateChanged();
+        }
     }
-    if (m_logsPending || id.isEmpty()) return;
+    if (m_logsPending) return;
+    fetchProfileLogs(id, (changed || reset) ? "tail" : m_logCursor, changed || reset, false, changed || reset);
+}
+void Bridge::fetchProfileLogs(const QString &id, const QString &cursor, bool replace, bool older, bool manual) {
     m_logsPending = true;
     const auto generation = m_logGeneration;
-    call(id.startsWith("ovpn-") ? "GetOpenVPNLogs" : "GetProfileLogs", {id, m_logCursor, qint32(200)}, [this, generation](const QVariantMap &result) {
-        if (generation != m_logGeneration) return;
+    call(isWorkID(id) ? "GetWorkLogs" : "GetProfileLogs", {id, cursor, qint32(200)},
+         [this, cursor, replace, older](const QVariantMap &result) {
         m_logsPending = false;
         const auto entries = result.value("entries").toList();
-        const bool firstPage = m_logCursor == "tail";
-        if (!entries.isEmpty()) emit profileLogsAboutToChange();
-        m_profileLogs.append(entries);
-        while (m_profileLogs.size() > 2000) m_profileLogs.removeFirst();
-        m_logCursor = result.value("nextCursor").toString();
-        if (firstPage) m_logPreviousCursor = result.value("previousCursor").toString();
-        if (!entries.isEmpty() || firstPage) emit profileLogsChanged();
-    });
+        auto combined = replace ? entries : m_profileLogs;
+        if (!replace) { if (older) { combined = entries; combined.append(m_profileLogs); } else combined.append(entries); }
+        while (combined.size() > 2000) { if (older) combined.removeLast(); else combined.removeFirst(); }
+        if (combined != m_profileLogs) {
+            emit profileLogsAboutToChange(); m_profileLogs = combined; emit profileLogsChanged();
+        }
+        const auto previous = (older || cursor == "tail") ? result.value("previousCursor").toString() : m_logPreviousCursor;
+        const auto next = older ? m_logCursor : result.value("nextCursor").toString();
+        if (m_logPreviousCursor != previous || m_logCursor != next || !m_logsError.isEmpty()) {
+            m_logPreviousCursor = previous; m_logCursor = next; m_logsError.clear(); emit logsStateChanged();
+        }
+    }, manual ? RequestScope::Logs : RequestScope::Background,
+       [this, generation] { return generation == m_logGeneration; },
+       [this](const QVariantMap &result) { m_logsPending = false; m_logsError = result.value("error").toString(); emit logsStateChanged(); });
 }
 void Bridge::loadOlderProfileLogs(const QString &id) {
-    if (m_logsPending || id != m_logProfile || m_logPreviousCursor.isEmpty()) return;
-    m_logsPending = true;
-    const auto generation = m_logGeneration;
-    call(id.startsWith("ovpn-") ? "GetOpenVPNLogs" : "GetProfileLogs", {id, m_logPreviousCursor, qint32(200)}, [this, generation](const QVariantMap &result) {
-        if (generation != m_logGeneration) return;
-        m_logsPending = false;
-        const auto entries = result.value("entries").toList();
-        emit profileLogsAboutToChange();
-        auto combined = entries; combined.append(m_profileLogs); m_profileLogs = combined;
-        while (m_profileLogs.size() > 2000) m_profileLogs.removeLast();
-        m_logPreviousCursor = result.value("previousCursor").toString();
-        emit profileLogsChanged();
-    });
+    if (logActionPending() || id != m_logProfile || m_logPreviousCursor.isEmpty()) return;
+    ++m_logGeneration; m_logsPending = false;
+    fetchProfileLogs(id, m_logPreviousCursor, false, true, true);
 }
-void Bridge::clearProfileLogs(const QString &id) { call(id.startsWith("ovpn-") ? "ClearOpenVPNLogs" : "ClearProfileLogs", {id}, [this, id](const QVariantMap &) { if (id == m_logProfile) loadProfileLogs(id, true); }); }
+void Bridge::clearProfileLogs(const QString &id) {
+    if (id.isEmpty() || logActionPending()) return;
+    ++m_logGeneration; m_logsPending = false;
+    const auto generation = m_logGeneration;
+    call(isWorkID(id) ? "ClearWorkLogs" : "ClearProfileLogs", {id}, [this, id](const QVariantMap &) {
+        if (id == m_logProfile) {
+            emit profileLogsAboutToChange(); m_profileLogs.clear(); emit profileLogsChanged();
+            m_logCursor = "tail"; m_logPreviousCursor.clear(); m_logsError.clear(); emit logsStateChanged();
+            fetchProfileLogs(id, "tail", true, false, true);
+        }
+    }, RequestScope::Logs, [this, generation] { return generation == m_logGeneration; },
+       [this](const QVariantMap &result) { m_logsError = result.value("error").toString(); emit logsStateChanged(); });
+}
+
 void Bridge::copyProfileLogs() {
     QStringList lines;
     for (const auto &value : m_profileLogs) { const auto entry = value.toMap(); lines.append(QString("%1 [%2] %3").arg(entry.value("time").toString(), entry.value("level").toString(), entry.value("message").toString())); }
@@ -411,10 +490,16 @@ void Bridge::requestConnection(const QString &action, const QString &profileId) 
     });
 }
 void Bridge::takeControl() { mutate("TakeControl"); }
-void Bridge::removeProfile(const QString &id) { mutate(id.startsWith("ovpn-") ? "RemoveOpenVPNProfile" : "RemoveProfile", {id}); }
+void Bridge::removeProfile(const QString &id) { mutate(isWorkID(id) ? "RemoveWorkProfile" : "RemoveProfile", {id}); }
 void Bridge::refreshSubscriptions() { mutate("RefreshSubscriptions"); }
 void Bridge::removeSubscription(const QString &id) { mutate("RemoveSubscription", {id}); }
-void Bridge::setBootProfile(const QString &id) { mutate("SetBootProfile", {id}); }
+void Bridge::setBootProfile(const QString &id) {
+    if (bootPending()) return;
+    clearError();
+    call("SetBootProfile", {id}, [this, id](const QVariantMap &) {
+        m_snapshot["bootProfileId"] = id; emit snapshotChanged(); refresh();
+    }, RequestScope::Boot);
+}
 void Bridge::setVPNBinding(const QVariantMap &binding) {
     auto data = QJsonDocument(QJsonObject::fromVariantMap(binding)).toJson(QJsonDocument::Compact);
     clearError(); call("SetVPNBinding", {QString::fromUtf8(data)}, [this](const QVariantMap &) { invalidateVPNCompatibility(); refresh(); });
@@ -432,10 +517,10 @@ void Bridge::getDiagnostics(const QString &profileId) {
         QTimer::singleShot(60, this, [this, generation, profileId] {
             if (generation != m_diagnosticsGeneration) return;
             if (m_demoCompatibilityState == "diagnostics-error") { finishDiagnostics({}, QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "The service did not respond within 3 s. Showing the last received snapshot."))); return; }
-            demoCall(profileId.startsWith("ovpn-") ? "GetOpenVPNDiagnostics" : "GetDiagnostics", {profileId}, [this](const QVariantMap &result) { finishDiagnostics(result, {}); });
+            demoCall(isWorkID(profileId) ? "GetWorkDiagnostics" : "GetDiagnostics", {profileId}, [this](const QVariantMap &result) { finishDiagnostics(result, {}); });
         }); return;
     }
-    auto message = QDBusMessage::createMethodCall(Service, Object, Interface, profileId.isEmpty() ? "GetDiagnostics" : (profileId.startsWith("ovpn-") ? "GetOpenVPNDiagnostics" : "GetProfileDiagnostics"));
+    auto message = QDBusMessage::createMethodCall(Service, Object, Interface, profileId.isEmpty() ? "GetDiagnostics" : (isWorkID(profileId) ? "GetWorkDiagnostics" : "GetProfileDiagnostics"));
     if (!profileId.isEmpty()) message.setArguments({profileId});
     auto *watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(message, 3000), this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, watcher, generation] {
@@ -534,6 +619,22 @@ void Bridge::setDemoState(const QString &state) {
         m_snapshot["profiles"] = m_snapshot.value("profiles").toList().mid(0, 1);
         m_snapshot["workProfiles"] = work; emit snapshotChanged(); return;
     }
+    if (state == "wireguard-vpns") {
+        QVariantList work;
+        for (int i = 0; i < 2; ++i) {
+            const bool awg = i == 1;
+            QVariantList peers{QVariantMap{{"id", "demo-peer"}, {"endpoint", "192.0.2.10:51820"}, {"state", "connected"},
+                {"lastHandshakeAt", QDateTime::currentSecsSinceEpoch()-20}, {"allowedIPs", QStringList{"10.72.0.0/16"}}}};
+            if (awg) peers.append(QVariantMap{{"id", "demo-peer-unavailable"}, {"endpoint", "[2001:db8::20]:443"}, {"state", "reconnecting"},
+                {"lastHandshakeAt", 0}, {"allowedIPs", QStringList{"10.73.0.0/16"}}});
+            work.append(QVariantMap{{"id", awg ? "awg-demo-east" : "wg-demo-west"}, {"name", awg ? tr("Office East") : tr("Office West")},
+                {"kind", awg ? "amneziawg" : "wireguard"}, {"iconId", awg ? "vault-door" : "shield"}, {"server", "vpn.example.net"}, {"transport", "udp"},
+                {"runtime", QVariantMap{{"state", awg ? "partial" : "connected"}, {"stage", awg ? "partial" : "connected"}, {"peers", peers},
+                    {"routes", QStringList{"10.72.0.0/16"}}, {"dnsServers", QStringList{"10.72.0.53"}}, {"dnsDomains", QStringList{"corp.example"}}}}});
+        }
+        m_snapshot["profiles"] = m_snapshot.value("profiles").toList().mid(0, 1);
+        m_snapshot["workProfiles"] = work; emit snapshotChanged(); return;
+    }
     if (state == "diagnostics-error") { m_demoCompatibilityState = state; return; }
     if (state.startsWith("vpn-")) { m_demoCompatibilityState = state.mid(4); invalidateVPNCompatibility(); return; }
     setOnline(true);
@@ -572,9 +673,9 @@ void Bridge::demoCall(const QString &method, const QVariantList &args, Reply rep
     // Demo is strictly in-memory: no service, file import writes or network calls.
     QVariantMap result;
     if (method == "GetSnapshot") result = m_snapshot;
-    else if (method == "RequestOpenVPNConnect" || method == "RequestOpenVPNDisconnect") {
+    else if (method == "RequestWorkConnect" || method == "RequestWorkDisconnect") {
         auto work = m_snapshot.value("workProfiles").toList();
-        const bool connecting = method == "RequestOpenVPNConnect";
+        const bool connecting = method == "RequestWorkConnect";
         for (auto &value : work) {
             auto profile = value.toMap();
             if (profile.value("id") != args.value(0)) continue;
@@ -584,30 +685,34 @@ void Bridge::demoCall(const QString &method, const QVariantList &args, Reply rep
             value = profile;
         }
         m_snapshot["workProfiles"] = work; result["operationId"] = "demo-work-operation"; emit snapshotChanged();
-    } else if (method == "PrepareOpenVPNImport") {
+    } else if (method == "PrepareWorkImport") {
         const auto files = QJsonDocument::fromJson(args.value(0).toString().toUtf8()).array();
         QVariantList profiles, errors;
         for (qsizetype i = 0; i < files.size(); ++i) {
             const auto file = files[i].toObject(); const auto content = file.value("content").toString();
-            if (!content.contains("client") || !content.contains("remote ")) {
-                errors.append(QVariantMap{{"line", i+1}, {"message", tr("Expected a self-contained OpenVPN client configuration.")}}); continue;
+            const bool wg = content.contains("[Interface]") && content.contains("[Peer]");
+            const bool awg = wg && QRegularExpression("(?m)^\\s*(Jc|Jmin|Jmax|S[1-4]|H[1-4]|I[1-5]|HeaderProtectionKey)\\s*=").match(content).hasMatch();
+            if (!wg && (!content.contains("client") || !content.contains("remote "))) {
+                errors.append(QVariantMap{{"line", i+1}, {"message", tr("Expected a self-contained VPN client configuration.")}}); continue;
             }
-            const auto id = "ovpn-" + QString::fromLatin1(QCryptographicHash::hash(content.toUtf8(), QCryptographicHash::Sha256).toHex().left(24));
+            const QString kind = awg ? "amneziawg" : wg ? "wireguard" : "openvpn";
+            const auto id = (awg ? "awg-" : wg ? "wg-" : "ovpn-") + QString::fromLatin1(QCryptographicHash::hash(content.toUtf8(), QCryptographicHash::Sha256).toHex().left(24));
             bool duplicate = false;
             for (const auto &existing : m_profiles) if (existing.toMap().value("id").toString() == id) duplicate = true;
             for (const auto &existing : profiles) if (existing.toMap().value("id").toString() == id) duplicate = true;
             profiles.append(QVariantMap{{"id", id}, {"name", file.value("name").toString()}, {"iconId", "shield"}, {"debugLogging", false},
-                {"kind", "openvpn"}, {"server", "work.example.net"}, {"transport", "udp"}, {"security", "TLS"}, {"duplicate", duplicate},
+                {"kind", kind}, {"server", "work.example.net"}, {"transport", "udp"}, {"security", wg ? kind : "TLS"}, {"duplicate", duplicate},
                 {"runtime", QVariantMap{{"state", "disconnected"}}}});
         }
         result = {{"draftId", QUuid::createUuid().toString(QUuid::WithoutBraces)}, {"profiles", profiles}, {"errors", errors}, {"expiresAt", QDateTime::currentSecsSinceEpoch()+600}};
-        m_demoDraft = result; m_demoDraft["kind"] = "openvpn";
+        m_demoDraft = result; m_demoDraft["kind"] = "work";
     } else if (method == "GetWorkRoutes") {
         auto work = m_snapshot.value("workProfiles").toList(); QVariantList items;
         for (const auto &value : work) {
             const auto p = value.toMap();
-            if (p.value("runtime").toMap().value("state").toString() != "connected") continue;
-            items.append(QVariantMap{{"cidr", items.isEmpty() ? "192.168.96.0/20" : "10.72.0.0/16"}, {"source", "openvpn"}, {"target", p.value("id")},
+            const auto state = p.value("runtime").toMap().value("state").toString();
+            if (state != "connected" && state != "partial") continue;
+            items.append(QVariantMap{{"cidr", items.isEmpty() ? "192.168.96.0/20" : "10.72.0.0/16"}, {"source", p.value("kind")}, {"target", p.value("id")},
                 {"targetName", p.value("name")}, {"interface", QString("v443w%1").arg(items.size())}, {"state", "active"}, {"message", items.isEmpty() ? tr("Work VPN takes priority over the overlapping Docker network.") : QString()}});
         }
         result = {{"items", items}, {"profiles", work}, {"rules", m_workRoutes.value("rules", QVariantList{})}, {"dnsRules", m_workRoutes.value("dnsRules", QVariantList{})}};
@@ -632,14 +737,14 @@ void Bridge::demoCall(const QString &method, const QVariantList &args, Reply rep
     }
     else if (method == "RequestDisconnect") { updateDemo("disconnected"); result["operationId"] = "demo-operation"; }
     else if (method == "SetBootProfile") { m_snapshot["bootProfileId"] = args.value(0); emit snapshotChanged(); }
-    else if (method == "UpdateProfile" || method == "SetProfileDebug" || method == "RemoveProfile" || method == "UpdateOpenVPNProfile" || method == "SetOpenVPNDebug" || method == "RemoveOpenVPNProfile") {
-        const auto key = args.value(0).toString().startsWith("ovpn-") ? "workProfiles" : "profiles";
+    else if (method == "UpdateProfile" || method == "SetProfileDebug" || method == "RemoveProfile" || method == "UpdateWorkProfile" || method == "SetWorkDebug" || method == "RemoveWorkProfile") {
+        const auto key = isWorkID(args.value(0).toString()) ? "workProfiles" : "profiles";
         auto profiles = m_snapshot.value(key).toList();
         for (qsizetype i = profiles.size(); i-- > 0;) {
             auto profile = profiles[i].toMap();
             if (profile.value("id") != args.value(0)) continue;
-            if (method == "RemoveProfile" || method == "RemoveOpenVPNProfile") profiles.removeAt(i);
-            else { if (method == "SetProfileDebug" || method == "SetOpenVPNDebug") profile["debugLogging"] = args.value(1); else { profile["name"] = args.value(1); if (method == "UpdateProfile" || method == "UpdateOpenVPNProfile") profile["iconId"] = args.value(2); } profiles[i] = profile; }
+            if (method == "RemoveProfile" || method == "RemoveWorkProfile") profiles.removeAt(i);
+            else { if (method == "SetProfileDebug" || method == "SetWorkDebug") profile["debugLogging"] = args.value(1); else { profile["name"] = args.value(1); if (method == "UpdateProfile" || method == "UpdateWorkProfile") profile["iconId"] = args.value(2); } profiles[i] = profile; }
         }
         m_snapshot[key] = profiles; emit snapshotChanged();
     } else if (method == "PrepareImport") {
@@ -664,11 +769,11 @@ void Bridge::demoCall(const QString &method, const QVariantList &args, Reply rep
             result["expiresAt"] = QDateTime::currentSecsSinceEpoch() + 600;
             m_demoDraft = result; m_demoDraft["kind"] = args.value(1); m_demoDraft["name"] = args.value(2);
         }
-    } else if ((method == "CancelImport" || method == "CancelOpenVPNImport")) { if (m_demoDraft.value("draftId") == args.value(0)) m_demoDraft.clear();
-    } else if ((method == "CommitImport" || method == "CommitOpenVPNImport")) {
+    } else if ((method == "CancelImport" || method == "CancelWorkImport")) { if (m_demoDraft.value("draftId") == args.value(0)) m_demoDraft.clear();
+    } else if ((method == "CommitImport" || method == "CommitWorkImport")) {
         if (m_demoDraft.value("draftId") != args.value(0) || m_demoDraft.value("expiresAt").toLongLong() < QDateTime::currentSecsSinceEpoch()) { setError(QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "The import preview expired. Check the list again."))); emit operationDone(method, {{"error", m_error}}); return; }
         const auto icons = QJsonDocument::fromJson(args.value(1).toString().toUtf8()).object().toVariantMap();
-        const auto profileKey = method == "CommitOpenVPNImport" ? "workProfiles" : "profiles";
+        const auto profileKey = method == "CommitWorkImport" ? "workProfiles" : "profiles";
         auto current = m_snapshot.value(profileKey).toList();
         for (const auto &value : m_demoDraft.value("profiles").toList()) { auto p = value.toMap(); if (p.value("duplicate").toBool()) continue; p["iconId"] = icons.value(p.value("id").toString(), "antenna"); current.append(p); }
         m_snapshot[profileKey] = current;
@@ -678,12 +783,13 @@ void Bridge::demoCall(const QString &method, const QVariantList &args, Reply rep
             m_snapshot["subscriptions"] = subscriptions;
         }
         m_demoDraft.clear(); emit snapshotChanged();
-    } else if (method == "GetProfileLogs" || method == "GetOpenVPNLogs") {
+    } else if (method == "GetProfileLogs" || method == "GetWorkLogs") {
         const auto id = args.value(0).toString();
         if (!m_demoLogs.contains(id)) {
             QVariantList entries;
-            const QStringList messages = method == "GetOpenVPNLogs"
-                ? QStringList{tr("Connection requested by the user"), tr("Starting OpenVPN"), tr("Server certificate verified"), tr("Work routes and DNS configured"), tr("Connection established")}
+            const bool wg = id.startsWith("wg-") || id.startsWith("awg-");
+            const QStringList messages = method == "GetWorkLogs"
+                ? QStringList{tr("Connection requested by the user"), wg ? tr("Creating VPN interface") : tr("Starting OpenVPN"), wg ? tr("Peer handshake verified") : tr("Server certificate verified"), tr("Work routes and DNS configured"), tr("Connection established")}
                 : QStringList{tr("Connection requested by the user"),tr("Internet traffic protection enabled"),tr("Starting Xray · REALITY / Vision"),tr("TUN and DNS configured"),tr("Connection established"),tr("Xray: transport ready")};
             for (int i = 0; i < messages.size(); ++i) entries.append(QVariantMap{{"id",QString::number(i+1)},{"time",QDateTime::currentDateTimeUtc().addSecs(-20+i*3).toString(Qt::ISODate)},{"level",i == 5 ? "debug" : "info"},{"message",messages[i]},{"sessionId","demo-session"}});
             m_demoLogs[id] = entries;
@@ -696,8 +802,8 @@ void Bridge::demoCall(const QString &method, const QVariantList &args, Reply rep
         else if (cursor.startsWith("before:")) { end = qMax(0, cursor.mid(7).toInt() - 1); start = qMax(0, end - limit); }
         const auto page = entries.mid(start, qMin(limit, end-start));
         result = {{"entries",page},{"nextCursor",QString::number(start+page.size())},{"previousCursor",start > 0 ? QString("before:%1").arg(start+1) : QString()}};
-    } else if ((method == "ClearProfileLogs" || method == "ClearOpenVPNLogs")) { m_demoLogs[args.value(0).toString()] = QVariantList{};
-    } else if (method == "GetOpenVPNDiagnostics") {
+    } else if ((method == "ClearProfileLogs" || method == "ClearWorkLogs")) { m_demoLogs[args.value(0).toString()] = QVariantList{};
+    } else if (method == "GetWorkDiagnostics") {
         for (const auto &value : m_snapshot.value("workProfiles").toList()) {
             const auto profile = value.toMap(); if (profile.value("id") != args.value(0)) continue;
             result = {{"mode", "demo"}, {"networkChanges", false}, {"network", profile.value("runtime")}, {"operation", profile.value("operation")}, {"lastFailure", profile.value("lastFailure")}};
@@ -712,43 +818,43 @@ void Bridge::demoCall(const QString &method, const QVariantList &args, Reply rep
     emit operationDone(method, result);
 }
 
-void Bridge::readOpenVPNFiles(const QList<QUrl> &urls) {
+void Bridge::readWorkFiles(const QList<QUrl> &urls) {
     if (urls.isEmpty()) return;
-    if (urls.size() > 32) { setError(QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "Select at most 32 OpenVPN files at a time."))); return; }
+    if (urls.size() > 32) { setError(QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "Select at most 32 VPN files at a time."))); return; }
     QVariantList files;
     qint64 total = 0;
     for (const auto &url : urls) {
         QFile file(url.toLocalFile());
-        if (!url.isLocalFile() || !QFileInfo(url.toLocalFile()).isFile() || !file.open(QIODevice::ReadOnly) || file.size() > 1024*1024) { setError(QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "An OpenVPN file is unavailable or larger than 1 MB."))); return; }
+        if (!url.isLocalFile() || !QFileInfo(url.toLocalFile()).isFile() || !file.open(QIODevice::ReadOnly) || file.size() > 1024*1024) { setError(QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "A VPN file is unavailable or larger than 1 MB."))); return; }
         const auto data = file.read(1024*1024 + 1);
         total += data.size();
-        if (data.size() > 1024*1024 || total > 8*1024*1024) { setError(QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "The selected OpenVPN files exceed the 8 MB import limit."))); return; }
+        if (data.size() > 1024*1024 || total > 8*1024*1024) { setError(QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "The selected VPN files exceed the 8 MB import limit."))); return; }
         files.append(QVariantMap{{"name", QFileInfo(file).completeBaseName()}, {"content", QString::fromUtf8(data)}});
     }
-    emit openVPNFilesRead();
-    prepareOpenVPNImport(files);
+    emit workFilesRead();
+    prepareWorkImport(files);
 }
 
-void Bridge::prepareOpenVPNImport(const QVariantList &files) {
-    cancelImport(); clearError(); m_importKind = "openvpn";
+void Bridge::prepareWorkImport(const QVariantList &files) {
+    cancelImport(); clearError(); m_importKind = "work";
     const auto generation = m_importGeneration;
     const auto data = QJsonDocument(QJsonArray::fromVariantList(files)).toJson(QJsonDocument::Compact);
-    if (files.isEmpty() || files.size() > 32 || data.size() > 8*1024*1024) { setError(QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "The selected OpenVPN files exceed the 8 MB import limit."))); return; }
+    if (files.isEmpty() || files.size() > 32 || data.size() > 8*1024*1024) { setError(QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "The selected VPN files exceed the 8 MB import limit."))); return; }
     const auto json = QString::fromUtf8(data);
-    call("PrepareOpenVPNImport", {json}, [this, generation](const QVariantMap &result) {
+    call("PrepareWorkImport", {json}, [this, generation](const QVariantMap &result) {
         if (generation != m_importGeneration) {
             const auto draft = result.value("draftId").toString();
-            if (!draft.isEmpty()) call("CancelOpenVPNImport", {draft});
+            if (!draft.isEmpty()) call("CancelWorkImport", {draft});
             return;
         }
         m_preview = result; emit previewChanged();
-    });
+    }, RequestScope::ImportPrepare, [this, generation] { return generation == m_importGeneration; });
 }
 
 void Bridge::connectWorkProfile(const QString &id) { requestWorkConnection("connect", id); }
 void Bridge::disconnectWorkProfile(const QString &id) { requestWorkConnection("disconnect", id); }
 void Bridge::requestWorkConnection(const QString &action, const QString &id) {
-    if (!id.startsWith("ovpn-") || m_snapshot.value("busyByOtherUser").toBool()) return;
+    if (!isWorkID(id) || m_snapshot.value("busyByOtherUser").toBool()) return;
     auto previous = m_workRequests.value(id).toMap();
     if (previous.value("pending").toBool()) {
         if (action == "disconnect") {
@@ -760,7 +866,7 @@ void Bridge::requestWorkConnection(const QString &action, const QString &id) {
     QVariantMap request{{"profileId", id}, {"action", action}, {"stage", "requested"},
                         {"stageStartedAt", QDateTime::currentMSecsSinceEpoch()}, {"pending", true}};
     m_workRequests[id] = request; emit workRequestsChanged();
-    const auto method = action == "connect" ? QString("RequestOpenVPNConnect") : QString("RequestOpenVPNDisconnect");
+    const auto method = action == "connect" ? QString("RequestWorkConnect") : QString("RequestWorkDisconnect");
     if (m_demo) {
         demoCall(method, {id}, {});
         m_workRequests.remove(id); emit workRequestsChanged(); return;

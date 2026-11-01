@@ -192,6 +192,9 @@ func (m *Manager) handleEvent(ctx context.Context, id string, e event) error {
 	return nil
 }
 func (m *Manager) Run(ctx context.Context, uid uint32, p workvpn.Profile, logs *journal.Session, onStatus func(Status)) error {
+	if p.Protocol() != "openvpn" {
+		return m.runWireGuard(ctx, uid, p, logs, onStatus)
+	}
 	if len(p.Remotes) == 0 {
 		return errors.New("work profile has no server")
 	}

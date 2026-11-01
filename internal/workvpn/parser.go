@@ -30,7 +30,7 @@ var envName = regexp.MustCompile(`^UV_[A-Z0-9_]{1,40}$`)
 // executes or expands input and never follows file references. Error messages
 // contain line numbers and fixed directive names, not credential material.
 func Parse(name, source string) (Profile, error) {
-	p := Profile{IconID: "shield", Inline: map[string]string{}}
+	p := Profile{Kind: "openvpn", IconID: "shield", Inline: map[string]string{}}
 	var err error
 	if p.Name, err = profiles.Name(name); err != nil {
 		return Profile{}, err
@@ -591,6 +591,9 @@ func validStaticKey(text string) bool {
 // Source reconstructs the validated subset for private persistence validation.
 // It is not a runtime configuration: the supervisor adds its own fixed controls.
 func (p Profile) Source() string {
+	if p.WireGuard != nil {
+		return p.wireGuardSource()
+	}
 	var b strings.Builder
 	for _, r := range p.Remotes {
 		fmt.Fprintf(&b, "remote %s %d %s\n", quote(r.Host), r.Port, r.Protocol)
@@ -615,6 +618,12 @@ func quote(s string) string { return `"` + strings.NewReplacer(`\`, `\\`, `"`, `
 func ValidateProfile(p Profile) error {
 	if !model.ValidIcon(p.IconID) {
 		return errors.New("invalid profile icon")
+	}
+	if p.Protocol() != "openvpn" {
+		return validateWireGuardProfile(p)
+	}
+	if p.WireGuard != nil {
+		return errors.New("unexpected WireGuard settings on OpenVPN profile")
 	}
 	q, e := Parse(p.Name, p.Source())
 	if e != nil {

@@ -36,7 +36,13 @@ docker run --rm --network=none --user "$(id -u):$(id -g)" \
     QT_QPA_PLATFORM=xcb /app/vault443 --demo --demo-state retry-wait --screenshot /artifacts/x11-retry.png >> /artifacts/x11-gui.log 2>&1
     QT_QPA_PLATFORM=xcb /app/vault443 --demo --demo-state retry-wait --demo-screen diagnostics --screenshot /artifacts/x11-diagnostics.png >> /artifacts/x11-gui.log 2>&1
     if [ "$VAULT443_PLATFORM_RUN_TESTS" = 1 ]; then
-        QT_QPA_PLATFORM=xcb /app/vault443-ui-tests > /artifacts/x11-tests.log 2>&1
+        : > /artifacts/x11-tests.log
+        for language in en ru; do
+            LANGUAGE="$language" QT_QPA_PLATFORM=xcb /app/vault443-ui-tests >> /artifacts/x11-tests.log 2>&1
+            for scale in 1 1.25 1.5 2; do
+                LANGUAGE="$language" QT_SCALE_FACTOR="$scale" QT_QPA_PLATFORM=xcb /app/vault443-ui-tests bootSelectionSurvivesRefreshAndRemovedProfile compactGeometryFocusAndPopup >> /artifacts/x11-tests.log 2>&1
+            done
+        done
         QT_SCALE_FACTOR=2 QT_QPA_PLATFORM=xcb /app/vault443-ui-tests settingsVersionAndAutomaticVPNTab trayIconSizesAndStateColors trayStateOwnershipAndHiddenWindow connectionStagesCancellationAndRetry diagnosticsShowsFailureCacheAndProfileLogs pointerCursorsDoNotConsumeActionsOrTextInput >> /artifacts/x11-tests.log 2>&1
     else
         echo "Not requested: GUI runtime screenshot smoke only" > /artifacts/x11-tests.log
@@ -56,7 +62,13 @@ docker run --rm --network=none --user "$(id -u):$(id -g)" \
     QT_QPA_PLATFORM=wayland /app/vault443 --demo --demo-state retry-wait --screenshot /artifacts/wayland-retry.png >> /artifacts/wayland-gui.log 2>&1
     QT_QPA_PLATFORM=wayland /app/vault443 --demo --demo-state retry-wait --demo-screen diagnostics --screenshot /artifacts/wayland-diagnostics.png >> /artifacts/wayland-gui.log 2>&1
     if [ "$VAULT443_PLATFORM_RUN_TESTS" = 1 ]; then
-        QT_QPA_PLATFORM=wayland /app/vault443-ui-tests > /artifacts/wayland-tests.log 2>&1
+        : > /artifacts/wayland-tests.log
+        for language in en ru; do
+            LANGUAGE="$language" QT_QPA_PLATFORM=wayland /app/vault443-ui-tests >> /artifacts/wayland-tests.log 2>&1
+            for scale in 1 1.25 1.5 2; do
+                LANGUAGE="$language" QT_SCALE_FACTOR="$scale" QT_QPA_PLATFORM=wayland /app/vault443-ui-tests bootSelectionSurvivesRefreshAndRemovedProfile compactGeometryFocusAndPopup >> /artifacts/wayland-tests.log 2>&1
+            done
+        done
         QT_SCALE_FACTOR=2 QT_QPA_PLATFORM=wayland /app/vault443-ui-tests settingsVersionAndAutomaticVPNTab trayIconSizesAndStateColors trayStateOwnershipAndHiddenWindow connectionStagesCancellationAndRetry diagnosticsShowsFailureCacheAndProfileLogs pointerCursorsDoNotConsumeActionsOrTextInput >> /artifacts/wayland-tests.log 2>&1
     else
         echo "Not requested: GUI runtime screenshot smoke only" > /artifacts/wayland-tests.log

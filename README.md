@@ -5,11 +5,11 @@
 <p align="center"><strong>A retro terminal for modern VLESS connections.</strong></p>
 <p align="center">
   A native Ubuntu VPN client with worn brass, green phosphor, and one-click connections.<br>
-  Qt Quick on the desktop. Go behind the scenes. VLESS and work OpenVPN in one place.
+  Qt Quick on the desktop. Go behind the scenes. VLESS, OpenVPN, WireGuard and AmneziaWG in one place.
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Ubuntu-24.04%20%7C%2026.04-E95420?style=flat-square" alt="Ubuntu 24.04 and 26.04">
-  <img src="https://img.shields.io/badge/version-1.1.1-b6a166?style=flat-square" alt="Version 1.1.1">
+  <img src="https://img.shields.io/badge/version-1.2.1-b6a166?style=flat-square" alt="Version 1.2.1">
   <img src="https://img.shields.io/badge/Qt-6%20Quick-41CD52?style=flat-square" alt="Qt 6 Quick">
   <img src="https://img.shields.io/badge/Go-1.22%2B-00ADD8?style=flat-square" alt="Go 1.22 or later">
 </p>
@@ -18,7 +18,7 @@
   <a href="#first-connection">Get started</a> ·
   <a href="#working-alongside-other-vpns">Other VPNs</a> ·
   <a href="#build-from-source">Build</a> ·
-  <a href="docs/RELEASE-1.1.1.md">What's new</a>
+  <a href="docs/RELEASE-1.2.1.md">What's new</a>
 </p>
 <p align="center">
   <a href="docs/images/readme/main.png"><img src="docs/images/readme/main.png" width="472" alt="Vault 443 main window with three demo profiles and an active connection"></a>
@@ -29,14 +29,14 @@
 
 - **Connect with one click.** After an administrator grants access once, everyday connections need no password prompt. Watch connection stages, cancel a pending attempt, or disconnect from the tray.
 - **Bring your own profiles.** Import VLESS links, text files, Base64 lists, or HTTPS subscriptions. Review entries and choose from 23 emblems before saving. Subscription updates retain your choices.
-- **Connect your work VPNs.** Import self-contained `.ovpn` files, run several work connections alongside VLESS, and choose how overlapping work and Docker networks are routed. Each profile has its own status, cancel button, and journal.
+- **Connect your work VPNs.** Import self-contained `.ovpn` and WireGuard/AmneziaWG `.conf` files, or paste an autonomous Amnezia `vpn://` export. Run several connections alongside VLESS and choose how overlapping work and Docker networks are routed. Each profile has its own status, cancel button, and journal.
 - **Keep control when the tunnel fails.** The network guard blocks direct Internet traffic during recovery, including forwarded Docker bridge traffic. Explicitly disconnect to restore ordinary routing.
 - **Keep local networks reachable.** Attached LANs and verified work VPN routes retain their paths. IPv4 and IPv6 are checked separately; unavailable tunnel IPv6 fails quickly so applications can fall back to IPv4.
 - **Start the way you want.** Launch the interface at login, connect a selected system profile at boot, or use both. Closing the window leaves the VPN running.
 - **Track your session.** One line shows session time, download/upload speed, and accumulated transfer totals. Counters live in the service, survive closing the GUI and automatic reconnection, and reset for a new manual connection or service restart.
 - **See what happened.** Per-profile connection logs retain up to seven days of history, with optional detailed logging. English and Russian interfaces switch instantly without reconnecting.
 
-A valid VLESS or supported OpenVPN server profile is required. Vault 443 does not provide a VPN service or require its own account. Supported transports and import limits are documented in [service and profile behavior](docs/backend.md#supported-imports) and [work VPN details](docs/work-vpn.md).
+A valid VLESS, OpenVPN, WireGuard or AmneziaWG client profile is required. Vault 443 does not provide a VPN service or require its own account. Supported transports and import limits are documented in [service and profile behavior](docs/backend.md#supported-imports) and [work VPN details](docs/work-vpn.md).
 
 ## A closer look
 
@@ -60,20 +60,27 @@ A valid VLESS or supported OpenVPN server profile is required. Vault 443 does no
 
 All screenshots use the application's demo mode and contain fictional profiles.
 
+<table>
+  <tr>
+    <td align="center"><a href="docs/images/readme/wireguard.png"><img src="docs/images/readme/wireguard.png" width="236" alt="WireGuard and AmneziaWG profiles alongside VLESS"></a><br><strong>Choose your protocol</strong></td>
+    <td align="center"><a href="docs/images/readme/peers.png"><img src="docs/images/readme/peers.png" width="236" alt="Peer endpoints, last handshakes and allowed networks"></a><br><strong>Understand every peer</strong></td>
+  </tr>
+</table>
+
 ## Install
 
 Install a locally built `.deb` from `dist/`. Run these commands in your **normal desktop user's terminal**:
 
 ```sh
-sudo apt install ./dist/vault443_1.1.1_amd64.deb
+sudo apt install ./dist/vault443_1.2.1_amd64.deb
 sudo vault443-access "$USER"
 ```
 
-For ARM64, use `vault443_1.1.1_arm64.deb`. The access command is a one-time setup per local user; an existing Vault 443 account keeps its permissions. Open **Vault 443** from the application launcher afterward. The GUI runs as your regular user, and the service checks current group membership on each request.
+For ARM64, use `vault443_1.2.1_arm64.deb`. The access command is a one-time setup per local user; an existing Vault 443 account keeps its permissions. Open **Vault 443** from the application launcher afterward. The GUI runs as your regular user, and the service checks current group membership on each request.
 
 **Updating Vault 443:** use the same APT command. Updates from **1.0.0 onward** preserve profiles, subscriptions, logs, group membership and startup settings. The service may briefly restart and resumes the requested connection under the traffic guard. Earlier VLESS Terminal installations must first complete their transition using the **1.0.0 release tools**; this source tree no longer includes that migration.
 
-**Release status:** 1.1.1 fixes import of bracketed IPv6 OpenVPN servers. It includes the managed work connections and route/DNS choices introduced in 1.1.0. It keeps the pinned Xray core unchanged. The project uses isolated networking and desktop validation on Ubuntu 24.04 and 26.04 amd64; ARM64 packages are cross-compiled and still require device acceptance. The bundled [Xray 26.9.30](https://github.com/XTLS/Xray-core/releases/tag/v26.9.30) is an upstream **prerelease**, pinned with [archive checksums](packaging/xray-lock.json). See the [validation record](docs/VALIDATION.md) for tested scenarios and remaining limitations.
+**Release status:** 1.2.0 adds managed WireGuard and AmneziaWG connections. It keeps the pinned Xray core unchanged. The project uses isolated networking and desktop validation on Ubuntu 24.04 and 26.04 amd64; ARM64 packages are cross-compiled and still require device acceptance. The bundled [Xray 26.9.30](https://github.com/XTLS/Xray-core/releases/tag/v26.9.30) is an upstream **prerelease**, pinned with [archive checksums](packaging/xray-lock.json). AmneziaWG is built separately from [locked upstream sources](packaging/amneziawg-lock.json). See the [validation record](docs/VALIDATION.md) for tested scenarios and remaining limitations.
 
 ### First connection
 
@@ -88,13 +95,15 @@ In **Settings → General**, choose **System default**, **English**, or **Рус
 | Launch the interface at login | Opens the GUI when this user signs in. It does not select a boot VPN profile. |
 | Connect VPN at system boot | Starts the selected system profile before desktop login. Requires an authorized administrator. |
 
-One owner controls the active set of connections: one VLESS session and up to 16 work OpenVPN sessions. Each user has a private profile library and journal. Operator access requires an active local desktop session. Boot-profile and manual VPN binding changes additionally require membership in `sudo` or `admin`.
+One owner controls the active set of connections: one VLESS session and up to 16 work sessions shared by OpenVPN, WireGuard and AmneziaWG. Each user has a private profile library and journal. Operator access requires an active local desktop session. Boot autoconnect remains a VLESS option; work profiles start manually. Boot-profile and manual VPN binding changes additionally require membership in `sudo` or `admin`.
 
-## Work OpenVPN profiles
+## Work VPN profiles
 
-Choose **Import → OpenVPN files**, review the detected profiles, choose their emblems, and save. Each OpenVPN card has its own **Connect**, **Cancel**, and **Disconnect** action. Work VPNs start manually; closing the GUI does not disconnect them. They recover after a network interruption or service restart in the same OS boot, but do not start automatically after reboot.
+Choose **Import**, select work profile files or paste a WireGuard/AmneziaWG configuration or autonomous `vpn://` key, review the detected profiles, choose their emblems, and save. Each card has its own **Connect**, **Cancel**, and **Disconnect** action. Work VPNs start manually; closing the GUI does not disconnect them. They recover after a network interruption or service restart in the same OS boot, but do not start automatically after reboot.
 
-This release accepts certificate-based TUN profiles with inline CA, client certificate, private key, and optional `tls-auth` / `tls-crypt`. Passwords, encrypted private keys, MFA/SSO, external credential files, TAP, user scripts and plugins are not supported. An unsupported directive produces a specific import error instead of being silently ignored.
+OpenVPN accepts certificate-based TUN profiles with inline CA, client certificate, private key, and optional `tls-auth` / `tls-crypt`. Passwords, encrypted private keys, MFA/SSO, external credential files, TAP, user scripts and plugins are not supported. An unsupported directive produces a specific import error instead of being silently ignored.
+
+WireGuard uses the Linux kernel; AmneziaWG uses a bundled Go engine with private control sockets. Both accept client profiles with one or more peers, IPv4/IPv6, PSK, DNS and MTU settings. AmneziaWG parameters through 3.1 are retained. A successful handshake is required before a peer is connected; one unavailable peer does not disconnect the others. The **Peers** tab shows endpoints, last handshakes and protected networks. Autonomous Amnezia exports are decoded locally; Premium/Free API subscriptions and server administration keys are not supported.
 
 Open **Settings → Other VPNs → Routes** to inspect received networks, overlaps and DNS zones. Work routes take precedence over overlapping Docker networks. A rule can select a work profile for an IP/CIDR, or preserve access to an existing local/Docker subnet. If two work profiles claim the same prefix or DNS zone, select the intended provider explicitly. Physical Internet bypass rules are not allowed.
 
@@ -128,12 +137,14 @@ The application does not rewrite Pritunl settings or force it into split-tunnel 
 | **Qt 6 Quick / QML · C++20** | Native window, textured controls, translations, tray, and asynchronous D-Bus client. No root GUI or Go–Qt bindings. |
 | **Go system service** | Authenticated per-user profile access, subscriptions, connection lifecycle, recovery, and journal storage. |
 | **OpenVPN 2.6+ · distribution package** | Managed certificate-based work tunnels, private management sockets and validated route/DNS events. |
+| **WireGuard · Linux kernel** | Managed encrypted work interfaces and peer handshakes; no `wg-quick` scripts. |
+| **AmneziaWG · separate Go process** | Pinned protocol implementation through 3.1 with a private Unix control socket. |
 | **Xray-core · separate process** | VLESS, REALITY/Vision, supported transports, and TUN traffic. |
 | **systemd · nftables · systemd-resolved** | Boot startup, application-owned routes and traffic guard, and DNS integration. |
 
 The guard remains active if Xray or the supervisor crashes. **Disconnect** is the explicit way to release it. When boot autoconnect is configured, an early guard runs before NetworkManager or systemd-networkd; other network managers are outside the validated boot contract.
 
-Connection checks use certificate-verified HTTPS through the tunnel. Per-profile journals redact known credentials and retain at most **7 days / 10 MiB per profile / 50 MiB per user**. Xray access logging stays disabled. See the [service design](docs/backend.md) and [D-Bus contract](docs/interfaces.md) for details.
+VLESS connection checks use certificate-verified HTTPS through the tunnel. Work status confirms protocol establishment and routing; it cannot establish application authorization to every work server. Per-profile journals redact known credentials and retain at most **7 days / 10 MiB per profile / 50 MiB per user**. Xray access logging stays disabled. See the [service design](docs/backend.md) and [D-Bus contract](docs/interfaces.md) for details.
 
 ## Build from source
 
@@ -145,6 +156,7 @@ sudo apt install build-essential cmake ninja-build pkg-config golang-go \
   qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
   qml6-module-qtquick-window qml6-module-qtquick-templates \
   qml6-module-qtquick-dialogs qml6-module-qtqml qml6-module-qtqml-workerscript
+python3 scripts/build-amneziawg.py amd64 --fetch-only
 bash scripts/build.sh
 ./build/vault443 --demo
 ```
@@ -165,6 +177,8 @@ BUILD_DIR=build-arm64 bash scripts/package.sh arm64
 ```
 
 The root `VERSION` file is the single release-version source for Qt, the Go daemon, and packaging.
+
+The AmneziaWG build helper downloads checksum-pinned sources and a private Go 1.25.14 toolchain under `.cache/amneziawg`; it does not replace system Go. Fetching prepares dependencies once. Both normal and ARM64 builds then compile that engine offline, include dependency licenses, and package its build manifest. Source builds require Python 3.12+ for safe archive extraction. Kernel WireGuard must be available in the target Linux kernel; no additional DKMS module is installed for AmneziaWG.
 
 Packaging verifies binary architecture and rejects local development-library RPATHs. Qt translations are compiled into the executable; no separate language pack is required.
 
@@ -199,6 +213,8 @@ This removes only Vault 443's network resources, clears the desired connection a
 
 ## Documentation and third-party components
 
+- [1.2.1 release notes](docs/RELEASE-1.2.1.md) — stable controls during background updates.
+- [1.2.0 release notes](docs/RELEASE-1.2.0.md) — WireGuard, AmneziaWG and local Amnezia imports.
 - [1.1.1 release notes](docs/RELEASE-1.1.1.md) — bracketed IPv6 OpenVPN import compatibility.
 - [1.1.0 release notes](docs/RELEASE-1.1.0.md) — managed OpenVPN work profiles and route selection.
 - [1.0.1 release notes](docs/RELEASE-1.0.1.md) — single-line traffic counters and source cleanup.
@@ -206,6 +222,7 @@ This removes only Vault 443's network resources, clears the desired connection a
 - [Service and profiles](docs/backend.md) · [D-Bus API](docs/interfaces.md) · [Qt frontend](ui/README.md).
 - [Validation record](docs/VALIDATION.md) — completed checks and known limits.
 - [Xray-core](https://github.com/XTLS/Xray-core) is distributed as a separate executable under [MPL-2.0](https://github.com/XTLS/Xray-core/blob/v26.9.30/LICENSE); its license is included in the package. Qt uses the distribution's dynamically linked libraries.
+- [AmneziaWG-Go](https://github.com/amnezia-vpn/amneziawg-go/tree/v3.1.20260828) is distributed as a separate executable under MIT; its license, linked Go module licenses and exact source/build manifest are included in the package.
 - [Iosevka license](assets/fonts/Iosevka-LICENSE.md), [Roboto Condensed license](assets/fonts/Roboto-LICENSE.txt), and [font provenance](assets/fonts/manifest.json) are included in the repository.
 
 No game assets or Bethesda logos are bundled. The repository does not yet define a project-wide license; third-party component licenses do not grant a license to the whole application.

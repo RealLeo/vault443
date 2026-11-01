@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
 Name=Vault 443
-Comment=VLESS VPN connection manager
-Comment[ru]=Управление подключениями VLESS VPN
+Comment=VLESS, OpenVPN, WireGuard and AmneziaWG connection manager
+Comment[ru]=Управление подключениями VLESS, OpenVPN, WireGuard и AmneziaWG
 Exec=vault443
 Icon=vault443
 Terminal=false

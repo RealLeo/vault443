@@ -11,9 +11,9 @@ import (
 
 var (
 	ansi         = regexp.MustCompile(`\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)?)`)
-	uri          = regexp.MustCompile(`(?i)(?:vless|vmess|trojan|ss|https?)://[^\s<>"']+`)
+	uri          = regexp.MustCompile(`(?i)(?:vless|vmess|trojan|ss|vpn|https?)://[^\s<>"']+`)
 	uuid         = regexp.MustCompile(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b`)
-	namedSecret  = regexp.MustCompile(`(?i)(["']?(?:uuid|password|passwd|token|authorization|privatekey|publickey|shortid|sid|pbk|psk|secret|spiderx)["']?\s*[:=]\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,;}"']+)`)
+	namedSecret  = regexp.MustCompile(`(?i)(["']?(?:uuid|password|passwd|token|authorization|private[_-]?key|public[_-]?key|preshared[_-]?key|header[_-]?protection[_-]?key|client_priv_key|shortid|sid|pbk|psk|secret|spiderx)["']?\s*[:=]\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,;}"']+)`)
 	bearer       = regexp.MustCompile(`(?i)\b(?:bearer|basic)\s+[a-z0-9+/=_-]+`)
 	openVPNToken = regexp.MustCompile(`(?i)\b(auth[-_]token(?:[-_]user)?)(?:\s*[:=]\s*|\s+)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]+)`)
 )

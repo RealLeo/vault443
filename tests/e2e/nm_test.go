@@ -55,8 +55,10 @@ domains=CONCHECK,DEVICE,IP4
 	var nm *exec.Cmd
 	stop := func() {
 		if nm != nil {
-			_ = nm.Process.Kill()
-			_ = nm.Wait()
+			if nm.Process != nil {
+				_ = nm.Process.Kill()
+				_ = nm.Wait()
+			}
 			nm = nil
 		}
 	}

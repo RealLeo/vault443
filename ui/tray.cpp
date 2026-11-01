@@ -53,6 +53,7 @@ TrayPresentation trayPresentation(const QVariantMap &snapshot, bool online, bool
         ++activeWork;
         if (workState == "connected") ++connectedWork;
         if (workState == "error") workError = true;
+        if (workState == "partial") workConflict = true;
         if (workState == "conflict") workConflict = true;
     }
     if (activeWork) {
@@ -167,6 +168,9 @@ void TrayController::update() {
             const auto state = profile.value("runtime").toMap().value("state").toString();
             if (state.isEmpty() || state == "disconnected") continue;
             auto name = profile.value("name").toString().simplified().left(100); name.replace('&', "&&");
+            const auto kind = profile.value("kind").toString();
+            const auto protocol = kind == "wireguard" ? QString("WireGuard") : kind == "amneziawg" ? QString("AmneziaWG") : QString("OpenVPN");
+            name += " · " + protocol;
             const auto id = profile.value("id").toString();
             auto *action = m_workMenu->addAction(tr("Disconnect %1").arg(name), this, [this, id] {
                 if (m_bridge->online() && !m_bridge->snapshot().value("busyByOtherUser").toBool()) m_bridge->disconnectWorkProfile(id);

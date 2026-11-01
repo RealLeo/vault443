@@ -1,4 +1,4 @@
-# Isolated VLESS and OpenVPN integration tests
+# Isolated VPN integration tests
 
 These tests exercise the production `network.Manager` and pinned Xray binary with
 real Linux TUN, nftables, policy routing, TLS and systemd-resolved. They run inside
@@ -86,16 +86,47 @@ The package PID1 runner additionally seeds generated work profiles while the
 daemon is stopped and tests the installed hardened unit, event helper, two work
 connections, crash recovery and removal. This does not relax production D-Bus
 authorization. It requires the current `.cache/workvpn-e2e.test` and the prior
-`dist/vault443_1.0.1_amd64.deb` upgrade baseline. All raw journals and captures stay
+`dist/vault443_1.2.0_amd64.deb` upgrade baseline. All raw journals and captures stay
 in ignored `test-results/` directories.
 
-this runner also applies the packaged unit's seccomp syscall deny-list.
+This runner also applies the packaged unit's seccomp syscall deny-list.
 The E2E fixture retains its container capabilities for network namespace setup;
 it does not emulate all systemd sandbox settings. The separate
 `TestDiscoveryServiceCapabilities` test (run by `scripts/test-kernel.sh`) applies
 each unit's exact capability bounding set and syscall filter to discovery of a
 real OpenVPN TUN/socket. It checks that the old capabilities cannot identify the
 peer and the corrected capabilities can, while debugging syscalls remain denied.
+
+## WireGuard and AmneziaWG
+
+Build the pinned AWG binary and run the dedicated fixture:
+
+```sh
+python3 scripts/build-amneziawg.py amd64
+bash scripts/test-wireguard.sh 24.04
+bash scripts/test-wireguard.sh 26.04
+# A cached equivalent runtime image can be selected without downloading:
+# VAULT443_E2E_IMAGE=vault443-test:24.04 bash scripts/test-wireguard.sh 24.04
+```
+
+The runner builds current fixture/daemon/test binaries, uses `--network none`,
+and generates keys and PSKs only inside the container. Five endpoints exercise
+kernel WireGuard plus AWG legacy, 2.0/CPS and 3.1, including multiple peers. Tests
+cover IPv4/IPv6 endpoints and traffic, overlapping Docker destinations, split DNS,
+full-tunnel VLESS pause, both startup orders, coexistence with OpenVPN, incorrect
+PSK, no false connection without handshake, partial peer failure, cancellation,
+idle key renewal, engine death and recovery. Explicit route rules outside
+AllowedIPs are rejected without affecting an existing connection.
+
+Results are in `test-results/<version>/wireguard-<release>/`. Set
+`VAULT443_E2E_RESULTS` for another ignored results directory or
+`VAULT443_E2E_TEST_PATTERN` for a focused run. The AWG health fixture shortens its
+own rekey timers; production defaults are unchanged.
+
+The package PID1 suite preserves work schema v2 across patch updates, verifies old
+D-Bus signatures, then runs WG/AWG through the installed hardened service. It
+checks recovery after SIGKILL (including a surviving kernel WG interface), normal
+restart, continuous protection and purge. It never runs a host systemd command.
 
 ## Assertions
 
@@ -175,7 +206,7 @@ or ARM64 validation.
 
 ## Package installation and upgrade
 
-Keep the baseline `dist/vault443_1.0.0_amd64.deb` and build the current package.
+Keep the baseline `dist/vault443_1.2.0_amd64.deb` and build the current package.
 Build the PID1 fixture with `tests/Dockerfile.package-systemd`, using the
 corresponding `vault443-platform-smoke` Ubuntu image as its base:
 
@@ -187,8 +218,8 @@ bash tests/package-systemd.sh 24.04
 ```
 
 The runner starts real systemd, NetworkManager and resolved in a private cgroup
-namespace with no external network. It checks the 1.0.0 upgrade under an active
-local VLESS connection, continuously probes physical bypass during restart,
+namespace with no external network. It checks the 1.2.0 upgrade under active
+local VLESS and OpenVPN connections, continuously probes physical bypass during restart,
 retains multiuser data and operator GID, rejects old/pending migrations, then
 checks reinstall, removal and fresh APT installation. The host's system paths
 are never mounted. Raw results stay under `test-results/<version>/`.

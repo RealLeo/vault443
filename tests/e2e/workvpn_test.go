@@ -83,7 +83,7 @@ func newWorkHarness(t *testing.T) *workHarness {
 	}
 	workConfig := worknet.Config{StateDir: state, RuntimeDir: runtime, OpenVPNPath: "/usr/sbin/openvpn", EventHelperPath: helper}
 	w := worknet.New(workConfig, n)
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	h := &workHarness{t: t, ctx: ctx, n: n, w: w, workConfig: workConfig, logs: logs, running: map[string]*workRun{}, caseID: fmt.Sprintf("%d", serial)}
 	t.Cleanup(func() {
 		for id := range h.running {
@@ -117,7 +117,7 @@ func (h *workHarness) start(p workvpn.Profile) {
 	done := make(chan error, 1)
 	h.running[p.ID] = &workRun{cancel, done}
 	h.profileIDs = append(h.profileIDs, p.ID)
-	log := h.logs.NewSession(1000, p.ID, p.Inline["key"], p.Inline["tls-auth"])
+	log := h.logs.NewSession(1000, p.ID, p.Secrets()...)
 	go func() { done <- h.w.Run(ctx, 1000, p, log, func(worknet.Status) {}) }()
 }
 func (h *workHarness) waitConnected(id string) {
@@ -285,6 +285,13 @@ func TestRealWorkVPNRouteOverrideAndConflict(t *testing.T) {
 	h.start(p2)
 	var conflict bool
 	for end := time.Now().Add(20 * time.Second); time.Now().Before(end); {
+		select {
+		case err := <-h.running[p2.ID].done:
+			h.running[p2.ID].done <- err
+			h.dump()
+			t.Fatalf("second work VPN exited before route conflict: %v", err)
+		default:
+		}
 		for _, r := range h.w.Routes() {
 			if r.Source == "server" && r.CIDR == "192.168.0.0/16" && r.Target == p2.ID && r.Conflict {
 				state := h.w.Snapshot(p2.ID).State

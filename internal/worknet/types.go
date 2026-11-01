@@ -4,6 +4,7 @@ package worknet
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"vault443/internal/journal"
@@ -11,17 +12,25 @@ import (
 	"vault443/internal/workvpn"
 )
 
-type Config struct{ StateDir, RuntimeDir, OpenVPNPath, EventHelperPath string }
+type Config struct{ StateDir, RuntimeDir, OpenVPNPath, EventHelperPath, WireGuardPath, AmneziaWGPath, AmneziaWGSocketDir string }
+type PeerStatus struct {
+	ID              string   `json:"id"`
+	Endpoint        string   `json:"endpoint"`
+	State           string   `json:"state"`
+	LastHandshakeAt int64    `json:"lastHandshakeAt,omitempty"`
+	AllowedIPs      []string `json:"allowedIPs"`
+}
 type Status struct {
-	State          string   `json:"state"`
-	Stage          string   `json:"stage"`
-	Message        string   `json:"message,omitempty"`
-	StageStartedAt int64    `json:"stageStartedAt"`
-	ConnectedAt    int64    `json:"connectedAt,omitempty"`
-	Interface      string   `json:"interface,omitempty"`
-	Routes         []string `json:"routes,omitempty"`
-	DNSServers     []string `json:"dnsServers,omitempty"`
-	DNSDomains     []string `json:"dnsDomains,omitempty"`
+	Peers          []PeerStatus `json:"peers,omitempty"`
+	State          string       `json:"state"`
+	Stage          string       `json:"stage"`
+	Message        string       `json:"message,omitempty"`
+	StageStartedAt int64        `json:"stageStartedAt"`
+	ConnectedAt    int64        `json:"connectedAt,omitempty"`
+	Interface      string       `json:"interface,omitempty"`
+	Routes         []string     `json:"routes,omitempty"`
+	DNSServers     []string     `json:"dnsServers,omitempty"`
+	DNSDomains     []string     `json:"dnsDomains,omitempty"`
 }
 type RouteInfo struct {
 	CIDR       string `json:"cidr,omitempty"`
@@ -39,19 +48,23 @@ type route struct {
 	Gateway string `json:"gateway,omitempty"`
 }
 type session struct {
-	ID           string           `json:"id"`
-	Name         string           `json:"-"`
-	Interface    string           `json:"interface"`
-	Routes       []route          `json:"routes"`
-	DNSServers   []string         `json:"dnsServers,omitempty"`
-	DNSDomains   []string         `json:"dnsDomains,omitempty"`
-	Endpoint     network.Endpoint `json:"-"`
-	Active       bool             `json:"-"`
-	Order        uint64           `json:"order"`
-	Attempt      uint64           `json:"-"`
-	Status       Status           `json:"-"`
-	Full4, Full6 bool             `json:"-"`
-	RemoteOrder  []int            `json:"-"`
+	ID           string              `json:"id"`
+	Kind         string              `json:"kind,omitempty"`
+	PeerPrefixes map[string][]string `json:"peerPrefixes,omitempty"`
+	PeerReady    map[string]bool     `json:"-"`
+	Endpoints    []network.Endpoint  `json:"-"`
+	Name         string              `json:"-"`
+	Interface    string              `json:"interface"`
+	Routes       []route             `json:"routes"`
+	DNSServers   []string            `json:"dnsServers,omitempty"`
+	DNSDomains   []string            `json:"dnsDomains,omitempty"`
+	Endpoint     network.Endpoint    `json:"-"`
+	Active       bool                `json:"-"`
+	Order        uint64              `json:"order"`
+	Attempt      uint64              `json:"-"`
+	Status       Status              `json:"-"`
+	Full4, Full6 bool                `json:"-"`
+	RemoteOrder  []int               `json:"-"`
 	callback     func(Status)
 	log          *journal.Session
 }
@@ -83,6 +96,15 @@ func New(c Config, n *network.Manager) *Manager {
 	if c.EventHelperPath == "" {
 		c.EventHelperPath = "/usr/sbin/vault443d"
 	}
+	if c.WireGuardPath == "" {
+		c.WireGuardPath = "/usr/bin/wg"
+	}
+	if c.AmneziaWGSocketDir == "" {
+		c.AmneziaWGSocketDir = "/run/vault443/amneziawg"
+	}
+	if c.AmneziaWGPath == "" {
+		c.AmneziaWGPath = "/usr/lib/vault443/amneziawg-go"
+	}
 	return &Manager{config: c, network: n, sessions: map[string]*session{}}
 }
 
@@ -109,6 +131,10 @@ func (m *Manager) Snapshot(id string) Status {
 	return Status{State: "disconnected", Stage: "disconnected"}
 }
 func copyStatus(s Status) Status {
+	s.Peers = append([]PeerStatus(nil), s.Peers...)
+	for i := range s.Peers {
+		s.Peers[i].AllowedIPs = append([]string(nil), s.Peers[i].AllowedIPs...)
+	}
 	s.Routes = append([]string(nil), s.Routes...)
 	s.DNSServers = append([]string(nil), s.DNSServers...)
 	s.DNSDomains = append([]string(nil), s.DNSDomains...)
@@ -124,6 +150,11 @@ func (m *Manager) Routes() []RouteInfo {
 func (m *Manager) SetRules(ctx context.Context, r []workvpn.RouteRule) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	for _, rule := range r {
+		if ss := m.sessions[rule.Target]; rule.Target != "local" && ss != nil && !routeAllowed(ss, rule.CIDR) {
+			return errors.New("manual route is outside WireGuard AllowedIPs")
+		}
+	}
 	for _, rule := range r {
 		if rule.Target != "local" {
 			continue
@@ -150,6 +181,11 @@ func (m *Manager) SetRules(ctx context.Context, r []workvpn.RouteRule) error {
 func (m *Manager) SetDNSRules(ctx context.Context, r []workvpn.DNSRule) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	for _, rule := range r {
+		if ss := m.sessions[rule.Target]; ss != nil && (ss.Kind == "wireguard" || ss.Kind == "amneziawg") && len(ss.DNSServers) == 0 {
+			return errors.New("WireGuard profile has no DNS servers")
+		}
+	}
 	old := m.dnsRules
 	m.dnsRules = append([]workvpn.DNSRule(nil), r...)
 	if e := m.applyLocked(ctx); e != nil {

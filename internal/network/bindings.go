@@ -124,7 +124,12 @@ func detectExternal(ctx context.Context, r runner, s Snapshot, bindings []Bindin
 		if b.Managed {
 			l, _ := s.Link(b.Interface)
 			l.Name = b.Interface
-			l.Kind = "tun"
+			if l.Kind == "" {
+				l.Kind = "tun"
+				if b.Manager == "wg-quick" {
+					l.Kind = "wireguard"
+				}
+			}
 			out = append(out, external{Binding: b, Link: l, Active: b.ManagedActive, Full4: b.ManagedFull4, Full6: b.ManagedFull6})
 			continue
 		}

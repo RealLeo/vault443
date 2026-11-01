@@ -1,8 +1,10 @@
 # Service and profile behavior
 
-Managed certificate-based OpenVPN connections introduced in 1.1.0 are described
-in [work VPN behavior](work-vpn.md). They use a separate private store and
-independent lifecycle workers; the existing VLESS v2 data and API remain intact.
+Managed OpenVPN, WireGuard and AmneziaWG connections use the shared
+[work coordinator](work-vpn.md) and independent lifecycle workers. WG/AWG import,
+engines and peer behavior are described in [WireGuard support](wireguard.md).
+Their work schema v2 migrates existing OpenVPN profiles with a private backup;
+the separate VLESS v2 data and API remain intact.
 
 The GUI talks to `org.vault443.Service1` on the system bus. Its wire contract
 is in [interfaces.md](interfaces.md). JSON replies omit UUIDs, public keys,
@@ -170,7 +172,8 @@ service units, private directories, and desktop resources. The system bus is
 `org.vault443.Service1`, the TUN interface is `vault4430`, and the application
 nftables table is `vault443`. Numeric routing tables, priorities and socket marks
 remain stable across 1.x updates. Normal package upgrades retain profile IDs
-and the requested/boot connection; they do not convert or merge older stores.
+and the requested/boot connection; they do not convert or merge pre-Vault stores. The documented work-schema
+migration from 1.1.1 is separate from the unchanged VLESS store.
 
 A service-owned sampler reads real kernel RX/TX counters once per second without
 waiting for connection work. RX means downloaded IP bytes and TX uploaded IP

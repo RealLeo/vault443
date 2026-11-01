@@ -1,83 +1,111 @@
 # Validation
 
-Current release: **Vault 443 1.1.1**. Tests use generated credentials and disposable,
+Current release: **Vault 443 1.2.1**. Tests use generated credentials in disposable,
 network-isolated containers. The workstation's installed service, VPNs and network
-were not switched. The user's real work profile was parsed read-only; its keys
-were not copied into the source tree or test fixtures.
+are unchanged. Real client configurations are not used as fixtures or copied into
+the repository. ARM64 is a cross-build, pending hardware acceptance.
 
-## 1.1.1 import regression
+## 1.2.1 GUI regression checks
 
-Bracketed IPv6 imports are checked against the equivalent bare address, including
-identity, IPv4 fallback order, persistence and invalid-address rejection. A
-generated IPv6 profile also exercises the Qt/private D-Bus import path. The
-reported user profile passes read-only validation without copying its credentials.
-Network policy is unchanged; the network and platform matrix below records the
-1.1.0 baseline. ARM64 remains a cross-build.
+A private D-Bus fixture emits state changes once a second and delays status,
+import, journal and boot-setting replies. Tests hold the boot-profile popup open
+for at least 15 seconds and observe control signals, not just final screenshots.
+They check stable buttons and import labels, retained text/emblems/selection,
+manual journal paging/clearing during polling, preserved scroll position, stale
+errors and responses, and service disappearance/reappearance.
+
+The update fixture exercises **1.2.0 → 1.2.1**, preserving VLESS and work schema v2,
+profiles, requested connections and access rights. No protocol/network code or
+public service API changed in this patch. The broader network matrix below
+records the 1.2.0 baseline; the patch repeats the installed-package lifecycle in
+isolated containers. Demo README image provenance remains explicitly 1.2.0.
 
 ## Desktop and service
 
-- English and Russian GUI suites on Ubuntu 24.04 / Qt 6.4.2 and Ubuntu 26.04 /
-  Qt 6.10.2, X11 and Wayland, at 100/125/150/200%. Each full platform/language suite
-  passes 43 cases; eight private-bus cases are deliberately skipped there and run
-  separately. The same Qt 6.4 production executable is used on both distributions.
-- Private D-Bus GUI suites: 10 passed in each language, including real work-import
-  preparation/cancellation/confirmation, independent connect/cancel, route and DNS
-  edits, diagnostics/logs and unchanged VLESS intent. Fixtures generate temporary
-  certificate material and do not start network processes.
-- Go race/vet, bounded concurrent import validation, private stores and UID
-  ownership, independent retries/cancellation, same-boot intent, journal redaction
-  and retained 1.0 D-Bus method signatures.
-- Eight English demo README images regenerated with version, commands and SHA-256
-  provenance in `docs/images/readme/manifest.json`.
+- English/Russian GUI suites on Ubuntu 24.04 / Qt 6.4 and Ubuntu 26.04 / Qt 6.10,
+  X11 and Wayland: 47 passing cases per full suite; twelve private-bus cases are
+  skipped there and exercised separately. Focused layout checks cover
+  100/125/150/200%, plus HiDPI captures.
+- Private D-Bus GUI suites: 14 passing cases in each language, including native
+  WireGuard and compressed autonomous Amnezia import, cancellation, duplicate
+  review, peer details, independent controls, routes, diagnostics and logs.
+- The Qt 6.4 production executable is smoke-tested on both distributions.
+  Ubuntu 26.04's full QtTest suite uses a native Qt 6.10 test build because the
+  private QtTest ABI is not portable between those versions.
+- Go race/vet cover parser limits, duplicate/unknown fields, key validation,
+  transport/version metadata, decompression limits, private stores and UID
+  isolation, independent retries, same-boot recovery and journal sanitization.
+- Work schema v1 migration creates a durable private backup, retains OpenVPN IDs
+  and user metadata, and rejects incompatible or unsafe storage. Existing public
+  D-Bus methods retain their signatures and OpenVPN-specific behavior.
+- Ten English demo images have capture commands and SHA-256 provenance in
+  `docs/images/readme/manifest.json`. Demo mode makes no network/service calls.
 
-## Network fixtures
+## WireGuard and AmneziaWG fixtures
 
-The generated work fixture runs multiple certificate-authenticated OpenVPN servers
-and the pinned real Xray core. A Docker-like bridge owns `192.168.96.0/20`, while
-an OpenVPN server advertises `192.168.0.0/16` and serves `192.168.100.15`.
+Private servers exercise kernel WireGuard plus AmneziaWG legacy, 2.0/CPS and 3.1.
+Each run generates fresh private keys and PSKs inside the container. The client
+uses production runtime, routing, DNS and firewall code, with the pinned AWG
+binary and actual Linux interfaces. Both Ubuntu 24.04 and 26.04 are exercised.
 
-Coverage includes both startup orders, two independent work destinations,
-work-without-VLESS, split DNS, explicit work/local route choices and conflicting
-providers, configured and server-pushed full tunnels, VLESS pause/resume,
-fail-closed cancellation, and recovery retaining only still-desired connections.
-A client namespace exercises forwarded/masqueraded traffic and overlapping return
-routes. IPv6 has an actually reachable physical control path; failed connections
-must not escape through it. Kernel reverse-path filtering is not disabled.
+Coverage includes both VLESS startup orders, simultaneous protocols, working
+without VLESS, IPv4/IPv6 endpoints and payloads, Docker-forwarded traffic, split
+DNS, full-tunnel pause/resume, partial peer availability, and rejection of manual
+routes outside AllowedIPs without damaging active traffic. A healthy specific
+peer remains usable when a broader peer is offline. Tests also cover unavailable
+endpoints, an incorrect PSK, cancellation, idle key renewal, established-peer
+outage, AmneziaWG process death and retry. No connection is accepted solely
+because its interface exists; a completed handshake is required.
 
-Existing VLESS regressions pass on Ubuntu 24.04 and 26.04: TLS and REALITY/Vision,
-browser HTTPS/HTTP2, IPv4/IPv6 fallback, DNS/DoH bootstrap and cancellation, process
-failure, DNS and traffic protection, NetworkManager reporting and real session
-traffic accounting. Kernel tests cover forwarded bootstrap isolation and the
-packaged discovery capability/seccomp policy.
+The idle/outage test shortens only the synthetic AWG profile's rekey timers to
+exercise renewal and recovery within a bounded test. Unit tests cover packet
+checksums, longest-prefix peer selection, ownership validation, safe control
+channels, MTU/transport limits, recovery metadata and secret-free status output.
+
+## VLESS and OpenVPN regressions
+
+The generated OpenVPN fixture advertises `192.168.0.0/16` while a Docker-like
+bridge owns `192.168.96.0/20`; a private HTTP server uses `192.168.100.15`.
+Checks cover both startup orders, independent destinations and DNS, manual
+work/local choices, equal routes and two profiles sharing one transport endpoint,
+server-pushed/configured full tunnels, fail-closed cancellation, IPv6 and
+forwarded traffic, and retention of only still-requested connections on recovery.
+
+Existing VLESS checks cover TLS and REALITY/Vision, browser HTTPS/HTTP2, IPv4/IPv6
+fallback, DNS/DoH bootstrap and cancellation, process failure, DNS/traffic
+protection, NetworkManager reporting and real session traffic accounting.
+Kernel reverse-path filtering is not weakened by the fixtures.
 
 ## Packages
 
-Real systemd PID1 fixtures on Ubuntu 24.04 and 26.04 check clean installation,
-1.0.1 → 1.1.0 upgrade during an active VLESS connection, continuous physical bypass
-protection, reinstallation and purge. Existing multiuser profiles, subscriptions,
-boot selection, GID and unrelated firewall state are retained. All prior public
-D-Bus methods keep their signatures; OpenVPN methods are additive.
+Real systemd PID1 fixtures use Ubuntu 24.04 and 26.04 with private cgroups,
+NetworkManager and resolved. They check clean installation, an active
+**1.2.0 → 1.2.1** upgrade, unchanged work schema v2, physical bypass protection,
+reinstallation and purge. Multiuser profiles, subscriptions, boot selection,
+operator GID and unrelated firewall state are retained.
 
-The installed hardened unit starts two work tunnels alongside VLESS using its
-packaged event helper. Both recover after daemon SIGKILL and an orderly restart;
-work destinations remain protected during the interruption. Private work profiles
-and desired sessions survive unchanged. Removal clears only owned work/VLESS
-network resources and retains private user data.
+The installed hardened unit runs OpenVPN, then WireGuard/AmneziaWG alongside
+VLESS. It recovers after SIGKILL and orderly restart, including a kernel
+WireGuard interface left by a dead daemon. Work destinations remain protected
+while processes restart, and profile data is unchanged. Purge removes only
+owned interfaces, routes and firewall state and retains private user data.
 
-amd64 and ARM64 packages include checksums, the OpenVPN 2.6+ dependency and the
-unchanged pinned Xray. ARM64 is cross-compiled; executable architecture and absence
-of development-library RPATHs are checked.
+amd64 and ARM64 packages include checksums, the unchanged pinned Xray, the AWG
+source/toolchain lock, build manifest and linked dependency licenses. Packaging
+checks binary architecture, AWG provenance and absence of development RPATHs.
+The separate Go 1.25.14 AWG toolchain does not replace the main service's Go build.
 
 ## Limits
 
-Container fixtures share the host kernel. They do not certify a physical GNOME
-tray session, suspend/resume, power loss during boot, a real Pritunl deployment or
-an ARM64 device. The real corporate server still needs a separate acceptance check
-after installation; synthetic success does not verify its permissions or pushed
-routes. Password/MFA/SSO, external key files and TAP are unsupported.
+Containers share the host kernel. These checks do not certify a physical GNOME
+tray session, Wi-Fi roaming, suspend/resume, power loss during boot, a real
+Pritunl deployment or ARM64 hardware. Corporate server permissions and provider
+reachability require separate acceptance after installation. Password/MFA/SSO,
+external OpenVPN credentials, TAP, Amnezia Premium/Free APIs, SSH administration,
+QR scanning and server creation are outside the supported client scope.
 
-The Ubuntu 26.04 systemd fixture can report an unrelated netplan-configure failure
-without udev; NetworkManager, resolved and D-Bus are checked explicitly. Xray is
-still **26.9.30 (prerelease)**. Raw logs, generated keys, builds and test captures
-remain ignored under `.cache/`, `build*/` and `test-results/`. Git index is preserved;
-no commit, push or release publication is part of this work.
+Ubuntu 26.04's container can report a netplan-configure failure without udev;
+NetworkManager, resolved and D-Bus are checked explicitly. Xray remains
+**26.9.30 (prerelease)**. Raw reports, generated test keys, builds and captures
+stay ignored under `.cache/`, `build*/` and `test-results/`. Nothing is staged,
+committed, pushed, published or installed on the workstation by this task.

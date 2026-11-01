@@ -27,7 +27,7 @@ func (m *Manager) persistLocked() error {
 	if e != nil || !fi.IsDir() || fi.Mode().Perm()&0077 != 0 {
 		return errors.New("work state directory must be private")
 	}
-	p := persisted{Version: 1, BootID: m.bootID}
+	p := persisted{Version: 2, BootID: m.bootID}
 	for _, s := range m.sessions {
 		p.Sessions = append(p.Sessions, s)
 	}
@@ -53,6 +53,14 @@ func (m *Manager) persistLocked() error {
 	if e == nil {
 		e = os.Rename(f.Name(), filepath.Join(m.config.StateDir, networkState))
 	}
+	if e == nil {
+		dir, err := os.Open(m.config.StateDir)
+		if err != nil {
+			return err
+		}
+		e = dir.Sync()
+		_ = dir.Close()
+	}
 	return e
 }
 func (m *Manager) loadLocked() error {
@@ -75,7 +83,7 @@ func (m *Manager) loadLocked() error {
 	var p persisted
 	d := json.NewDecoder(io.LimitReader(f, 2<<20))
 	d.DisallowUnknownFields()
-	if d.Decode(&p) != nil || p.Version != 1 || len(p.Sessions) > 32 {
+	if d.Decode(&p) != nil || (p.Version != 1 && p.Version != 2) || len(p.Sessions) > 32 {
 		return errors.New("invalid work network recovery state")
 	}
 	for _, s := range p.Sessions {
@@ -87,6 +95,25 @@ func (m *Manager) loadLocked() error {
 				return errors.New("invalid protected work route")
 			}
 		}
+		if s.Kind != "" && s.Kind != "openvpn" && s.Kind != "wireguard" && s.Kind != "amneziawg" {
+			return errors.New("invalid work recovery protocol")
+		}
+		if len(s.PeerPrefixes) > 32 {
+			return errors.New("invalid work recovery peers")
+		}
+		count := 0
+		for _, prefixes := range s.PeerPrefixes {
+			for _, prefix := range prefixes {
+				count++
+				if !validRoute(route{prefix, ""}) {
+					return errors.New("invalid work recovery peer route")
+				}
+			}
+		}
+		if count > 512 {
+			return errors.New("work recovery routes exceed limit")
+		}
+		s.PeerReady = map[string]bool{}
 		s.Active = false
 		s.Status = Status{State: "retry_wait", Stage: "retry_wait", Message: "Restoring protected work connection", Interface: s.Interface}
 		m.sessions[s.ID] = s
@@ -154,6 +181,11 @@ func (m *Manager) markDown(ctx context.Context, id string) error {
 	}
 	ss.Active = false
 	ss.Endpoint = network.Endpoint{}
+	ss.Endpoints = nil
+	ss.PeerReady = map[string]bool{}
+	for i := range ss.Status.Peers {
+		ss.Status.Peers[i].State = "reconnecting"
+	}
 	m.setStageLocked(id, "retry_wait", "retry_wait", "Work VPN stopped; corporate traffic remains protected")
 	m.lastPolicy = ""
 	return m.applyLocked(ctx)
@@ -180,13 +212,24 @@ func (m *Manager) removeDeviceLocked(ctx context.Context, iface string) error {
 		if !present {
 			return nil
 		}
-		if l.Kind != "tun" {
+		var owned *session
+		for _, entry := range m.sessions {
+			if entry.Interface == iface {
+				owned = entry
+				break
+			}
+		}
+		if owned == nil || !sessionLinkMatches(owned, l) {
 			return errors.New("managed name is occupied by a foreign interface")
 		}
 		if _, e = k.Run(ctx, "/usr/bin/resolvectl", []string{"revert", iface}, ""); e != nil {
 			return e
 		}
-		_, e = k.Run(ctx, "/usr/sbin/ip", []string{"tuntap", "del", "dev", iface, "mode", "tun"}, "")
+		if l.Kind == "wireguard" {
+			_, e = k.Run(ctx, "/usr/sbin/ip", []string{"link", "del", "dev", iface}, "")
+		} else {
+			_, e = k.Run(ctx, "/usr/sbin/ip", []string{"tuntap", "del", "dev", iface, "mode", "tun"}, "")
+		}
 		return e
 	})
 }

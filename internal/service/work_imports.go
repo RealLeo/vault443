@@ -17,6 +17,7 @@ type WorkImportFile struct {
 	Content string `json:"content"`
 }
 type WorkImportEntry struct {
+	Kind      string `json:"kind"`
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	IconID    string `json:"iconId"`
@@ -88,12 +89,18 @@ func (s *Service) releaseWorkImportLocked(uid uint32) {
 }
 
 func (s *Service) PrepareOpenVPNImport(c Caller, filesJSON string) (WorkPreview, error) {
+	return s.prepareWorkImport(c, filesJSON, true)
+}
+func (s *Service) PrepareWorkImport(c Caller, filesJSON string) (WorkPreview, error) {
+	return s.prepareWorkImport(c, filesJSON, false)
+}
+func (s *Service) prepareWorkImport(c Caller, filesJSON string, openVPNOnly bool) (WorkPreview, error) {
 	out := WorkPreview{Profiles: []WorkImportEntry{}, Errors: []WorkImportError{}}
 	if err := s.requireWork(); err != nil {
 		return out, err
 	}
 	if len(filesJSON) > 8<<20 {
-		return out, errors.New("OpenVPN import exceeds 8 MiB")
+		return out, errors.New("work VPN import exceeds 8 MiB")
 	}
 	if err := s.reserveWorkImport(c.UID); err != nil {
 		return out, err
@@ -110,10 +117,10 @@ func (s *Service) PrepareOpenVPNImport(c Caller, filesJSON string) (WorkPreview,
 	dec := json.NewDecoder(strings.NewReader(filesJSON))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&files); err != nil || len(files) == 0 || len(files) > 32 {
-		return out, errors.New("choose between 1 and 32 OpenVPN files")
+		return out, errors.New("choose between 1 and 32 work VPN files")
 	}
 	if dec.Decode(new(interface{})) != io.EOF {
-		return out, errors.New("invalid OpenVPN import document")
+		return out, errors.New("invalid work VPN import document")
 	}
 	seen := map[string]workvpn.Profile{}
 	for _, p := range s.work.store.Snapshot().User(c.UID).Profiles {
@@ -121,24 +128,43 @@ func (s *Service) PrepareOpenVPNImport(c Caller, filesJSON string) (WorkPreview,
 	}
 	draft := workDraft{UID: c.UID, Expires: s.now().Add(importLifetime)}
 	for i, file := range files {
-		p, err := workvpn.Parse(file.Name, file.Content)
+		var parsed []workvpn.Profile
+		var err error
+		if openVPNOnly {
+			p, e := workvpn.Parse(file.Name, file.Content)
+			err = e
+			if e == nil {
+				parsed = []workvpn.Profile{p}
+			}
+		} else {
+			parsed, err = workvpn.ParseWork(file.Name, file.Content)
+		}
 		if err != nil {
 			out.Errors = append(out.Errors, WorkImportError{Line: i + 1, Message: err.Error()})
 			continue
 		}
-		entry := WorkImportEntry{ID: p.ID, Name: p.Name, IconID: p.IconID}
-		if len(p.Remotes) > 0 {
-			entry.Server = p.Remotes[0].Host
-			entry.Transport = p.Remotes[0].Protocol
+		if len(out.Profiles)+len(parsed) > 32 {
+			return out, errors.New("a work VPN import may contain at most 32 profiles")
 		}
-		if old, ok := seen[p.ID]; ok {
-			entry.Duplicate = true
-			entry.IconID = old.IconID
-		} else {
-			draft.Profiles = append(draft.Profiles, p)
-			seen[p.ID] = p
+		for _, p := range parsed {
+			entry := WorkImportEntry{ID: p.ID, Name: p.Name, IconID: p.IconID, Kind: p.Protocol()}
+			if len(p.Remotes) > 0 {
+				entry.Server = p.Remotes[0].Host
+				entry.Transport = p.Remotes[0].Protocol
+			}
+			if p.WireGuard != nil && len(p.WireGuard.Peers) > 0 {
+				entry.Server = p.WireGuard.Peers[0].Endpoint.Host
+				entry.Transport = "udp"
+			}
+			if old, ok := seen[p.ID]; ok {
+				entry.Duplicate = true
+				entry.IconID = old.IconID
+			} else {
+				draft.Profiles = append(draft.Profiles, p)
+				seen[p.ID] = p
+			}
+			out.Profiles = append(out.Profiles, entry)
 		}
-		out.Profiles = append(out.Profiles, entry)
 	}
 	s.work.mu.Lock()
 	defer s.work.mu.Unlock()
@@ -151,7 +177,7 @@ func (s *Service) PrepareOpenVPNImport(c Caller, filesJSON string) (WorkPreview,
 	s.work.drafts[out.DraftID] = draft
 	return out, nil
 }
-func (s *Service) CancelOpenVPNImport(c Caller, id string) error {
+func (s *Service) CancelWorkImport(c Caller, id string) error {
 	if err := s.requireWork(); err != nil {
 		return err
 	}
@@ -165,7 +191,7 @@ func (s *Service) CancelOpenVPNImport(c Caller, id string) error {
 	delete(s.work.drafts, id)
 	return nil
 }
-func (s *Service) CommitOpenVPNImport(c Caller, id, iconsJSON string) (WorkPreview, error) {
+func (s *Service) CommitWorkImport(c Caller, id, iconsJSON string) (WorkPreview, error) {
 	var out WorkPreview
 	if err := s.requireWork(); err != nil {
 		return out, err

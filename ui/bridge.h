@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QVariantMap>
+#include <QHash>
 #include <QJsonObject>
 #include <QDBusConnection>
 #include <QDBusServiceWatcher>
@@ -14,14 +15,20 @@ class Bridge final : public QObject {
     Q_CLASSINFO("D-Bus Interface", "org.vault443.Client1")
     Q_PROPERTY(QVariantMap snapshot READ snapshot NOTIFY snapshotChanged)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY profilesChanged)
+    Q_PROPERTY(QVariantList bootProfiles READ bootProfiles NOTIFY bootProfilesChanged)
+    Q_PROPERTY(bool importPreparing READ importPreparing NOTIFY requestStateChanged)
+    Q_PROPERTY(bool importCommitting READ importCommitting NOTIFY requestStateChanged)
+    Q_PROPERTY(bool bootPending READ bootPending NOTIFY requestStateChanged)
+    Q_PROPERTY(bool logActionPending READ logActionPending NOTIFY requestStateChanged)
+    Q_PROPERTY(QString logsError READ logsError NOTIFY logsStateChanged)
     Q_PROPERTY(QVariantMap preview READ preview NOTIFY previewChanged)
     Q_PROPERTY(QVariantMap workRequests READ workRequests NOTIFY workRequestsChanged)
     Q_PROPERTY(QVariantMap workRoutes READ workRoutes NOTIFY workRoutesChanged)
     Q_PROPERTY(QString workRoutesError READ workRoutesError NOTIFY workRoutesChanged)
     Q_PROPERTY(bool workRoutesPending READ workRoutesPending NOTIFY workRoutesChanged)
     Q_PROPERTY(QVariantList profileLogs READ profileLogs NOTIFY profileLogsChanged)
-    Q_PROPERTY(QString logPreviousCursor READ logPreviousCursor NOTIFY profileLogsChanged)
-    Q_PROPERTY(QString logCursor READ logCursor NOTIFY profileLogsChanged)
+    Q_PROPERTY(QString logPreviousCursor READ logPreviousCursor NOTIFY logsStateChanged)
+    Q_PROPERTY(QString logCursor READ logCursor NOTIFY logsStateChanged)
     Q_PROPERTY(QString diagnostics READ diagnostics NOTIFY diagnosticsChanged)
     Q_PROPERTY(QVariantMap diagnosticData READ diagnosticData NOTIFY diagnosticsChanged)
     Q_PROPERTY(QString diagnosticsError READ diagnosticsError NOTIFY diagnosticsChanged)
@@ -46,13 +53,19 @@ public:
     explicit Bridge(bool demo, QObject *parent = nullptr);
     QVariantMap snapshot() const { return m_snapshot; }
     QVariantList profiles() const { return m_profiles; }
+    QVariantList bootProfiles() const { return m_bootProfiles; }
+    bool importPreparing() const { return hasRequest(RequestScope::ImportPrepare); }
+    bool importCommitting() const { return hasRequest(RequestScope::ImportCommit); }
+    bool bootPending() const { return hasRequest(RequestScope::Boot); }
+    bool logActionPending() const { return hasRequest(RequestScope::Logs); }
+    QString logsError() const { return m_logsError; }
     QVariantMap preview() const { return m_preview; }
     QVariantMap workRequests() const { return m_workRequests; }
     QVariantMap workRoutes() const { return m_workRoutes; }
     QString workRoutesError() const { return m_workRoutesError; }
     bool workRoutesPending() const { return m_workRoutesPending; }
-    Q_INVOKABLE void readOpenVPNFiles(const QList<QUrl> &urls);
-    Q_INVOKABLE void prepareOpenVPNImport(const QVariantList &files);
+    Q_INVOKABLE void readWorkFiles(const QList<QUrl> &urls);
+    Q_INVOKABLE void prepareWorkImport(const QVariantList &files);
     Q_INVOKABLE void connectWorkProfile(const QString &id);
     Q_INVOKABLE void disconnectWorkProfile(const QString &id);
     Q_INVOKABLE void refreshWorkRoutes();
@@ -73,7 +86,7 @@ public:
     QString connectionError() const { return m_connectionError; }
     QString connectionErrorProfile() const { return m_connectionErrorProfile; }
     QString error() const { return m_error; }
-    bool busy() const { return m_pending > 0; }
+    bool busy() const { return hasRequest(RequestScope::Foreground); }
     bool networkBusy() const { return m_networkPending > 0; }
     bool online() const { return m_online; }
     bool demo() const { return m_demo; }
@@ -116,10 +129,13 @@ public slots:
 signals:
     void snapshotChanged();
     void profilesChanged();
+    void bootProfilesChanged();
+    void requestStateChanged();
+    void logsStateChanged();
     void previewChanged();
     void workRequestsChanged();
     void workRoutesChanged();
-    void openVPNFilesRead();
+    void workFilesRead();
     void diagnosticsChanged();
     void connectionRequestChanged();
     void profileLogsChanged();
@@ -138,7 +154,14 @@ private slots:
     void serviceChanged(const QString &name, const QString &oldOwner, const QString &newOwner);
 private:
     using Reply = std::function<void(const QVariantMap &)>;
-    void call(const QString &method, const QVariantList &args = {}, Reply reply = {});
+    enum class RequestScope { Foreground, Background, ImportPrepare, ImportCommit, Boot, Logs };
+    bool hasRequest(RequestScope scope) const;
+    quint64 beginRequest(RequestScope scope);
+    void endRequest(quint64 token);
+    void retireRequests(RequestScope scope);
+    void call(const QString &method, const QVariantList &args = {}, Reply reply = {},
+              RequestScope scope = RequestScope::Foreground, std::function<bool()> current = {}, Reply failed = {});
+    void fetchProfileLogs(const QString &id, const QString &cursor, bool replace, bool older, bool manual);
     void mutate(const QString &method, const QVariantList &args = {});
     void setError(const QString &message);
     void setOnline(bool available);
@@ -157,7 +180,8 @@ private:
     QString m_workRoutesError;
     bool m_workRoutesPending = false;
     quint64 m_workRoutesGeneration = 0;
-    QVariantList m_profiles, m_profileLogs;
+    QVariantList m_profiles, m_bootProfiles, m_profileLogs;
+    QString m_logsError;
     QString m_logProfile, m_logCursor, m_logPreviousCursor;
     QVariantMap m_demoDraft, m_demoLogs;
     quint64 m_importGeneration = 0, m_logGeneration = 0;
@@ -171,7 +195,8 @@ private:
     bool m_diagnosticsPending = false, m_disconnectQueued = false;
     QDBusConnection m_bus;
     QDBusServiceWatcher *m_watcher = nullptr;
-    int m_pending = 0;
+    QHash<quint64, RequestScope> m_requests;
+    quint64 m_nextRequest = 0;
     int m_networkPending = 0;
     bool m_demo = false, m_online = false, m_trayAvailable = false;
     bool m_refreshing = false, m_refreshAgain = false, m_demoAutostart = false;

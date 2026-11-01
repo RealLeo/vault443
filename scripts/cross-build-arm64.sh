@@ -35,4 +35,5 @@ GOOS=linux GOARCH=arm64 CGO_ENABLED=0 GOPROXY=off \
   go build -buildvcs=false -trimpath -ldflags='-s -w' -o "$output_dir/vault443d" ./cmd/vault443d
 readelf -h "$output_dir/vault443d" | grep -q 'Machine:.*AArch64'
 file "$output_dir/vault443" "$output_dir/vault443d"
+python3 scripts/build-amneziawg.py arm64 --offline
 sha256sum "$output_dir/vault443" "$output_dir/vault443d"

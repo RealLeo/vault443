@@ -103,3 +103,37 @@ Work state uses a separate versioned private `work-vpn.json`; VLESS schema v2
 and its IDs are unchanged. Canonical work IDs have the `ovpn-` prefix and exclude
 name/icon/logging metadata. No public method accepts executable paths, scripts,
 UIDs or arbitrary privileged configuration. `Changed()` remains payload-free.
+
+## Generic work protocols (1.2.0)
+
+The existing `workProfiles` array now reports `kind` as `openvpn`, `wireguard`
+or `amneziawg`. Its runtime additionally contains `peers`, each with
+`id,endpoint,state,lastHandshakeAt?,allowedIPs`. Peer IDs are stable fingerprints,
+handshake times are Unix seconds, and private/PSK/header-protection keys are never
+returned. Configured peers remain visible while disconnected. `partial` means
+some peers are connected while the remaining destinations stay protected.
+New stages include `creating_interface`, `exchanging_keys` and `partial`.
+
+General operations use the same input/result shapes and authorization as their
+OpenVPN equivalents:
+
+| Method | Behavior |
+| --- | --- |
+| `PrepareWorkImport(s filesJSON) → s` | Content-based OpenVPN/WG/AWG/autonomous-Amnezia validation; entries additionally contain `kind`. No network access. |
+| `CommitWorkImport(s draftId,s iconsJSON) → s` / `CancelWorkImport(s draftId)` | Atomic UID-owned ten-minute draft confirmation/cancellation. |
+| `UpdateWorkProfile(s id,s name,s iconId)` / `RemoveWorkProfile(s id)` | Metadata and removal for any work type. |
+| `SetWorkDebug(s id,b enabled)` | Apply logging preference on the next attempt. |
+| `RequestWorkConnect(s id) → s` / `RequestWorkDisconnect(s id) → s` | Immediate accepted operation; existing work owner/limit/cancellation rules. |
+| `GetWorkDiagnostics(s id) → s` | Cached operation/failure/runtime including safe peers. |
+| `GetWorkLogs(s id,s cursor,i limit) → s` / `ClearWorkLogs(s id)` | Existing journal pagination, privacy and retention. |
+
+Old OpenVPN methods remain compatible and reject non-OpenVPN IDs/drafts. The
+existing route/DNS methods accept the new work profile IDs, validating that WG/AWG
+targets cover the requested network/DNS destinations in AllowedIPs. VLESS API,
+boot selection and traffic-counter semantics are unchanged.
+
+Work schema v2 adds the protocol discriminator and typed WireGuard payload.
+Schema-v1 migration durably publishes `work-vpn.v1.backup.json` before atomic
+replacement, retaining old IDs/rules/intent. The separate network recovery record
+retains protocol ownership metadata and protected peer routes; secrets are not
+stored there. Unknown schemas are refused without overwriting them.

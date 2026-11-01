@@ -3,7 +3,9 @@ package ipc
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/godbus/dbus/v5"
+	"vault443/internal/journal"
 	"vault443/internal/model"
 	"vault443/internal/service"
 	"vault443/internal/store"
@@ -52,7 +55,12 @@ func TestPrivateDBusGUIFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := service.New(st, &guiRuntime{inertRuntime: inertRuntime{status: model.RuntimeStatus{State: "disconnected", ExternalVPNs: []string{}}}})
+	history, err := journal.Open(filepath.Join(t.TempDir(), "journal"), journal.Options{QueueSize: 4096})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer history.Close()
+	s := service.New(st, &guiRuntime{inertRuntime: inertRuntime{status: model.RuntimeStatus{State: "disconnected", ExternalVPNs: []string{}}}}, history)
 	workStore, err := workvpn.Open(filepath.Join(t.TempDir(), "work"), true)
 	if err != nil {
 		t.Fatal(err)
@@ -76,7 +84,8 @@ func TestPrivateDBusGUIFixture(t *testing.T) {
 	}
 	// Override only this test fixture's diagnostics method, keeping all real wire
 	// signatures and authentication. Production daemon has no delayed-call mode.
-	if err = conn.Export(&slowDiagnosticsAPI{API: &API{ctx: ctx, service: s, auth: Authorizer{Source: testIdentity{SystemIdentity{conn}}, OperatorGroup: "vault443"}}}, ObjectPath, BusName); err != nil {
+	fixture := &slowDiagnosticsAPI{API: &API{ctx: ctx, service: s, auth: Authorizer{Source: testIdentity{SystemIdentity{conn}}, OperatorGroup: "vault443"}}, conn: conn, history: history}
+	if err = conn.Export(fixture, ObjectPath, BusName); err != nil {
 		t.Fatal(err)
 	}
 
@@ -95,6 +104,7 @@ func TestPrivateDBusGUIFixture(t *testing.T) {
 	t.Log("Private GUI D-Bus fixture ready")
 	// Removing the address file lets an automated Qt run shut down the fixture
 	// and its private bus promptly, including after a failed GUI assertion.
+	lastPulse := time.Now()
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	for {
@@ -102,6 +112,10 @@ func TestPrivateDBusGUIFixture(t *testing.T) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			if fixture.options().Pulse && time.Since(lastPulse) >= time.Second {
+				_ = conn.Emit(ObjectPath, BusName+".Changed")
+				lastPulse = time.Now()
+			}
 			if _, err := os.Stat(addressFile); os.IsNotExist(err) {
 				return
 			}
@@ -166,7 +180,150 @@ func (r *guiRuntime) Disconnect(context.Context) error {
 }
 func (r *guiRuntime) Status() model.RuntimeStatus { r.mu.Lock(); defer r.mu.Unlock(); return r.status }
 
-type slowDiagnosticsAPI struct{ *API }
+type guiFixtureOptions struct {
+	Pulse                                 bool
+	SnapshotMS, LogsMS, PrepareMS, BootMS int
+	FailPrepare, FailLogs, FailBoot       bool
+}
+type slowDiagnosticsAPI struct {
+	*API
+	mu      sync.Mutex
+	config  guiFixtureOptions
+	conn    *dbus.Conn
+	history *journal.Journal
+	tick    uint64
+}
+
+func (a *slowDiagnosticsAPI) options() guiFixtureOptions {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.config
+}
+func (a *slowDiagnosticsAPI) pause(ms int) {
+	if ms <= 0 {
+		return
+	}
+	timer := time.NewTimer(time.Duration(ms) * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+	case <-a.ctx.Done():
+	}
+}
+func (a *slowDiagnosticsAPI) FixtureConfigure(data string) *dbus.Error {
+	var config guiFixtureOptions
+	if err := json.Unmarshal([]byte(data), &config); err != nil {
+		return busError(err)
+	}
+	a.mu.Lock()
+	a.config = config
+	a.mu.Unlock()
+	return nil
+}
+func (a *slowDiagnosticsAPI) FixtureRestart() *dbus.Error {
+	if _, err := a.conn.ReleaseName(BusName); err != nil {
+		return busError(err)
+	}
+	go func() { a.pause(500); _, _ = a.conn.RequestName(BusName, dbus.NameFlagDoNotQueue) }()
+	return nil
+}
+func (a *slowDiagnosticsAPI) FixtureSeedLogs(sender dbus.Sender, id string, count int32) *dbus.Error {
+	c, e := a.caller(sender)
+	if e != nil {
+		return e
+	}
+	if _, err := a.service.GetProfileLogs(c, id, "tail", 1); err != nil {
+		return busError(err)
+	}
+	if count > 1000 || count < 0 {
+		return busError(errors.New("invalid fixture count"))
+	}
+	if err := a.service.ClearProfileLogs(c, id); err != nil {
+		return busError(err)
+	}
+	log := a.history.NewSession(c.UID, id)
+	for i := int32(0); i < count; i++ {
+		log.Log("info", fmt.Sprintf("Synthetic journal line %d", i))
+	}
+	a.history.Flush()
+	return nil
+}
+func (a *slowDiagnosticsAPI) FixtureAppendLog(sender dbus.Sender, id, message string) *dbus.Error {
+	c, e := a.caller(sender)
+	if e != nil {
+		return e
+	}
+	if _, err := a.service.GetProfileLogs(c, id, "tail", 1); err != nil {
+		return busError(err)
+	}
+	a.history.NewSession(c.UID, id).Log("info", message)
+	a.history.Flush()
+	return nil
+}
+func (a *slowDiagnosticsAPI) GetSnapshot(sender dbus.Sender) (string, *dbus.Error) {
+	options := a.options()
+	result, e := a.API.GetSnapshot(sender)
+	if e != nil {
+		return result, e
+	}
+	a.pause(options.SnapshotMS)
+	if options.Pulse {
+		var snapshot map[string]any
+		_ = json.Unmarshal([]byte(result), &snapshot)
+		a.mu.Lock()
+		a.tick++
+		tick := a.tick
+		a.mu.Unlock()
+		snapshot["fixtureTick"] = tick
+		data, _ := json.Marshal(snapshot)
+		result = string(data)
+	}
+	return result, nil
+}
+func (a *slowDiagnosticsAPI) GetProfileLogs(sender dbus.Sender, id, cursor string, limit int32) (string, *dbus.Error) {
+	options := a.options()
+	result, e := a.API.GetProfileLogs(sender, id, cursor, limit)
+	a.pause(options.LogsMS)
+	if options.FailLogs {
+		return "", busError(errors.New("synthetic log failure"))
+	}
+	return result, e
+}
+func (a *slowDiagnosticsAPI) GetWorkLogs(sender dbus.Sender, id, cursor string, limit int32) (string, *dbus.Error) {
+	options := a.options()
+	result, e := a.API.GetWorkLogs(sender, id, cursor, limit)
+	a.pause(options.LogsMS)
+	if options.FailLogs {
+		return "", busError(errors.New("synthetic log failure"))
+	}
+	return result, e
+}
+func (a *slowDiagnosticsAPI) PrepareImport(sender dbus.Sender, source, kind, name string) (string, *dbus.Error) {
+	options := a.options()
+	result, e := a.API.PrepareImport(sender, source, kind, name)
+	a.pause(options.PrepareMS)
+	if options.FailPrepare {
+		return "", busError(errors.New("synthetic import failure"))
+	}
+	return result, e
+}
+func (a *slowDiagnosticsAPI) PrepareWorkImport(sender dbus.Sender, data string) (string, *dbus.Error) {
+	options := a.options()
+	result, e := a.API.PrepareWorkImport(sender, data)
+	a.pause(options.PrepareMS)
+	if options.FailPrepare {
+		return "", busError(errors.New("synthetic import failure"))
+	}
+	return result, e
+}
+func (a *slowDiagnosticsAPI) SetBootProfile(sender dbus.Sender, id string) *dbus.Error {
+	options := a.options()
+	a.pause(options.BootMS)
+	if options.FailBoot {
+		return busError(errors.New("synthetic boot failure"))
+	}
+	return a.API.SetBootProfile(sender, id)
+}
 
 func (a *slowDiagnosticsAPI) GetProfileDiagnostics(sender dbus.Sender, id string) (string, *dbus.Error) {
 	c, e := a.caller(sender)

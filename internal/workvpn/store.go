@@ -71,7 +71,7 @@ func Open(dir string, allowUnprivileged ...bool) (*Store, error) {
 	if e = secureInfo(fi, owner, true); e != nil {
 		return nil, e
 	}
-	s := &Store{dir: dir, owner: owner, state: State{Version: 1, Users: map[string]WorkUser{}}}
+	s := &Store{dir: dir, owner: owner, state: State{Version: 2, Users: map[string]WorkUser{}}}
 	f, e := os.OpenFile(filepath.Join(dir, StoreFilename), os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if os.IsNotExist(e) {
 		return s, nil
@@ -103,10 +103,80 @@ func Open(dir string, allowUnprivileged ...bool) (*Store, error) {
 	if d.Decode(&extra) != io.EOF {
 		return nil, errors.New("invalid trailing work VPN state data")
 	}
+	legacy := s.state.Version == 1
+	if legacy {
+		for key, user := range s.state.Users {
+			for i := range user.Profiles {
+				if user.Profiles[i].Protocol() != "openvpn" || user.Profiles[i].WireGuard != nil {
+					return nil, errors.New("invalid legacy work VPN state; refusing to migrate")
+				}
+				user.Profiles[i].Kind = "openvpn"
+			}
+			s.state.Users[key] = user
+		}
+		s.state.Version = 2
+	}
 	if e = validateState(s.state); e != nil {
 		return nil, e
 	}
+	if legacy {
+		if e = s.backupLegacy(raw); e != nil {
+			return nil, e
+		}
+		if e = s.Update(func(*State) error { return nil }); e != nil {
+			return nil, e
+		}
+	}
 	return s, nil
+}
+
+func (s *Store) backupLegacy(raw []byte) error {
+	path := filepath.Join(s.dir, "work-vpn.v1.backup.json")
+	f, e := os.CreateTemp(s.dir, ".work-vpn-backup-*")
+	if e != nil {
+		return errors.New("cannot create private work VPN migration backup")
+	}
+	tmp := f.Name()
+	defer os.Remove(tmp)
+	if e = f.Chmod(0600); e == nil {
+		_, e = f.Write(raw)
+	}
+	if e == nil {
+		e = f.Sync()
+	}
+	closeErr := f.Close()
+	if e != nil || closeErr != nil {
+		return errors.New("cannot persist work VPN migration backup")
+	}
+	// link publishes a complete durable file without overwriting a previous
+	// backup. A crash before publication leaves only an ignored temporary file.
+	e = os.Link(tmp, path)
+	if os.IsExist(e) {
+		old, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+		if err != nil {
+			return errors.New("cannot verify existing work VPN migration backup")
+		}
+		defer old.Close()
+		fi, err := old.Stat()
+		if err != nil || secureInfo(fi, s.owner, false) != nil || fi.Size() > MaxStateBytes {
+			return errors.New("invalid work VPN migration backup")
+		}
+		data, err := io.ReadAll(io.LimitReader(old, MaxStateBytes+1))
+		if err != nil || !bytes.Equal(data, raw) {
+			return errors.New("work VPN migration backup conflicts with current legacy data; refusing to overwrite")
+		}
+	} else if e != nil {
+		return errors.New("cannot publish work VPN migration backup")
+	}
+	d, e := os.Open(s.dir)
+	if e != nil {
+		return errors.New("cannot sync work VPN migration backup")
+	}
+	defer d.Close()
+	if d.Sync() != nil {
+		return errors.New("cannot sync work VPN migration backup")
+	}
+	return nil
 }
 
 func secureInfo(fi os.FileInfo, owner int, dir bool) error {
@@ -184,7 +254,7 @@ func (s *Store) Update(fn func(*State) error) error {
 }
 
 func validateState(s State) error {
-	if s.Version != 1 || s.Users == nil {
+	if s.Version != 2 || s.Users == nil {
 		return errors.New("unsupported work VPN state version; refusing to overwrite")
 	}
 	if len(s.Users) > 1024 || len(s.Desired) > 64 || len(s.BootID) > 128 || strings.ContainsAny(s.BootID, "\x00\r\n") {
@@ -214,6 +284,12 @@ func validateState(s State) error {
 			if e != nil || q.ID != r.ID || q.CIDR != r.CIDR || (r.Target != "local" && !ids[r.Target]) || seen[r.CIDR] {
 				return errors.New("invalid or duplicate work VPN route rule")
 			}
+			if r.Target != "local" {
+				p, _ := s.Profile(uint32(n), r.Target)
+				if !p.AllowsPrefix(r.CIDR) {
+					return errors.New("work route is outside the profile's AllowedIPs")
+				}
+			}
 			seen[r.CIDR] = true
 		}
 		seen = map[string]bool{}
@@ -221,6 +297,10 @@ func validateState(s State) error {
 			q, e := NewDNSRule(r.Domain, r.Target)
 			if e != nil || q.ID != r.ID || q.Domain != r.Domain || !ids[r.Target] || seen[r.Domain] {
 				return errors.New("invalid or duplicate work VPN DNS rule")
+			}
+			p, _ := s.Profile(uint32(n), r.Target)
+			if p.WireGuard != nil && len(p.WireGuard.DNSServers) == 0 {
+				return errors.New("WireGuard profile has no DNS servers")
 			}
 			seen[r.Domain] = true
 		}
@@ -296,9 +376,10 @@ func ruleID(kind, key string) string {
 	return kind + "-" + hex.EncodeToString(s[:12])
 }
 func validID(s string) bool {
-	if !strings.HasPrefix(s, "ovpn-") || len(s) != 37 {
+	prefix, body, ok := strings.Cut(s, "-")
+	if !ok || !oneOf(prefix, "ovpn", "wg", "awg") || len(body) != 32 {
 		return false
 	}
-	_, e := hex.DecodeString(s[5:])
+	_, e := hex.DecodeString(body)
 	return e == nil
 }

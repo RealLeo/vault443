@@ -1,19 +1,20 @@
-# Managed work OpenVPN
+# Managed work VPNs
 
-Vault 443 1.1.0 manages multiple certificate-based OpenVPN clients in addition to
+Vault 443 1.2.0 manages OpenVPN, WireGuard and AmneziaWG clients in addition to
 its existing VLESS connection. The GUI remains unprivileged. Operator access uses
 the same authenticated local D-Bus caller and `vault443` group as VLESS.
 
 ## Import
 
-Choose one or more `.ovpn` files in the GUI. Their contents, not home-directory
+Choose one or more `.ovpn`, `.conf` or `.vpn` files in the GUI, or paste a native
+WG/AWG configuration or autonomous `vpn://` export. Their contents, not home-directory
 paths, are sent to the service. Preparation is read-only, scoped to the calling
 UID, and expires after ten minutes or a service restart. Confirmation atomically
 stores the validated profiles and icon choices. Existing duplicates are retained.
 Imports accept at most 32 files / 8 MiB JSON per batch and 1 MiB per file, with up
 to 1024 work profiles per UID and a bounded 32 MiB private work store.
 
-Profiles must be self-contained TUN clients with certificate authentication and
+OpenVPN profiles must be self-contained TUN clients with certificate authentication and
 inline CA, certificate and unencrypted private key. UDP and TCP clients, server
 hostnames, multiple remotes, TLS authentication keys and the validated network,
 keepalive and cryptographic options are supported. Certificate and key contents
@@ -25,6 +26,16 @@ management overrides, server mode, TAP, password/MFA/SSO and unknown significant
 options. `ignore-unknown-option` cannot bypass validation. The service generates
 its own runtime configuration and fixed event handler. It does not execute the
 user's original file as root.
+
+## WireGuard and AmneziaWG
+
+WG/AWG profiles use the same import preview, independent controls, journal,
+route/DNS choices and ownership rules. Linux WireGuard is configured through
+`wg`; AmneziaWG uses the bundled, pinned Go engine with a private Unix socket.
+Neither backend runs `wg-quick` scripts. The Peers tab shows safe endpoint,
+handshake and allowed-network details. Partial availability preserves healthy
+peers while blocking unavailable destinations. See [WireGuard/AWG behavior](wireguard.md)
+for supported parameters, import formats and handshake semantics.
 
 ## Lifecycle and protection
 
@@ -49,7 +60,7 @@ child's private management stream before applying a full-tunnel policy. Raw
 the upstream [management interface](https://openvpn.net/community-docs/management-interface/)
 and [OpenVPN 2.6 manual](https://openvpn.net/community-docs/community-articles/openvpn-2-6-manual/).
 
-Work profile data and manual route/DNS rules live in `work-vpn.json` beside the
+Work profile data and manual route/DNS rules live in schema-v2 `work-vpn.json` beside the
 unchanged VLESS schema-v2 store. Files are root-owned and private. Known work
 prefixes remain blocked after unexpected tunnel or supervisor failure. A service
 restart in the same OS boot restores the requested set; a new OS boot does not
@@ -90,6 +101,14 @@ confirms tunnel setup and policy application; it does not prove authorization to
 every corporate server or application port.
 
 ## Validation and installation
+
+Version 1.2.0 migrates work schema v1 atomically, retaining OpenVPN IDs, metadata,
+rules and requested sessions. A private `work-vpn.v1.backup.json` is durably
+published before conversion. Unknown versions or conflicting backups are refused
+without replacing data. The VLESS schema is unchanged. An older 1.1.x daemon
+cannot read work schema v2; downgrade requires a deliberate offline restore of
+the saved v1 work file after stopping/releasing managed connections. Keep the v2
+file separately if newer WG/AWG profiles must be retained.
 
 Use synthetic certificates in the opt-in, network-isolated
 [E2E fixture](../tests/e2e/README.md). Never commit real exports, private keys or

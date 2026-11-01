@@ -72,6 +72,8 @@ func runCommand(ctx context.Context, c command) ([]byte, error) {
 type Link struct {
 	Index    int      `json:"ifindex"`
 	Name     string   `json:"ifname"`
+	Alias    string   `json:"ifalias,omitempty"`
+	MTU      int      `json:"mtu"`
 	Flags    []string `json:"flags"`
 	Kind     string   `json:"-"`
 	LinkInfo struct {

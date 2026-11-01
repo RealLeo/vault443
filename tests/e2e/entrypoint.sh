@@ -98,13 +98,17 @@ resolvectl status >/results/resolved-status-before.txt
 if [ "${VAULT443_WORKVPN_E2E:-}" = 1 ]; then
   /bin/bash /src/tests/e2e/workvpn-fixture.sh
 fi
+if [ "${VAULT443_WIREGUARD_E2E:-}" = 1 ]; then
+  install -m755 /src/.cache/amneziawg/amd64/amneziawg-go /usr/lib/vault443/amneziawg-go
+  python3 /src/tests/e2e/wireguard-fixture.py
+fi
 
 set +e
 if [ "${VAULT443_PACKAGE_NETWORK:-}" = 1 ]; then
   /bin/bash /src/tests/package-lifecycle.sh 2>&1 | tee /results/package-lifecycle.log
   result=${PIPESTATUS[0]}
 else
-  "${VAULT443_E2E_TEST_BINARY:-/src/.cache/e2e.test}" -test.v -test.run "${VAULT443_E2E_TEST_PATTERN:-^TestRealVLESS}" -test.timeout=240s 2>&1 | tee /results/e2e.log
+  "${VAULT443_E2E_TEST_BINARY:-/src/.cache/e2e.test}" -test.v -test.run "${VAULT443_E2E_TEST_PATTERN:-^TestRealVLESS}" -test.timeout="${VAULT443_E2E_TIMEOUT:-240s}" 2>&1 | tee /results/e2e.log
   result=${PIPESTATUS[0]}
 fi
 ip -j -4 rule show >/results/rules-after.json

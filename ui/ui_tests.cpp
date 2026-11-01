@@ -3,7 +3,11 @@
 #include "tray.h"
 #include <QApplication>
 #include <QClipboard>
+#include <QDBusMessage>
 #include <QJsonObject>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJSValue>
 #include <QPainter>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -30,9 +34,27 @@ private:
         return nullptr;
     }
     QQuickItem *item(const QString &name) { return findItem(window->contentItem(), name); }
+    void fixtureControl(const QString &method, const QVariantList &args = {}) {
+        auto message = QDBusMessage::createMethodCall("org.vault443.Service1", "/org/vault443/Service1", "org.vault443.Service1", method);
+        message.setArguments(args);
+        const auto reply = QDBusConnection::systemBus().call(message, QDBus::Block, 5000);
+        QVERIFY2(reply.type() != QDBusMessage::ErrorMessage, qPrintable(reply.errorMessage()));
+    }
+    void fixtureConfigure(const QVariantMap &options) {
+        fixtureControl("FixtureConfigure", {QString::fromUtf8(QJsonDocument(QJsonObject::fromVariantMap(options)).toJson(QJsonDocument::Compact))});
+    }
     static QString qmlText(const char *source) { return QCoreApplication::translate("Main", source); }
     static QString bridgeText(const char *source) { return QCoreApplication::translate("Bridge", source); }
     static QString trayText(const char *source) { return QCoreApplication::translate("QObject", source); }
+    static QString wireGuardFixture(bool awg = false) {
+        // Synthetic parser inputs, never used to connect to a real server.
+        QString text = QString("[Interface]\nPrivateKey = %1\nAddress = 10.72.0.2/32\nDNS = 10.72.0.53, corp.example\nMTU = 1280\n")
+            .arg(QString::fromLatin1(QByteArray(32, 'k').toBase64()));
+        if (awg) text += "Jc = 4\nJmin = 40\nJmax = 70\nS1 = 15\nS2 = 25\nH1 = 101\nH2 = 202\nH3 = 303\nH4 = 404\n";
+        text += QString("[Peer]\nPublicKey = %1\nPresharedKey = %2\nEndpoint = %3:51820\nAllowedIPs = 10.72.0.0/16\nPersistentKeepalive = 25\n")
+            .arg(QString::fromLatin1(QByteArray(32, 'p').toBase64()), QString::fromLatin1(QByteArray(32, 's').toBase64()), awg ? "east.example" : "west.example");
+        return text;
+    }
     void click(const QString &name) {
         auto *target = item(name);
         QVERIFY2(target, qPrintable("Missing item: " + name));
@@ -65,8 +87,23 @@ private:
         QTest::qWait(120);
     }
 private slots:
-    void init() { loadWindow(true); }
+    void init() { if (qEnvironmentVariable("VAULT443_UI_PRIVATE_BUS_TEST") == "1") fixtureConfigure({}); loadWindow(true); }
     void cleanup() { engine.reset(); bridge.reset(); language.reset(); window = nullptr; }
+    void bootSelectionSurvivesRefreshAndRemovedProfile() {
+        click("settings-button"); auto *field = item("boot-profile");
+        field->setProperty("currentIndex", 2);
+        QVERIFY(QMetaObject::invokeMethod(field, "activated", Q_ARG(int, 2)));
+        const auto chosen = field->property("selectedProfileId").toString();
+        QSignalSpy models(bridge.get(), &Bridge::bootProfilesChanged);
+        for (int i = 0; i < 25; ++i) bridge->refresh();
+        QCOMPARE(models.count(), 0); QCOMPARE(field->property("selectedProfileId").toString(), chosen);
+        bridge->removeProfile(chosen);
+        QTRY_VERIFY(field->property("missingSelection").toBool());
+        QVERIFY(!item("boot-apply")->isEnabled()); QVERIFY(item("boot-selection-missing")->isVisible());
+        field->setProperty("currentIndex", 0);
+        QVERIFY(QMetaObject::invokeMethod(field, "activated", Q_ARG(int, 0)));
+        QVERIFY(item("boot-apply")->isEnabled()); QVERIFY(!field->property("missingSelection").toBool());
+    }
     void workImportIconsAndConnectionsStayIndependent() {
         QTemporaryDir files; QVERIFY(files.isValid());
         QList<QUrl> urls;
@@ -77,11 +114,11 @@ private slots:
             urls.append(QUrl::fromLocalFile(path));
         }
         click("import-button");
-        bridge->readOpenVPNFiles(urls);
+        bridge->readWorkFiles(urls);
         QCOMPARE(bridge->preview().value("profiles").toList().size(), 2);
         click("import-cancel");
         QCOMPARE(bridge->profiles().size(), 3);
-        click("import-button"); bridge->readOpenVPNFiles(urls);
+        click("import-button"); bridge->readWorkFiles(urls);
         const auto imported = bridge->preview().value("profiles").toList();
         const auto firstID = imported[0].toMap().value("id").toString();
         const auto secondID = imported[1].toMap().value("id").toString();
@@ -104,7 +141,7 @@ private slots:
         bridge->loadProfileLogs(secondID, true);
         QVERIFY(!bridge->profileLogs().isEmpty());
         QVERIFY(!bridge->profileLogs()[1].toMap().value("message").toString().contains("Xray"));
-        bridge->readOpenVPNFiles(urls);
+        bridge->readWorkFiles(urls);
         QVERIFY(bridge->preview().value("profiles").toList()[0].toMap().value("duplicate").toBool());
     }
     void workRoutesAndDNSCanReturnToAutomatic() {
@@ -127,6 +164,53 @@ private slots:
         QVERIFY(bridge->workRoutes().isEmpty());
         QVERIFY(!bridge->workRoutesError().isEmpty());
     }
+    void wireGuardTextImportAndPeerDetails() {
+        QVariant peerState;
+        QVERIFY(QMetaObject::invokeMethod(window, "peerState", Q_RETURN_ARG(QVariant, peerState), Q_ARG(QVariant, QVariant("waiting_handshake"))));
+        QCOMPARE(peerState.toString(), qmlText("Waiting for handshake"));
+        click("import-button");
+        item("import-text")->setProperty("text", wireGuardFixture());
+        click("import-preview");
+        auto preview = bridge->preview().value("profiles").toList();
+        QCOMPARE(preview.size(), 1);
+        QCOMPARE(preview[0].toMap().value("kind").toString(), QString("wireguard"));
+        click("import-commit");
+        auto work = bridge->snapshot().value("workProfiles").toList();
+        QCOMPARE(work.size(), 1);
+        bridge->connectWorkProfile(work[0].toMap().value("id").toString());
+        QCOMPARE(bridge->snapshot().value("activeProfileId").toString(), QString("demo-main"));
+        bridge->setDemoState("wireguard-vpns");
+        QTest::qWait(60);
+        QCOMPARE(item("profile-kind-1")->property("text").toString(), QString("WireGuard"));
+        QCOMPARE(item("profile-kind-2")->property("text").toString(), QString("AmneziaWG"));
+        QCOMPARE(item("status-2")->property("text").toString(), qmlText("Partially connected"));
+        QCOMPARE(item("connect-2")->property("text").toString(), qmlText("Disconnect"));
+        const auto awg = bridge->snapshot().value("workProfiles").toList()[1].toMap();
+        QVERIFY(QMetaObject::invokeMethod(window, "showProfile", Q_ARG(QVariant, QVariant(awg))));
+        QTest::qWait(60); click("profile-peers-tab");
+        QCOMPARE(item("profile-peers")->property("count").toInt(), 2);
+        QVERIFY(item("peer-handshake-1")->property("text").toString().contains(qmlText("Not received yet")));
+        const auto before = bridge->snapshot();
+        language->setPreference("ru"); QTest::qWait(40);
+        QVERIFY(item("peer-state-1")->property("text").toString().contains(QString::fromUtf8("Переподключение")));
+        QCOMPARE(bridge->snapshot(), before);
+        bridge->setDemoState("offline"); QTest::qWait(30);
+        QCOMPARE(item("profile-peers")->property("count").toInt(), 2);
+    }
+    void wireGuardTrayIncludesPartialAndProtocol() {
+        bridge->setDemoState("wireguard-vpns");
+        TrayController tray(bridge.get(), false);
+        auto *menu = tray.menu()->findChild<QMenu *>("tray-work-vpns");
+        QVERIFY(menu); QCOMPARE(menu->actions().size(), 2);
+        QVERIFY(menu->actions()[0]->text().contains("WireGuard"));
+        QVERIFY(menu->actions()[1]->text().contains("AmneziaWG"));
+        const auto view = trayPresentation(bridge->snapshot(), true, false);
+        QCOMPARE(view.color, QColor("#f5ca55"));
+        QVERIFY(view.text.contains(trayText("Work VPN needs attention")));
+        menu->actions()[1]->trigger();
+        QCOMPARE(menu->actions().size(), 1);
+        QCOMPARE(bridge->snapshot().value("activeProfileId").toString(), QString("demo-main"));
+    }
     void workButtonLabelsFitBothLanguages() {
         auto check = [this](const QString &name) {
             auto *button = item(name); QVERIFY(button);
@@ -136,7 +220,7 @@ private slots:
                      qPrintable(name + ": " + button->property("text").toString()));
         };
         for (const auto &value : {QString("en"), QString("ru")}) {
-            language->setPreference(value); click("import-button"); check("import-openvpn"); click("import-cancel");
+            language->setPreference(value); click("import-button"); check("import-work"); click("import-cancel");
             QVERIFY(QMetaObject::invokeMethod(window, "openRoutes")); QTest::qWait(80);
             check("work-route-save"); check("work-route-remove"); check("work-route-refresh");
             QTest::keyClick(window, Qt::Key_Escape); QTest::qWait(30);
@@ -149,6 +233,16 @@ private slots:
         language->setPreference("en");
         QCOMPARE(language->serviceMessage("OpenVPN line 12: passwords, MFA and external credential providers are unsupported"), QString("OpenVPN line 12: passwords, MFA and external credential providers are unsupported"));
         QCOMPARE(language->serviceMessage("unknown 192.168.100.15 detail"), QString("unknown 192.168.100.15 detail"));
+    }
+    void wireGuardImportErrorsTranslateWithoutExposingValues() {
+        const auto error = QString("WireGuard line 8: invalid PrivateKey");
+        language->setPreference("en");
+        QCOMPARE(language->serviceMessage(error), error);
+        language->setPreference("ru");
+        QCOMPARE(language->serviceMessage(error), QString::fromUtf8("Строка WireGuard 8: Некорректный параметр: PrivateKey"));
+        QVERIFY(language->serviceMessage("WireGuard DNS server is outside AllowedIPs").contains(QString::fromUtf8("не входит")));
+        QVERIFY(language->serviceMessage("Amnezia API subscriptions and administrative access keys are unsupported; export a client configuration").contains(QString::fromUtf8("клиентскую")));
+        QCOMPARE(language->serviceMessage("peer 192.0.2.42 custom diagnostic"), QString("peer 192.0.2.42 custom diagnostic"));
     }
     void workTrayShowsIndependentDisconnectActions() {
         bridge->setDemoState("work-vpns");
@@ -743,6 +837,143 @@ private slots:
         if (QGuiApplication::platformName() != "offscreen") QTRY_VERIFY(window->isActive());
         QTest::keyClick(window, Qt::Key_Escape); QTRY_VERIFY(!bridge->vpnCompatibilityActive());
     }
+    void realDBusPollingDoesNotBlinkOrClosePopup() {
+        if (qEnvironmentVariable("VAULT443_UI_PRIVATE_BUS_TEST") != "1") QSKIP("Private D-Bus fixture required");
+        cleanup(); loadWindow(false);
+        QTRY_VERIFY_WITH_TIMEOUT(bridge->online() && bridge->bootProfiles().size() > 2, 5000);
+        fixtureConfigure({{"Pulse", true}, {"SnapshotMS", 250}, {"LogsMS", 400}, {"PrepareMS", 350}});
+        click("import-button");
+        const QString link = "vless://00000000-0000-4000-8000-000000000121@poll.example:443?security=tls#Polling";
+        item("import-text")->setProperty("text", link);
+        QSignalSpy preparing(item("import-preparing"), SIGNAL(visibleChanged()));
+        QSignalSpy review(item("import-preview"), SIGNAL(enabledChanged()));
+        QSignalSpy busy(bridge.get(), &Bridge::busyChanged);
+        QTest::qWait(2500);
+        QCOMPARE(preparing.count(), 0); QCOMPARE(review.count(), 0); QCOMPARE(busy.count(), 0);
+        QVERIFY(!item("import-preparing")->isVisible());
+        click("import-preview"); QVERIFY(bridge->importPreparing());
+        QTRY_VERIFY_WITH_TIMEOUT(item("import-commit")->isEnabled(), 3000);
+        click("import-icon-0"); click("icon-atom");
+        auto *importDialog = window->findChild<QObject *>("import-dialog"); QVERIFY(importDialog);
+        const auto choices = importDialog->property("iconChoices").value<QJSValue>().toVariant();
+        QTest::qWait(2200);
+        QCOMPARE(item("import-text")->property("text").toString(), link);
+        QCOMPARE(importDialog->property("iconChoices").value<QJSValue>().toVariant(), choices);
+        click("import-cancel");
+        click("settings-button");
+        auto *field = item("boot-profile");
+        field->setProperty("currentIndex", 2);
+        QVERIFY(QMetaObject::invokeMethod(field, "activated", Q_ARG(int, 2)));
+        const auto chosen = field->property("currentValue");
+        click("boot-profile");
+        auto *popup = field->property("popup").value<QObject *>(); QVERIFY(popup);
+        QTRY_VERIFY(popup->property("visible").toBool());
+        QSignalSpy fieldChanges(field, SIGNAL(enabledChanged()));
+        QSignalSpy applyChanges(item("boot-apply"), SIGNAL(enabledChanged()));
+        QSignalSpy popupChanges(popup, SIGNAL(visibleChanged()));
+        QSignalSpy modelChanges(bridge.get(), &Bridge::bootProfilesChanged);
+        QSignalSpy snapshots(bridge.get(), &Bridge::snapshotChanged);
+        QTest::qWait(15500);
+        QVERIFY(snapshots.count() >= 10);
+        QCOMPARE(fieldChanges.count(), 0); QCOMPARE(applyChanges.count(), 0);
+        QCOMPARE(modelChanges.count(), 0); QCOMPARE(popupChanges.count(), 0);
+        QVERIFY(popup->property("visible").toBool()); QCOMPARE(field->property("currentValue"), chosen);
+        QTest::keyClick(window, Qt::Key_Escape);
+        fixtureConfigure({});
+    }
+    void realDBusJournalActionsSupersedePolling() {
+        if (qEnvironmentVariable("VAULT443_UI_PRIVATE_BUS_TEST") != "1") QSKIP("Private D-Bus fixture required");
+        cleanup(); loadWindow(false);
+        QTRY_VERIFY_WITH_TIMEOUT(bridge->online() && !bridge->profiles().isEmpty(), 5000);
+        const auto id = bridge->profiles().first().toMap().value("id").toString();
+        fixtureControl("FixtureSeedLogs", {id, qint32(500)});
+        fixtureConfigure({{"Pulse", true}, {"SnapshotMS", 150}, {"LogsMS", 400}});
+        click("profile-0"); click("logs-tab");
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->logActionPending() && bridge->profileLogs().size() == 200, 3000);
+        QSignalSpy older(item("logs-older"), SIGNAL(enabledChanged()));
+        QSignalSpy latest(item("logs-more"), SIGNAL(enabledChanged()));
+        QSignalSpy clear(item("logs-clear"), SIGNAL(enabledChanged()));
+        QSignalSpy copy(item("logs-copy"), SIGNAL(enabledChanged()));
+        QSignalSpy entries(bridge.get(), &Bridge::profileLogsChanged);
+        QTest::qWait(5200);
+        QCOMPARE(older.count(), 0); QCOMPARE(latest.count(), 0); QCOMPARE(clear.count(), 0); QCOMPARE(copy.count(), 0);
+        QCOMPARE(entries.count(), 0);
+        // An old background reply must not overwrite a manual older-page request.
+        bridge->loadProfileLogs(id);
+        click("logs-older"); QVERIFY(bridge->logActionPending());
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->logActionPending() && bridge->profileLogs().size() == 400, 3000);
+        click("logs-more");
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->logActionPending() && bridge->profileLogs().size() == 200, 3000);
+        auto *list = item("profile-logs"); list->setProperty("contentY", 100.0);
+        fixtureControl("FixtureAppendLog", {id, "Fresh synthetic entry"});
+        bridge->loadProfileLogs(id);
+        QTRY_COMPARE_WITH_TIMEOUT(bridge->profileLogs().size(), 201, 3000);
+        QTRY_VERIFY(qAbs(list->property("contentY").toDouble() - 100.0) < 2.0);
+        // Capture a nonempty response before clearing; delay its delivery.
+        fixtureConfigure({{"Pulse", true}, {"LogsMS", 700}});
+        bridge->loadProfileLogs(id, true);
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->logActionPending(), 3000);
+        fixtureControl("FixtureAppendLog", {id, "Must not reappear after clear"});
+        bridge->loadProfileLogs(id);
+        QTest::qWait(100);
+        click("logs-clear");
+        bridge->clearProfileLogs(id); // Duplicate manual click is ignored.
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->logActionPending() && bridge->profileLogs().isEmpty(), 3000);
+        QTest::qWait(1000); QVERIFY(bridge->profileLogs().isEmpty());
+        fixtureConfigure({{"LogsMS", 100}, {"FailLogs", true}});
+        bridge->loadProfileLogs(id);
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->logsError().isEmpty(), 2000);
+        QVERIFY(bridge->error().isEmpty()); QVERIFY(item("logs-clear")->isEnabled());
+        fixtureConfigure({}); bridge->loadProfileLogs(id);
+        QTRY_VERIFY_WITH_TIMEOUT(bridge->logsError().isEmpty(), 2000);
+        fixtureConfigure({{"LogsMS", 3500}});
+        bridge->loadProfileLogs(id, true);
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->logActionPending() && !bridge->logsError().isEmpty(), 4000);
+        QVERIFY(bridge->online()); QVERIFY(item("logs-clear")->isEnabled());
+        fixtureConfigure({}); bridge->loadProfileLogs(id, true);
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->logActionPending() && bridge->logsError().isEmpty(), 2000);
+        const auto second = bridge->profiles()[1].toMap().value("id").toString();
+        fixtureControl("FixtureSeedLogs", {second, qint32(3)});
+        fixtureConfigure({{"LogsMS", 500}}); bridge->loadProfileLogs(id);
+        QVERIFY(QMetaObject::invokeMethod(window, "showProfile", Q_ARG(QVariant, bridge->profiles()[1])));
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->logActionPending() && bridge->profileLogs().size() == 3, 2000);
+        QTest::qWait(700); QCOMPARE(bridge->profileLogs().size(), 3);
+        fixtureConfigure({});
+    }
+    void realDBusScopedRequestsResetAndIgnoreOldReplies() {
+        if (qEnvironmentVariable("VAULT443_UI_PRIVATE_BUS_TEST") != "1") QSKIP("Private D-Bus fixture required");
+        cleanup(); loadWindow(false);
+        QTRY_VERIFY_WITH_TIMEOUT(bridge->online() && bridge->profiles().size() > 2, 5000);
+        fixtureConfigure({{"PrepareMS", 800}, {"FailPrepare", true}});
+        click("import-button");
+        const QString link = "vless://00000000-0000-4000-8000-000000000122@canceled.example:443?security=tls#Canceled";
+        item("import-text")->setProperty("text", link); click("import-preview");
+        QVERIFY(bridge->importPreparing());
+        item("import-text")->setProperty("text", link + "-edited");
+        QVERIFY(!bridge->importPreparing());
+        QTest::qWait(1000); QVERIFY(bridge->error().isEmpty()); QVERIFY(bridge->preview().isEmpty());
+        QCOMPARE(item("import-text")->property("text").toString(), link + "-edited");
+        fixtureConfigure({{"PrepareMS", 1000}}); click("import-preview");
+        fixtureControl("FixtureRestart");
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->importPreparing(), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(bridge->online(), 3000);
+        QTest::qWait(1100); QVERIFY(bridge->preview().isEmpty());
+        QCOMPARE(item("import-text")->property("text").toString(), link + "-edited");
+        click("import-cancel");
+        fixtureConfigure({{"BootMS", 400}, {"FailBoot", true}});
+        click("settings-button");
+        auto *field = item("boot-profile"); field->setProperty("currentIndex", 2);
+        QVERIFY(QMetaObject::invokeMethod(field, "activated", Q_ARG(int, 2)));
+        const auto choice = field->property("selectedProfileId").toString();
+        click("boot-apply"); QVERIFY(bridge->bootPending());
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->bootPending() && !bridge->error().isEmpty(), 3000);
+        QCOMPARE(field->property("selectedProfileId").toString(), choice);
+        bridge->clearError(); QTest::keyClick(window, Qt::Key_Escape);
+        fixtureConfigure({{"BootMS", 200}});
+        bridge->setBootProfile(choice);
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->bootPending() && bridge->snapshot().value("bootProfileId").toString() == choice, 3000);
+        fixtureConfigure({});
+    }
     void realDBusOpenVPNImportControlAndRoutesWhenFixtureAvailable() {
         if (qEnvironmentVariable("VAULT443_UI_PRIVATE_BUS_TEST") != "1" || qEnvironmentVariableIsEmpty("VAULT443_UI_OPENVPN_FILE")
             || qEnvironmentVariableIsEmpty("VAULT443_UI_OPENVPN_BLOCKED_FILE")) QSKIP("Private OpenVPN D-Bus fixture required");
@@ -759,13 +990,13 @@ private slots:
             return QVariantMap{};
         };
         const QList<QUrl> files{QUrl::fromLocalFile(qEnvironmentVariable("VAULT443_UI_OPENVPN_FILE")), QUrl::fromLocalFile(qEnvironmentVariable("VAULT443_UI_OPENVPN_BLOCKED_FILE"))};
-        click("import-button"); bridge->readOpenVPNFiles(files);
+        click("import-button"); bridge->readWorkFiles(files);
         QTRY_VERIFY_WITH_TIMEOUT(item("import-commit")->isEnabled() && !bridge->busy(), 5000);
         QVERIFY2(bridge->preview().value("errors").toList().isEmpty(), qPrintable(bridge->error()));
         QCOMPARE(bridge->preview().value("profiles").toList().size(), 2);
         click("import-cancel"); QTRY_VERIFY_WITH_TIMEOUT(!bridge->busy(), 3000);
         QCOMPARE(bridge->profiles().size(), originalCount);
-        click("import-button"); bridge->readOpenVPNFiles(files);
+        click("import-button"); bridge->readWorkFiles(files);
         QTRY_VERIFY_WITH_TIMEOUT(item("import-commit")->isEnabled() && !bridge->busy(), 5000);
         const auto prepared = bridge->preview().value("profiles").toList();
         const auto first = prepared[0].toMap().value("id").toString();
@@ -832,6 +1063,77 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(bridge->profiles().size(), originalCount, 3000);
         if (previousVless.isEmpty()) bridge->disconnectProfile(); else if (previousVless != primary) bridge->connectProfile(previousVless);
         QTRY_COMPARE_WITH_TIMEOUT(bridge->snapshot().value("activeProfileId").toString(), previousVless, 3000);
+        QVERIFY2(bridge->error().isEmpty(), qPrintable(bridge->error()));
+    }
+    void realDBusWireGuardAndAmneziaImportWhenFixtureAvailable() {
+        if (qEnvironmentVariable("VAULT443_UI_PRIVATE_BUS_TEST") != "1" || qEnvironmentVariableIsEmpty("DBUS_SYSTEM_BUS_ADDRESS"))
+            QSKIP("Opt-in private test D-Bus fixture is not running");
+        cleanup(); loadWindow(false);
+        QTRY_VERIFY_WITH_TIMEOUT(bridge->online() && !bridge->busy(), 5000);
+        const auto count = bridge->snapshot().value("workProfiles").toList().size();
+        const auto previousVless = bridge->snapshot().value("activeProfileId").toString();
+        const auto native = wireGuardFixture(true);
+        const QJsonObject last{{"config", native}};
+        const QJsonObject container{{"container", "amnezia-awg"}, {"awg", QJsonObject{{"last_config", QString::fromUtf8(QJsonDocument(last).toJson(QJsonDocument::Compact))}}}};
+        const QJsonObject key{{"description", "Synthetic East"}, {"containers", QJsonArray{container}}};
+        const auto encoded = "vpn://" + QString::fromLatin1(qCompress(QJsonDocument(key).toJson(QJsonDocument::Compact)).toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
+        QTemporaryDir files; QVERIFY(files.isValid());
+        QList<QUrl> urls;
+        for (const auto &entry : {QPair<QString, QString>{"West.conf", wireGuardFixture()}, {"East.vpn", encoded}}) {
+            QFile file(files.filePath(entry.first)); QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write(entry.second.toUtf8()), entry.second.toUtf8().size()); file.close();
+            urls.append(QUrl::fromLocalFile(file.fileName()));
+        }
+        click("import-button"); bridge->readWorkFiles(urls);
+        QTRY_VERIFY_WITH_TIMEOUT(item("import-commit")->isEnabled(), 3000);
+        auto entries = bridge->preview().value("profiles").toList();
+        QCOMPARE(entries.size(), 2);
+        QCOMPARE(entries[0].toMap().value("kind").toString(), QString("wireguard"));
+        QCOMPARE(entries[1].toMap().value("kind").toString(), QString("amneziawg"));
+        const auto wg = entries[0].toMap().value("id").toString();
+        const auto awg = entries[1].toMap().value("id").toString();
+        const auto previewJSON = QJsonDocument(QJsonObject::fromVariantMap(bridge->preview())).toJson();
+        QVERIFY(!previewJSON.contains(QByteArray(32, 'k').toBase64()));
+        QVERIFY(!previewJSON.contains(QByteArray(32, 's').toBase64()));
+        const auto preview = bridge->preview();
+        language->setPreference("ru"); QCoreApplication::processEvents();
+        QCOMPARE(bridge->preview(), preview);
+        click("import-cancel");
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->busy(), 3000);
+        QCOMPARE(bridge->snapshot().value("workProfiles").toList().size(), count);
+        click("import-button"); bridge->readWorkFiles(urls);
+        QTRY_VERIFY_WITH_TIMEOUT(item("import-commit")->isEnabled(), 3000);
+        bridge->commitImport({{wg, "shield"}, {awg, "vault-door"}});
+        QTRY_COMPARE_WITH_TIMEOUT(bridge->snapshot().value("workProfiles").toList().size(), count + 2, 3000);
+        auto profile = [this](const QString &id) {
+            for (const auto &value : bridge->snapshot().value("workProfiles").toList()) if (value.toMap().value("id").toString() == id) return value.toMap();
+            return QVariantMap{};
+        };
+        QCOMPARE(profile(awg).value("iconId").toString(), QString("vault-door"));
+        bridge->connectWorkProfile(wg); bridge->connectWorkProfile(awg);
+        QTRY_COMPARE_WITH_TIMEOUT(profile(wg).value("runtime").toMap().value("state").toString(), QString("connected"), 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(profile(awg).value("runtime").toMap().value("state").toString(), QString("connected"), 3000);
+        QCOMPARE(bridge->snapshot().value("activeProfileId").toString(), previousVless);
+        bridge->getDiagnostics(awg);
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->diagnosticsPending(), 3000);
+        QVERIFY(bridge->diagnosticsError().isEmpty());
+        QVERIFY(!bridge->diagnostics().contains(QString::fromLatin1(QByteArray(32, 'k').toBase64())));
+        bridge->updateProfile(wg, "Renamed West", "atom");
+        QTRY_COMPARE_WITH_TIMEOUT(profile(wg).value("name").toString(), QString("Renamed West"), 3000);
+        bridge->setProfileDebug(awg, true);
+        QTRY_VERIFY_WITH_TIMEOUT(profile(awg).value("debugLogging").toBool(), 3000);
+        bridge->disconnectWorkProfile(wg);
+        QTRY_COMPARE_WITH_TIMEOUT(profile(wg).value("runtime").toMap().value("state").toString(), QString("disconnected"), 3000);
+        QCOMPARE(profile(awg).value("runtime").toMap().value("state").toString(), QString("connected"));
+        bridge->disconnectWorkProfile(awg);
+        QTRY_COMPARE_WITH_TIMEOUT(profile(awg).value("runtime").toMap().value("state").toString(), QString("disconnected"), 3000);
+        click("import-button");
+        item("import-text")->setProperty("text", encoded); click("import-preview");
+        QTRY_VERIFY_WITH_TIMEOUT(item("import-commit")->isEnabled(), 3000);
+        QVERIFY(bridge->preview().value("profiles").toList()[0].toMap().value("duplicate").toBool());
+        click("import-cancel");
+        bridge->removeProfile(wg); bridge->removeProfile(awg);
+        QTRY_COMPARE_WITH_TIMEOUT(bridge->snapshot().value("workProfiles").toList().size(), count, 3000);
         QVERIFY2(bridge->error().isEmpty(), qPrintable(bridge->error()));
     }
     void realDBusLanguageSwitchPreservesDraftWithoutMutations() {

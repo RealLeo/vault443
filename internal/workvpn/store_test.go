@@ -66,7 +66,7 @@ func TestPrivateStorePersistenceAndIsolation(t *testing.T) {
 func TestUnsupportedStateNeverOverwritten(t *testing.T) {
 	_, dir := privateStore(t)
 	path := filepath.Join(dir, StoreFilename)
-	for _, raw := range []string{`{"version":2,"users":{}}`, `{"version":1,"users":{},"unrecognized":"x"}`, `{"version":1,"users":{}} {}`} {
+	for _, raw := range []string{`{"version":3,"users":{}}`, `{"version":1,"users":{},"unrecognized":"x"}`, `{"version":1,"users":{}} {}`} {
 		if e := os.WriteFile(path, []byte(raw), 0600); e != nil {
 			t.Fatal(e)
 		}
@@ -202,7 +202,7 @@ func TestRoutingRules(t *testing.T) {
 		t.Fatal("unsafe metadata error leak")
 	}
 	b, _ := json.Marshal(s.Snapshot())
-	if !strings.Contains(string(b), `"version":1`) {
+	if !strings.Contains(string(b), `"version":2`) {
 		t.Fatal("wrong work state version")
 	}
 }

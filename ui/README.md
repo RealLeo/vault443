@@ -85,3 +85,17 @@ QtTest binaries must match the runtime Qt version; the production Qt 6.4 binary
 can be exercised separately on the newer runtime. Tray tests use a private
 StatusNotifier host and D-Bus menu, including host restart and hidden windows.
 All generated output belongs in ignored build/cache/test-results directories.
+
+## Background refresh and request state
+
+Snapshot polling and automatic journal reads never set the foreground busy flag.
+Import preparation/commit, boot settings and manual journal actions each have a
+separate pending state. The boot-profile list compares only IDs, names and order;
+runtime and traffic changes do not replace the model. User selection stays local
+until Apply succeeds, and a removed selection cannot be applied silently.
+
+Journal reads use generation checks for both success and failure. Manual paging,
+clearing and profile switches supersede earlier background replies; empty pages
+produce no list update. Local journal errors preserve the last data and do not
+open repeating modal dialogs. The private D-Bus GUI suite includes one-second
+state signals, delayed replies, a 15-second popup check and read/clear races.

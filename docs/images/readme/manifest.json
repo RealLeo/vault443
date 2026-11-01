@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "language": "en",
   "mode": "demo",
   "logicalSize": [
@@ -11,7 +11,7 @@
     "renderer": "software",
     "config": "temporary XDG_CONFIG_HOME, discarded after capture",
     "network": "demo bridge; no D-Bus service or network operations",
-    "command": "XDG_CONFIG_HOME=<temporary> QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software LANGUAGE=en build/vault443 --demo --demo-state <demoState> --demo-screen <demoScreen> --screenshot docs/images/readme/<file>"
+    "command": "XDG_CONFIG_HOME=<temporary> QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software LANGUAGE=en .cache/v120/gui/vault443 --demo --demo-state <demoState> --demo-screen <demoScreen> --screenshot docs/images/readme/<file>"
   },
   "screens": [
     {
@@ -24,13 +24,13 @@
       "file": "import.png",
       "demoScreen": "import-preview",
       "demoState": "connected",
-      "sha256": "46c11beb6cb2eb3a487c06dca437517ccb79a76fcb2b5e7cfba03b6288f3e63c"
+      "sha256": "07d2b486a624e55ad3eeb2e273833fee7028778e73e679323c1c284cf2a327f3"
     },
     {
       "file": "settings.png",
       "demoScreen": "settings",
       "demoState": "connected",
-      "sha256": "19291eea8966db5e066d6a99937452e1aecb81c178b885c510faeaea9c21f4e9"
+      "sha256": "13d137a01d0b6b8032b05be4ce0d706b5f6e170f7fe3d86c24d89d9db31e1501"
     },
     {
       "file": "icons.png",
@@ -42,7 +42,7 @@
       "file": "logs.png",
       "demoScreen": "logs",
       "demoState": "connected",
-      "sha256": "0b1b2f95319d23b9febbb62730c9016681549022fe79eac54812ad2a0b6cdf9a"
+      "sha256": "35d01594cbbe3e38d8cf515ed88a59afbad4ed2934ca37f928537067ba42bada"
     },
     {
       "file": "work-vpns.png",
@@ -60,7 +60,19 @@
       "file": "work-import.png",
       "demoScreen": "work-import",
       "demoState": "work-vpns",
-      "sha256": "5fd1c37ef9466b7d2c30525e74982ca21a96630e8ef7ed31f94ad2508c8f4e42"
+      "sha256": "0f8a8906850354d703bc6eba5d3e49449cb6560d4c2873f7e26567b3b88b506d"
+    },
+    {
+      "file": "wireguard.png",
+      "demoScreen": "wireguard",
+      "demoState": "connected",
+      "sha256": "f1fb91b1d8088d85395e66dc164169d7c2af753104138dced9d4f2ca0402a4da"
+    },
+    {
+      "file": "peers.png",
+      "demoScreen": "peers",
+      "demoState": "connected",
+      "sha256": "4a10fd728e4d6485283c254e5b38113b12967bdc38d6bd9f057a8e6b2312db1d"
     }
   ]
 }

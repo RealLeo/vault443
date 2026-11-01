@@ -24,6 +24,8 @@ type Option struct {
 
 // Profile contains credentials; never marshal it in D-Bus replies or logs.
 type Profile struct {
+	Kind         string            `json:"kind,omitempty"`
+	WireGuard    *WireGuardConfig  `json:"wireguard,omitempty"`
 	ID           string            `json:"id"`
 	Name         string            `json:"name"`
 	IconID       string            `json:"iconId"`
@@ -31,6 +33,34 @@ type Profile struct {
 	Remotes      []Remote          `json:"remotes"`
 	Options      []Option          `json:"options"`
 	Inline       map[string]string `json:"inline"`
+}
+
+// WireGuardConfig contains validated credentials. Only explicit public views
+// may cross D-Bus; this structure must never be included in diagnostics.
+type WireGuardConfig struct {
+	PrivateKey string            `json:"privateKey"`
+	Addresses  []string          `json:"addresses"`
+	DNSServers []string          `json:"dnsServers,omitempty"`
+	DNSDomains []string          `json:"dnsDomains,omitempty"`
+	MTU        int               `json:"mtu"`
+	ListenPort int               `json:"listenPort,omitempty"`
+	Parameters map[string]string `json:"parameters,omitempty"`
+	Peers      []WireGuardPeer   `json:"peers"`
+}
+
+type WireGuardPeer struct {
+	PublicKey           string   `json:"publicKey"`
+	PresharedKey        string   `json:"presharedKey,omitempty"`
+	Endpoint            Remote   `json:"endpoint"`
+	AllowedIPs          []string `json:"allowedIPs"`
+	PersistentKeepalive string   `json:"persistentKeepalive,omitempty"`
+}
+
+func (p Profile) Protocol() string {
+	if p.Kind == "" {
+		return "openvpn"
+	}
+	return p.Kind
 }
 
 // RouteRule targets a profile ID or "local" (an existing directly connected

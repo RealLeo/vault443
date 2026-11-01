@@ -34,7 +34,7 @@ func installDNSPolicy(ctx context.Context, k network.Kernel, snap network.Snapsh
 				f = 6
 			}
 			p := netip.PrefixFrom(a, a.BitLen()).String()
-			if err = installRoute(ctx, k, table, selected{cidr: p, iface: ss.Interface, active: ss.Active}); err != nil {
+			if err = installRoute(ctx, k, table, selected{cidr: p, iface: ss.Interface, active: routeAvailable(ss, p)}); err != nil {
 				return err
 			}
 			if !present {
@@ -45,7 +45,7 @@ func installDNSPolicy(ctx context.Context, k network.Kernel, snap network.Snapsh
 					return err
 				}
 			}
-			if !ss.Active || !a.Is4() {
+			if !routeAvailable(ss, p) || !a.Is4() {
 				continue
 			}
 			reverse[p] = append(reverse[p], ss.Interface)

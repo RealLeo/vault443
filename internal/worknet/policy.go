@@ -149,15 +149,20 @@ func (m *Manager) choose(s network.Snapshot) selection {
 	winners := map[string]selected{}
 	counts := map[string]int{}
 	for _, v := range list {
-		for _, r := range normalizeRoutes(v.Routes) {
+		for _, r := range sessionRoutes(v) {
 			counts[r.CIDR]++
 			if _, ok := winners[r.CIDR]; !ok {
-				winners[r.CIDR] = selected{r.CIDR, v.ID, v.Interface, r.Gateway, "server", v.Active, false}
+				winners[r.CIDR] = selected{r.CIDR, v.ID, v.Interface, r.Gateway, routeSource(v), routeAvailable(v, r.CIDR), false}
 			}
 		}
 	}
 	// User rules are a separate policy table, so a less-specific work route can
 	// intentionally override a more-specific connected Docker route.
+	explicit := map[string]bool{}
+	manualOrigin := map[string]int{}
+	for _, r := range m.rules {
+		explicit[r.CIDR] = true
+	}
 	for _, r := range m.rules {
 		if r.Target != "local" && m.sessions[r.Target] == nil {
 			continue
@@ -172,17 +177,31 @@ func (m *Manager) choose(s network.Snapshot) selection {
 		} else {
 			ss := m.sessions[r.Target]
 			v.iface = ss.Interface
-			v.active = ss.Active
+			v.active = routeAvailable(ss, r.CIDR)
+			if ss.Kind == "wireguard" || ss.Kind == "amneziawg" {
+				parent, _ := netip.ParsePrefix(r.CIDR)
+				for _, child := range sessionRoutes(ss) {
+					q, e := netip.ParsePrefix(child.CIDR)
+					if e != nil || explicit[child.CIDR] || q.Bits() <= parent.Bits() || !parent.Contains(q.Addr()) {
+						continue
+					}
+					previous, exists := manualOrigin[child.CIDR]
+					if !exists || parent.Bits() > previous {
+						manualOrigin[child.CIDR] = parent.Bits()
+						winners[child.CIDR] = selected{cidr: child.CIDR, target: ss.ID, iface: ss.Interface, source: "manual", active: routeAvailable(ss, child.CIDR)}
+					}
+				}
+			}
 		}
 		winners[r.CIDR] = v
 	}
 	for _, v := range list {
-		for _, r := range normalizeRoutes(v.Routes) {
+		for _, r := range sessionRoutes(v) {
 			w := winners[r.CIDR]
 			conflict := counts[r.CIDR] > 1 && w.source != "manual"
 			state := "active"
 			message := ""
-			if !v.Active {
+			if !routeAvailable(v, r.CIDR) {
 				state = "protected"
 			}
 			if w.target != v.ID {
@@ -195,7 +214,7 @@ func (m *Manager) choose(s network.Snapshot) selection {
 					out.conflict[v.ID] = true
 				}
 			}
-			out.rows = append(out.rows, RouteInfo{CIDR: r.CIDR, Source: "server", Target: v.ID, TargetName: v.Name, Interface: v.Interface, State: state, Message: message, Conflict: conflict})
+			out.rows = append(out.rows, RouteInfo{CIDR: r.CIDR, Source: routeSource(v), Target: v.ID, TargetName: v.Name, Interface: v.Interface, State: state, Message: message, Conflict: conflict})
 		}
 	}
 	for _, v := range winners {
@@ -317,7 +336,7 @@ func (m *Manager) choose(s network.Snapshot) selection {
 		conflict := dnsCounts[d] > 1
 		out.dnsConflict[d] = conflict
 		state := "active"
-		if !v.Active {
+		if !dnsAvailable(v) {
 			state = "protected"
 		}
 		if conflict {
@@ -360,8 +379,18 @@ func (m *Manager) guard(s network.Snapshot, u network.Route, sel selection, exis
 		fmt.Fprintf(&b, "delete table inet %s\n", workTable)
 	}
 	fmt.Fprintf(&b, "table inet %s {\n", workTable)
+	for _, ss := range sortedSessions(m.sessions) {
+		if ss.Kind == "wireguard" || ss.Kind == "amneziawg" {
+			writePeerGuard(&b, ss)
+		}
+	}
 	for _, hook := range []string{"output", "forward"} {
 		fmt.Fprintf(&b, "chain %s { type filter hook %s priority filter + 40; policy accept;\n", hook, hook)
+		for _, ss := range sortedSessions(m.sessions) {
+			if ss.Kind == "wireguard" || ss.Kind == "amneziawg" {
+				fmt.Fprintf(&b, "oifname %s jump peer_%s\n", nftQ(ss.Interface), ss.Interface)
+			}
+		}
 		if hook == "output" {
 			fmt.Fprintln(&b, "oifname \"lo\" accept")
 			for _, ss := range m.sessions {
@@ -370,7 +399,7 @@ func (m *Manager) guard(s network.Snapshot, u network.Route, sel selection, exis
 				}
 				for _, dns := range ss.DNSServers {
 					a, e := netip.ParseAddr(dns)
-					if e != nil {
+					if e != nil || !routeAvailable(ss, netip.PrefixFrom(a, a.BitLen()).String()) {
 						continue
 					}
 					for _, proto := range []string{"udp", "tcp"} {
@@ -380,13 +409,15 @@ func (m *Manager) guard(s network.Snapshot, u network.Route, sel selection, exis
 			}
 			if u.Device != "" {
 				for _, ss := range m.sessions {
-					a, e := netip.ParseAddr(ss.Endpoint.Address)
-					if e == nil {
-						family := "ip"
-						if a.Is6() {
-							family = "ip6"
+					for _, endpoint := range transportEndpoints(ss) {
+						a, e := netip.ParseAddr(endpoint.Address)
+						if e == nil {
+							family := "ip"
+							if a.Is6() {
+								family = "ip6"
+							}
+							fmt.Fprintf(&b, "meta mark 0x%x %s daddr %s %s dport %d oifname %s accept\n", network.OuterMark, family, a, endpoint.Protocol, endpoint.Port, nftQ(u.Device))
 						}
-						fmt.Fprintf(&b, "meta mark 0x%x %s daddr %s %s dport %d oifname %s accept\n", network.OuterMark, family, a, ss.Endpoint.Protocol, ss.Endpoint.Port, nftQ(u.Device))
 					}
 				}
 				for _, v := range []struct{ proto, port string }{{"udp", "53"}, {"tcp", "53"}, {"tcp", "443"}} {
@@ -394,6 +425,7 @@ func (m *Manager) guard(s network.Snapshot, u network.Route, sel selection, exis
 				}
 			}
 		}
+
 		if hook == "forward" {
 			for _, ss := range m.sessions {
 				for _, lr := range network.LocalRoutes(s) {
@@ -540,10 +572,11 @@ func (m *Manager) applyLocked(ctx context.Context) error {
 		for _, ss := range m.sessions {
 			if ss.Active {
 				l, ok := s.Link(ss.Interface)
-				if !ok || l.Kind != "tun" {
+				if !ok || !sessionLinkMatches(ss, l) {
 					ss.Active = false
-					m.publishView()
-					return errors.New("work VPN interface disappeared; reconnect required")
+					ss.PeerReady = map[string]bool{}
+					m.lastPolicy = ""
+					m.setStageLocked(ss.ID, "retry_wait", "retry_wait", "Work VPN interface disappeared; destinations remain protected")
 				}
 			}
 		}
@@ -679,17 +712,20 @@ func (m *Manager) applyLocked(ctx context.Context) error {
 					priority++
 				}
 			}
+			seenTransport := map[string]bool{}
 			for _, ss := range keyInput.Sessions {
-				ep := ss.Endpoint
-				a, er := netip.ParseAddr(ep.Address)
-				if er != nil || a.Is4() != (f == 4) {
-					continue
+				for _, ep := range transportEndpoints(ss) {
+					a, er := netip.ParseAddr(ep.Address)
+					if er != nil || a.Is4() != (f == 4) {
+						continue
+					}
+					identity := fmt.Sprintf("%s/%s/%d", a, ep.Protocol, ep.Port)
+					if seenTransport[identity] {
+						continue
+					}
+					seenTransport[identity] = true
+					rules = append(rules, []string{"priority", strconv.Itoa(priority), "uidrange", "0-0", "to", a.String(), "ipproto", ep.Protocol, "dport", strconv.Itoa(ep.Port), "lookup", strconv.Itoa(underlayTable)})
 				}
-				if priority >= 5200 {
-					return errors.New("too many work transport endpoints")
-				}
-				rules = append(rules, []string{"priority", strconv.Itoa(priority), "uidrange", "0-0", "to", a.String(), "ipproto", ep.Protocol, "dport", strconv.Itoa(ep.Port), "lookup", strconv.Itoa(underlayTable)})
-				priority++
 			}
 			for _, ss := range keyInput.Sessions {
 				if _, present := s.Link(ss.Interface); present {
@@ -710,7 +746,7 @@ func (m *Manager) applyLocked(ctx context.Context) error {
 		}
 		policy := network.ManagedPolicy{Uplink: u.Device}
 		for _, ss := range keyInput.Sessions {
-			t := network.ManagedTunnel{ID: ss.ID, Interface: ss.Interface, Endpoint: ss.Endpoint, Active: ss.Active}
+			t := network.ManagedTunnel{ID: ss.ID, Interface: ss.Interface, Kind: ss.Kind, Endpoints: transportEndpoints(ss), Active: ss.Active}
 			for _, r := range sel.routes {
 				p, _ := netip.ParsePrefix(r.cidr)
 				if r.target == ss.ID && p.Bits() == 0 {
@@ -725,7 +761,7 @@ func (m *Manager) applyLocked(ctx context.Context) error {
 			if ss.Active {
 				for _, dns := range ss.DNSServers {
 					a, e := netip.ParseAddr(dns)
-					if e == nil {
+					if e == nil && routeAvailable(ss, netip.PrefixFrom(a, a.BitLen()).String()) {
 						policy.Routes = append(policy.Routes, network.ManagedRoute{CIDR: netip.PrefixFrom(a, a.BitLen()).String(), Interface: ss.Interface, DNSOnly: true})
 					}
 				}
@@ -761,7 +797,7 @@ func (m *Manager) applyLocked(ctx context.Context) error {
 					return errors.New("cannot clear obsolete work DNS")
 				}
 			}
-			if ss.Status.State == "connected" || ss.Status.State == "conflict" {
+			if ss.Status.State == "connected" || ss.Status.State == "conflict" || ss.Status.State == "partial" {
 				if sel.conflict[ss.ID] {
 					ss.Status.State = "conflict"
 					ss.Status.Stage = "route_conflict"
@@ -770,6 +806,11 @@ func (m *Manager) applyLocked(ctx context.Context) error {
 					ss.Status.State = "connected"
 					ss.Status.Stage = "connected"
 					ss.Status.Message = "Connected"
+					if ss.Kind != "" && ss.Kind != "openvpn" && !allPeersReady(ss) {
+						ss.Status.State = "partial"
+						ss.Status.Stage = "partial"
+						ss.Status.Message = "Some peers are unavailable; their routes remain protected"
+					}
 				}
 				if ss.callback != nil {
 					ss.callback(copyStatus(ss.Status))

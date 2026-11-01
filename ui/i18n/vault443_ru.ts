@@ -186,6 +186,42 @@
       <source>The service returned an invalid route list.</source>
       <translation>Служба вернула некорректный список маршрутов.</translation>
     </message>
+    <message>
+      <source>Imported connection</source>
+      <translation>Импортированное подключение</translation>
+    </message>
+    <message>
+      <source>Office East</source>
+      <translation>Восточный офис</translation>
+    </message>
+    <message>
+      <source>Office West</source>
+      <translation>Западный офис</translation>
+    </message>
+    <message>
+      <source>Expected a self-contained VPN client configuration.</source>
+      <translation>Нужна самодостаточная клиентская конфигурация VPN.</translation>
+    </message>
+    <message>
+      <source>Creating VPN interface</source>
+      <translation>Создание интерфейса VPN</translation>
+    </message>
+    <message>
+      <source>Peer handshake verified</source>
+      <translation>Обмен ключами с узлом подтверждён</translation>
+    </message>
+    <message>
+      <source>Select at most 32 VPN files at a time.</source>
+      <translation>Выберите не более 32 файлов VPN за один раз.</translation>
+    </message>
+    <message>
+      <source>A VPN file is unavailable or larger than 1 MB.</source>
+      <translation>Файл VPN недоступен или больше 1 МБ.</translation>
+    </message>
+    <message>
+      <source>The selected VPN files exceed the 8 MB import limit.</source>
+      <translation>Выбранные файлы VPN превышают ограничение импорта 8 МБ.</translation>
+    </message>
   </context>
   <context>
     <name>IconPicker</name>
@@ -288,6 +324,14 @@
   </context>
   <context>
     <name>Main</name>
+    <message>
+      <source>Service unavailable — the last received log is shown.</source>
+      <translation>Служба недоступна — показан последний полученный журнал.</translation>
+    </message>
+    <message>
+      <source>The selected profile was removed. Choose another profile or Off.</source>
+      <translation>Выбранный профиль удалён. Выберите другой профиль или «Выключено».</translation>
+    </message>
     <message>
       <source>%1 EB</source>
       <translation>%1 ЭБ</translation>
@@ -1269,6 +1313,122 @@ Domains: %2</source>
     <message>
       <source>Another user is using the VPN. Taking control disconnects all their VLESS and work VPN connections. You can then connect your own profiles.</source>
       <translation>VPN используется другим пользователем. Передача управления отключит все его соединения VLESS и рабочих VPN. Затем вы сможете подключить свои профили.</translation>
+    </message>
+    <message>
+      <source>VLESS traffic only. IP traffic through its TUN, including internal service requests. OpenVPN, WireGuard, AmneziaWG and encrypted transport overhead are excluded.</source>
+      <translation>Только трафик VLESS: IP-пакеты через его TUN, включая служебные запросы. Трафик OpenVPN, WireGuard, AmneziaWG и накладные расходы шифрования не учитываются.</translation>
+    </message>
+    <message>
+      <source>Creating interface</source>
+      <translation>Создание интерфейса</translation>
+    </message>
+    <message>
+      <source>Exchanging keys</source>
+      <translation>Обмен ключами</translation>
+    </message>
+    <message>
+      <source>Partially connected</source>
+      <translation>Подключено частично</translation>
+    </message>
+    <message>
+      <source>No handshake response</source>
+      <translation>Нет ответа на обмен ключами</translation>
+    </message>
+    <message>
+      <source>VPN tunnel stopped</source>
+      <translation>VPN-туннель остановлен</translation>
+    </message>
+    <message>
+      <source>Waiting for handshake</source>
+      <translation>Ожидание обмена ключами</translation>
+    </message>
+    <message>
+      <source>Peer unavailable</source>
+      <translation>Узел недоступен</translation>
+    </message>
+    <message>
+      <source>VPN configuration</source>
+      <translation>Конфигурация VPN</translation>
+    </message>
+    <message>
+      <source>VPN and text files (*.txt *.conf *.ovpn *.vpn)</source>
+      <translation>VPN и текстовые файлы (*.txt *.conf *.ovpn *.vpn)</translation>
+    </message>
+    <message>
+      <source>Import VPN configurations</source>
+      <translation>Импорт конфигураций VPN</translation>
+    </message>
+    <message>
+      <source>VPN configurations (*.ovpn *.conf *.vpn)</source>
+      <translation>Конфигурации VPN (*.ovpn *.conf *.vpn)</translation>
+    </message>
+    <message>
+      <source>Review the VPN profiles and choose their emblems. Certificates and keys stay private.</source>
+      <translation>Проверьте профили VPN и выберите эмблемы. Сертификаты и ключи хранятся приватно.</translation>
+    </message>
+    <message>
+      <source>Paste VLESS links, a WireGuard configuration or Amnezia vpn:// keys. You can also select VPN files.</source>
+      <translation>Вставьте ссылки VLESS, конфигурацию WireGuard или ключи Amnezia vpn://. Также можно выбрать файлы VPN.</translation>
+    </message>
+    <message>
+      <source>VPN files</source>
+      <translation>Файлы VPN</translation>
+    </message>
+    <message>
+      <source>Entry %1: %2</source>
+      <translation>Запись %1: %2</translation>
+    </message>
+    <message>
+      <source>Peers</source>
+      <translation>Узлы</translation>
+    </message>
+    <message>
+      <source>Detailed VPN logging</source>
+      <translation>Подробный журнал VPN</translation>
+    </message>
+    <message>
+      <source>Routes and DNS for this VPN profile</source>
+      <translation>Маршруты и DNS этого профиля VPN</translation>
+    </message>
+    <message>
+      <source>Service unavailable — showing the last received peer status.</source>
+      <translation>Служба недоступна — показано последнее полученное состояние узлов.</translation>
+    </message>
+    <message>
+      <source>A successful handshake confirms the peer, not access to every application. Idle peers do not need a recent handshake.</source>
+      <translation>Обмен ключами подтверждает связь с узлом, но не доступность всех приложений. При простое новый обмен не требуется.</translation>
+    </message>
+    <message>
+      <source>Peer %1 · %2</source>
+      <translation>Узел %1 · %2</translation>
+    </message>
+    <message>
+      <source>Endpoint: %1</source>
+      <translation>Адрес: %1</translation>
+    </message>
+    <message>
+      <source>Last handshake: %1</source>
+      <translation>Последний обмен ключами: %1</translation>
+    </message>
+    <message>
+      <source>Not received yet</source>
+      <translation>Ещё не получен</translation>
+    </message>
+    <message>
+      <source>Allowed networks: %1</source>
+      <translation>Разрешённые сети: %1</translation>
+    </message>
+    <message>
+      <source>Connect the profile to see peer status.</source>
+      <translation>Подключите профиль, чтобы увидеть состояние узлов.</translation>
+    </message>
+    <message>
+      <source>Service unavailable — peer status is unknown.</source>
+      <translation>Служба недоступна — состояние узлов неизвестно.</translation>
+    </message>
+    <message>
+      <source>No work routes yet. Connect an OpenVPN, WireGuard or AmneziaWG profile.</source>
+      <translation>Рабочих маршрутов пока нет. Подключите профиль OpenVPN, WireGuard или AmneziaWG.</translation>
     </message>
   </context>
   <context>
@@ -2591,6 +2751,386 @@ Domains: %2</source>
     <message>
       <source>local route must be contained in an existing connected network</source>
       <translation>Локальный маршрут должен входить в существующую напрямую подключённую сеть</translation>
+    </message>
+    <message>
+      <source>WireGuard line %1: %2</source>
+      <translation>Строка WireGuard %1: %2</translation>
+    </message>
+    <message>
+      <source>Duplicate parameter: %1</source>
+      <translation>Повторяющийся параметр: %1</translation>
+    </message>
+    <message>
+      <source>Invalid parameter: %1</source>
+      <translation>Некорректный параметр: %1</translation>
+    </message>
+    <message>
+      <source>Unsupported parameter: %1. Scripts and runtime overrides are forbidden.</source>
+      <translation>Параметр %1 не поддерживается. Скрипты и изменение параметров запуска запрещены.</translation>
+    </message>
+    <message>
+      <source>Unsupported peer parameter: %1</source>
+      <translation>Параметр узла %1 не поддерживается.</translation>
+    </message>
+    <message>
+      <source>WireGuard peer %1 requires PublicKey, Endpoint and AllowedIPs</source>
+      <translation>Узлу WireGuard %1 нужны PublicKey, Endpoint и AllowedIPs</translation>
+    </message>
+    <message>
+      <source>Amnezia container %1 uses an unsupported protocol</source>
+      <translation>В контейнере Amnezia %1 неподдерживаемый протокол</translation>
+    </message>
+    <message>
+      <source>Amnezia export contains conflicting %1 settings</source>
+      <translation>Экспорт Amnezia содержит противоречивые настройки %1</translation>
+    </message>
+    <message>
+      <source>work profile exceeds 1 MiB or is empty</source>
+      <translation>Рабочий профиль пуст или превышает 1 МиБ</translation>
+    </message>
+    <message>
+      <source>WireGuard profile must be valid UTF-8 and at most 1 MiB</source>
+      <translation>Профиль WireGuard должен быть в UTF-8 и не больше 1 МиБ</translation>
+    </message>
+    <message>
+      <source>WireGuard profile contains unsupported control characters</source>
+      <translation>Профиль WireGuard содержит неподдерживаемые управляющие символы</translation>
+    </message>
+    <message>
+      <source>duplicate or misplaced Interface section</source>
+      <translation>Секция Interface повторяется или находится не на своём месте</translation>
+    </message>
+    <message>
+      <source>Peer requires Interface; at most 32 peers are supported</source>
+      <translation>Перед Peer нужна секция Interface; поддерживается не более 32 узлов</translation>
+    </message>
+    <message>
+      <source>unsupported configuration section</source>
+      <translation>Неподдерживаемая секция конфигурации</translation>
+    </message>
+    <message>
+      <source>expected a parameter inside Interface or Peer</source>
+      <translation>Ожидается параметр внутри Interface или Peer</translation>
+    </message>
+    <message>
+      <source>unsupported parameter</source>
+      <translation>Неподдерживаемый параметр</translation>
+    </message>
+    <message>
+      <source>invalid DNS address</source>
+      <translation>Некорректный адрес DNS</translation>
+    </message>
+    <message>
+      <source>only Table=auto is supported; routing is managed by Vault 443</source>
+      <translation>Поддерживается только Table=auto; маршрутами управляет Vault 443</translation>
+    </message>
+    <message>
+      <source>SaveConfig=true is unsupported</source>
+      <translation>SaveConfig=true не поддерживается</translation>
+    </message>
+    <message>
+      <source>invalid Endpoint; use host:port or [IPv6]:port</source>
+      <translation>Некорректный Endpoint; используйте адрес:порт или [IPv6]:порт</translation>
+    </message>
+    <message>
+      <source>WireGuard requires PrivateKey, Address and at least one Peer</source>
+      <translation>WireGuard требует PrivateKey, Address и хотя бы один Peer</translation>
+    </message>
+    <message>
+      <source>WireGuard address or DNS limit exceeded</source>
+      <translation>Превышен лимит адресов или DNS WireGuard</translation>
+    </message>
+    <message>
+      <source>WireGuard DNS domains require a DNS server</source>
+      <translation>Для доменов DNS WireGuard нужен DNS-сервер</translation>
+    </message>
+    <message>
+      <source>WireGuard IPv6 requires MTU of at least 1280</source>
+      <translation>Для IPv6 в WireGuard нужен MTU не меньше 1280</translation>
+    </message>
+    <message>
+      <source>WireGuard contains duplicate peer public keys</source>
+      <translation>Профиль WireGuard содержит повторяющиеся публичные ключи узлов</translation>
+    </message>
+    <message>
+      <source>WireGuard PersistentKeepalive ranges require AmneziaWG</source>
+      <translation>Диапазоны PersistentKeepalive поддерживаются только AmneziaWG</translation>
+    </message>
+    <message>
+      <source>WireGuard peers claim the same AllowedIPs prefix</source>
+      <translation>У нескольких узлов WireGuard одинаковый префикс AllowedIPs</translation>
+    </message>
+    <message>
+      <source>WireGuard AllowedIPs requires an interface address of the same IP family</source>
+      <translation>Для AllowedIPs нужен адрес интерфейса того же семейства IP</translation>
+    </message>
+    <message>
+      <source>WireGuard supports at most 512 AllowedIPs prefixes</source>
+      <translation>WireGuard поддерживает не более 512 префиксов AllowedIPs</translation>
+    </message>
+    <message>
+      <source>WireGuard DNS server is outside AllowedIPs</source>
+      <translation>DNS-сервер WireGuard не входит в AllowedIPs</translation>
+    </message>
+    <message>
+      <source>AmneziaWG Jmin exceeds Jmax</source>
+      <translation>В AmneziaWG значение Jmin больше Jmax</translation>
+    </message>
+    <message>
+      <source>AmneziaWG padding exceeds UDP packet size</source>
+      <translation>Дополнение AmneziaWG превышает размер пакета UDP</translation>
+    </message>
+    <message>
+      <source>AmneziaWG HeaderProtectionKey requires S1–S4 of at least 12</source>
+      <translation>HeaderProtectionKey AmneziaWG требует S1–S4 не меньше 12</translation>
+    </message>
+    <message>
+      <source>invalid or oversized Amnezia key encoding</source>
+      <translation>Некорректная кодировка или слишком большой ключ Amnezia</translation>
+    </message>
+    <message>
+      <source>invalid Amnezia compressed document</source>
+      <translation>Некорректный сжатый документ Amnezia</translation>
+    </message>
+    <message>
+      <source>Amnezia decoded document exceeds 1 MiB</source>
+      <translation>Распакованный документ Amnezia превышает 1 МиБ</translation>
+    </message>
+    <message>
+      <source>invalid Amnezia compressed document size or trailing data</source>
+      <translation>Некорректный размер сжатого документа Amnezia или лишние данные</translation>
+    </message>
+    <message>
+      <source>invalid Amnezia JSON</source>
+      <translation>Некорректный JSON Amnezia</translation>
+    </message>
+    <message>
+      <source>invalid, duplicate or excessive Amnezia JSON fields</source>
+      <translation>Некорректные, повторяющиеся или избыточные поля JSON Amnezia</translation>
+    </message>
+    <message>
+      <source>invalid trailing Amnezia JSON</source>
+      <translation>Лишние данные после JSON Amnezia</translation>
+    </message>
+    <message>
+      <source>Amnezia document must be an object</source>
+      <translation>Документ Amnezia должен содержать объект</translation>
+    </message>
+    <message>
+      <source>invalid Amnezia scalar</source>
+      <translation>Некорректное значение Amnezia</translation>
+    </message>
+    <message>
+      <source>Amnezia API subscriptions and administrative access keys are unsupported; export a client configuration</source>
+      <translation>Подписки API Amnezia и административные ключи не поддерживаются; экспортируйте клиентскую конфигурацию</translation>
+    </message>
+    <message>
+      <source>Amnezia key contains no supported client containers</source>
+      <translation>Ключ Amnezia не содержит поддерживаемых клиентских контейнеров</translation>
+    </message>
+    <message>
+      <source>invalid Amnezia client protocol object</source>
+      <translation>Некорректный объект протокола клиента Amnezia</translation>
+    </message>
+    <message>
+      <source>Amnezia key has no complete client configuration</source>
+      <translation>В ключе Amnezia нет полной клиентской конфигурации</translation>
+    </message>
+    <message>
+      <source>Amnezia export lacks a ready native client configuration</source>
+      <translation>В экспорте Amnezia нет готовой клиентской конфигурации</translation>
+    </message>
+    <message>
+      <source>Amnezia export has unresolved DNS placeholders</source>
+      <translation>В экспорте Amnezia не заполнены адреса DNS</translation>
+    </message>
+    <message>
+      <source>Amnezia export has unresolved configuration placeholders</source>
+      <translation>В экспорте Amnezia не заполнены параметры конфигурации</translation>
+    </message>
+    <message>
+      <source>invalid Amnezia configuration field</source>
+      <translation>Некорректное поле конфигурации Amnezia</translation>
+    </message>
+    <message>
+      <source>Protecting WireGuard destinations</source>
+      <translation>Защита направлений WireGuard</translation>
+    </message>
+    <message>
+      <source>Resolving WireGuard peers</source>
+      <translation>Поиск адресов узлов WireGuard</translation>
+    </message>
+    <message>
+      <source>Creating WireGuard interface</source>
+      <translation>Создание интерфейса WireGuard</translation>
+    </message>
+    <message>
+      <source>Waiting for authenticated WireGuard handshake</source>
+      <translation>Ожидание подтверждённого обмена ключами WireGuard</translation>
+    </message>
+    <message>
+      <source>Some peers are unavailable; their routes remain protected</source>
+      <translation>Часть узлов недоступна; их маршруты остаются защищёнными</translation>
+    </message>
+    <message>
+      <source>Reconnecting WireGuard peers; destinations remain protected</source>
+      <translation>Переподключение узлов WireGuard; направления остаются защищёнными</translation>
+    </message>
+    <message>
+      <source>WireGuard handshake timed out; no authenticated response from peers</source>
+      <translation>Истекло время обмена ключами WireGuard; подтверждённый ответ от узлов не получен</translation>
+    </message>
+    <message>
+      <source>AmneziaWG stopped; reconnect required</source>
+      <translation>AmneziaWG остановлен; требуется переподключение</translation>
+    </message>
+    <message>
+      <source>AmneziaWG control socket did not become ready</source>
+      <translation>Управляющий сокет AmneziaWG не запустился вовремя</translation>
+    </message>
+    <message>
+      <source>VPN backend is not installed securely</source>
+      <translation>VPN-ядро установлено с небезопасными правами или отсутствует</translation>
+    </message>
+    <message>
+      <source>VPN backend must be root-owned</source>
+      <translation>Исполняемый файл VPN-ядра должен принадлежать root</translation>
+    </message>
+    <message>
+      <source>cannot create private WireGuard configuration channel</source>
+      <translation>Не удалось создать приватный канал конфигурации WireGuard</translation>
+    </message>
+    <message>
+      <source>WireGuard control operation failed</source>
+      <translation>Не удалось выполнить управляющую операцию WireGuard</translation>
+    </message>
+    <message>
+      <source>WireGuard peer identity changed unexpectedly</source>
+      <translation>Неожиданно изменился идентификатор узла WireGuard</translation>
+    </message>
+    <message>
+      <source>invalid WireGuard traffic status</source>
+      <translation>Некорректная статистика трафика WireGuard</translation>
+    </message>
+    <message>
+      <source>invalid WireGuard peer status</source>
+      <translation>Некорректное состояние узла WireGuard</translation>
+    </message>
+    <message>
+      <source>WireGuard peer set changed unexpectedly</source>
+      <translation>Неожиданно изменился список узлов WireGuard</translation>
+    </message>
+    <message>
+      <source>AmneziaWG control socket is unavailable</source>
+      <translation>Управляющий сокет AmneziaWG недоступен</translation>
+    </message>
+    <message>
+      <source>invalid AmneziaWG control transport</source>
+      <translation>Некорректный канал управления AmneziaWG</translation>
+    </message>
+    <message>
+      <source>AmneziaWG control peer identity mismatch</source>
+      <translation>Не совпадает владелец управляющего соединения AmneziaWG</translation>
+    </message>
+    <message>
+      <source>AmneziaWG configuration write failed</source>
+      <translation>Не удалось передать конфигурацию AmneziaWG</translation>
+    </message>
+    <message>
+      <source>AmneziaWG status exceeds size limit</source>
+      <translation>Состояние AmneziaWG превышает допустимый размер</translation>
+    </message>
+    <message>
+      <source>AmneziaWG control response timed out</source>
+      <translation>Истекло время ожидания ответа управления AmneziaWG</translation>
+    </message>
+    <message>
+      <source>AmneziaWG rejected its checked configuration</source>
+      <translation>AmneziaWG отклонил проверенную конфигурацию</translation>
+    </message>
+    <message>
+      <source>AmneziaWG peer identity changed unexpectedly</source>
+      <translation>Неожиданно изменился идентификатор узла AmneziaWG</translation>
+    </message>
+    <message>
+      <source>invalid AmneziaWG peer status</source>
+      <translation>Некорректное состояние узла AmneziaWG</translation>
+    </message>
+    <message>
+      <source>AmneziaWG peer set changed unexpectedly</source>
+      <translation>Неожиданно изменился список узлов AmneziaWG</translation>
+    </message>
+    <message>
+      <source>WireGuard profile has no peers</source>
+      <translation>В профиле WireGuard нет узлов</translation>
+    </message>
+    <message>
+      <source>unsupported work VPN protocol</source>
+      <translation>Неподдерживаемый протокол рабочего VPN</translation>
+    </message>
+    <message>
+      <source>WireGuard interface identity changed</source>
+      <translation>Изменился идентификатор интерфейса WireGuard</translation>
+    </message>
+    <message>
+      <source>invalid WireGuard endpoint</source>
+      <translation>Некорректный адрес узла WireGuard</translation>
+    </message>
+    <message>
+      <source>cannot create WireGuard interface; kernel support is required</source>
+      <translation>Не удалось создать интерфейс WireGuard; нужна поддержка в ядре Linux</translation>
+    </message>
+    <message>
+      <source>cannot configure WireGuard MTU</source>
+      <translation>Не удалось настроить MTU WireGuard</translation>
+    </message>
+    <message>
+      <source>invalid WireGuard interface address</source>
+      <translation>Некорректный адрес интерфейса WireGuard</translation>
+    </message>
+    <message>
+      <source>cannot configure WireGuard address</source>
+      <translation>Не удалось настроить адрес WireGuard</translation>
+    </message>
+    <message>
+      <source>WireGuard interface identity mismatch</source>
+      <translation>Не совпадает идентификатор интерфейса WireGuard</translation>
+    </message>
+    <message>
+      <source>cannot start AmneziaWG</source>
+      <translation>Не удалось запустить AmneziaWG</translation>
+    </message>
+    <message>
+      <source>work tunnel changed before handshake probe</source>
+      <translation>Рабочий туннель изменился перед проверкой обмена ключами</translation>
+    </message>
+    <message>
+      <source>cannot create tunnel handshake probe</source>
+      <translation>Не удалось создать проверку обмена ключами через туннель</translation>
+    </message>
+    <message>
+      <source>cannot send tunnel handshake probe</source>
+      <translation>Не удалось отправить проверку обмена ключами через туннель</translation>
+    </message>
+    <message>
+      <source>peer has no probe destination matching an interface address</source>
+      <translation>У узла нет направления проверки с подходящим адресом интерфейса</translation>
+    </message>
+    <message>
+      <source>work VPN import exceeds 8 MiB</source>
+      <translation>Импорт рабочих VPN превышает 8 МиБ</translation>
+    </message>
+    <message>
+      <source>choose between 1 and 32 work VPN files</source>
+      <translation>Выберите от 1 до 32 файлов рабочих VPN</translation>
+    </message>
+    <message>
+      <source>invalid work VPN import document</source>
+      <translation>Некорректный документ импорта рабочих VPN</translation>
+    </message>
+    <message>
+      <source>a work VPN import may contain at most 32 profiles</source>
+      <translation>Один импорт рабочих VPN может содержать не более 32 профилей</translation>
     </message>
   </context>
   <context>

@@ -9,7 +9,7 @@ test "$(cat /proc/1/comm)" = systemd
 systemctl is-active --quiet NetworkManager.service systemd-resolved.service dbus.service
 version=$(cat /src/VERSION)
 package=/src/dist/vault443_${version}_amd64.deb
-baseline=/src/dist/vault443_1.0.1_amd64.deb
+baseline=/src/dist/vault443_1.2.0_amd64.deb
 nft add table inet unrelated_test
 # Refuse pre-1.0 stores before installing binaries or touching private data.
 install -d -m700 /var/lib/vless-terminal
@@ -33,7 +33,7 @@ printf retained >/var/lib/vault443-migration/backups/completed/marker
 chmod 600 /var/lib/vault443-migration/backups/completed/marker
 useradd -u 11000 -m vaultoperator
 useradd -u 11001 -m vaultcolleague
-# Defer the initial 1.0.1 startup until the synthetic profiles are present.
+# Defer the baseline startup until the synthetic profiles are present.
 printf '#!/bin/sh\nexit 101\n' >/usr/sbin/policy-rc.d
 chmod 755 /usr/sbin/policy-rc.d
 dpkg -i "$baseline"
@@ -57,8 +57,14 @@ p=Path('/var/lib/vault443/state.json');p.write_text(json.dumps(state));p.chmod(0
 p=Path('/var/lib/vault443/private-marker');p.write_text('retained-data');p.chmod(0o600)
 Path('/tmp/original-state.json').write_text(json.dumps(state))
 PY
+export VAULT443_WORKVPN_E2E=1
+/bin/bash /src/tests/e2e/workvpn-fixture.sh
+VAULT443_PACKAGE_WORK_SEED=1 \
+  /src/.cache/workvpn-e2e.test -test.run '^TestPackageWorkProfiles$' -test.v
+cp /var/lib/vault443/work-vpn.json /tmp/work-before-upgrade.json
 systemctl start vault443-guard.service vault443.service
 python3 /src/tests/package-network-check.py connected
+python3 /src/tests/package-workvpn-check.py connected
 busctl --xml-interface introspect org.vault443.Service1 /org/vault443/Service1 > /tmp/api-before.xml
 old_pid=$(systemctl show -p MainPID --value vault443.service)
 # Allow the real package scripts to restart the active daemon during upgrade.
@@ -79,9 +85,12 @@ def methods(path):
 before,after=methods('/tmp/api-before.xml'),methods('/tmp/api-after.xml')
 assert all(after.get(k)==v for k,v in before.items()), '1.0 D-Bus method removed or signature changed'
 assert ('org.vault443.Service1','PrepareOpenVPNImport') in after
+assert ('org.vault443.Service1','PrepareWorkImport') in after
+assert ('org.vault443.Service1','RequestWorkConnect') in after
 PYAPI
 test "$old_pid" != "$new_pid"
 python3 /src/tests/package-network-check.py connected
+python3 /src/tests/package-workvpn-check.py connected
 touch /tmp/guard-monitor-stop
 wait "$monitor"
 cat /tmp/guard-monitor.log
@@ -97,6 +106,10 @@ assert a==b, 'saved profiles, subscriptions or boot/desired connection changed'
 assert Path('/var/lib/vault443/private-marker').read_text()=='retained-data'
 assert Path('/var/lib/vault443-migration/backups/completed/marker').read_text()=='retained'
 assert os.stat('/var/lib/vault443/state.json').st_mode & 0o777 == 0o600
+old_work=json.loads(Path('/tmp/work-before-upgrade.json').read_text())
+new_work=json.loads(Path('/var/lib/vault443/work-vpn.json').read_text())
+assert old_work['version']==2 and new_work==old_work, '1.2.0 work profiles or desired sessions changed'
+assert not Path('/var/lib/vault443/work-vpn.v1.backup.json').exists(), 'unexpected schema migration during patch update'
 PY
 # Reinstall is a normal 1.x operation and still resumes the selected connection.
 dpkg -i "$package"
@@ -109,6 +122,7 @@ XDG_RUNTIME_DIR=/tmp/lifecycle-runtime QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEN
   timeout 15s /usr/bin/vault443 --demo --screenshot /tmp/installed-gui.png
 test -s /tmp/installed-gui.png
 /bin/bash /src/tests/package-workvpn.sh
+/bin/bash /src/tests/package-wireguard.sh
 dpkg --purge vault443
 test -f /var/lib/vault443/private-marker
 nft list table inet unrelated_test >/dev/null
@@ -134,4 +148,4 @@ dpkg --purge vault443
 test -f /tmp/preserved-vault443/private-marker
 nft list table inet unrelated_test >/dev/null
 systemctl is-active --quiet NetworkManager.service systemd-resolved.service dbus.service
-echo "PASS: 1.0.1 upgrade, active connection and continuous guard, preserved multiuser state/GID, legacy refusal, reinstall, purge and fresh APT installation"
+echo "PASS: 1.2.0 upgrade, active VLESS/work connections, unchanged work schema, continuous guard, preserved multiuser state/GID, reinstall, purge and fresh APT installation"
