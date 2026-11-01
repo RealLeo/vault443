@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export GOMODCACHE="$PWD/.cache/go-mod" GOCACHE="$PWD/.cache/go-build"
-CGO_ENABLED=0 go test -c -o build-network.test ./internal/network
+CGO_ENABLED=0 python3 scripts/go.py test -c -o build-network.test ./internal/network
 docker build --network="${VAULT443_BUILD_NETWORK:-default}" \
   -t vault443-test:24.04 -f tests/integration.Dockerfile tests
 docker run --rm --network none --cap-add NET_ADMIN \

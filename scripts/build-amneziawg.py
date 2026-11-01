@@ -20,33 +20,8 @@ LOCK = json.loads((ROOT / 'packaging/amneziawg-lock.json').read_text())
 CACHE = ROOT / '.cache/amneziawg'
 
 
-def fetch(url, destination, digest, offline):
-    if not destination.exists():
-        if offline:
-            raise SystemExit(f'Offline build needs cached archive: {destination}')
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        temporary = destination.with_suffix('.download')
-        try:
-            with urllib.request.urlopen(url, timeout=60) as response, temporary.open('wb') as output:
-                remaining = 256 << 20
-                while chunk := response.read(min(1 << 20, remaining + 1)):
-                    remaining -= len(chunk)
-                    if remaining < 0:
-                        raise SystemExit('Pinned archive exceeds the 256 MiB download limit')
-                    output.write(chunk)
-            temporary.replace(destination)
-        finally:
-            temporary.unlink(missing_ok=True)
-    with destination.open('rb') as stream:
-        actual = hashlib.file_digest(stream, 'sha256').hexdigest()
-    if actual != digest:
-        raise SystemExit(f'Checksum mismatch: {destination}')
-
-
-def extract(archive, directory):
-    directory.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(archive) as source:
-        source.extractall(directory, filter='data')
+from toolchain import fetch, extract
+import toolchain as tc
 
 
 def modules(go, environment, source):
@@ -76,15 +51,9 @@ def main():
     source = CACHE / ('amneziawg-go-' + LOCK['commit'])
     if not source.exists():
         extract(archive, CACHE)
-    toolchain = CACHE / ('go-' + LOCK['goVersion'] + '-' + host)
-    goarchive = CACHE / ('go' + LOCK['goVersion'] + '.linux-' + host + '.tar.gz')
-    fetch('https://go.dev/dl/' + goarchive.name, goarchive, LOCK['goArchives'][host], args.offline)
-    go = toolchain / 'go/bin/go'
-    if not go.exists():
-        extract(goarchive, toolchain)
-    environment = dict(os.environ, GOTOOLCHAIN='local', GOWORK='off', GOFLAGS='',
-                       GOROOT=str(toolchain / 'go'),
-                       GOMODCACHE=str(CACHE / 'modules'), GOCACHE=str(CACHE / 'build-cache'),
+    go, environment = tc.ensure(offline=args.offline)
+    toolchain = Path(environment['GOROOT']).parent
+    environment.update(GOMODCACHE=str(CACHE / 'modules'), GOCACHE=str(CACHE / 'build-cache'),
                        CGO_ENABLED='0', GOOS='linux', GOARCH=args.architecture)
     if not args.offline:
         subprocess.run([str(go), 'mod', 'download'], cwd=source, env=environment, check=True)
@@ -112,8 +81,9 @@ def main():
         manifest.append({'module': module['Path'], 'version': module.get('Version', LOCK['tag']), 'licenses': names})
     (licenses / 'modules.json').write_text(json.dumps(manifest, indent=2) + '\n')
     binary = output / 'amneziawg-go'
+    tc.verify_binary(go, environment, binary)
     checksum = hashlib.sha256(binary.read_bytes()).hexdigest()
-    (output / 'build.json').write_text(json.dumps(dict(LOCK, architecture=args.architecture,
+    (output / 'build.json').write_text(json.dumps(dict(LOCK, goVersion=tc.LOCK['version'], architecture=args.architecture,
                                                      binarySha256=checksum), indent=2) + '\n')
     print(f'AmneziaWG {LOCK["version"]} {args.architecture}: {checksum}')
 

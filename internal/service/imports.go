@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"vault443/internal/model"
@@ -32,7 +33,10 @@ type importDraft struct {
 // fetch again. They are private process memory and intentionally expire on restart.
 func (s *Service) PrepareImport(ctx context.Context, c Caller, source, kind, name string) (PreparedImport, error) {
 	var out PreparedImport
-	if kind != "text" && kind != "subscription" {
+	if kind == "text" && strings.HasPrefix(strings.TrimSpace(source), "ssconf://") && !strings.ContainsAny(strings.TrimSpace(source), "\r\n") {
+		kind = "outline"
+	}
+	if kind != "text" && kind != "subscription" && kind != "outline" {
 		return out, errors.New("unsupported import kind")
 	}
 	if kind == "text" && len(source) > profiles.MaxBytes {
@@ -57,7 +61,32 @@ func (s *Service) PrepareImport(ctx context.Context, c Caller, source, kind, nam
 		return out, errors.New("import preparation canceled")
 	}
 	user := s.store.Snapshot().User(c.UID)
-	out.Preview = profiles.PreviewText(text, user.Profiles)
+	if kind == "outline" {
+		raw, defaultName, err := profiles.OutlineURL(source)
+		if err != nil {
+			return out, err
+		}
+		if name == "" {
+			name = defaultName
+		}
+		document, err := s.fetch(ctx, raw)
+		if err != nil {
+			return out, err
+		}
+		p, err := profiles.ParseOutline(document, raw, name)
+		if err != nil {
+			return out, err
+		}
+		p.Source.UpdatedAt, p.Source.LastAttempt = s.now().Unix(), s.now().Unix()
+		duplicate := false
+		for _, existing := range user.Profiles {
+			duplicate = duplicate || existing.ID == p.ID
+		}
+		out.Preview = profiles.Preview{Profiles: []profiles.Entry{{Kind: p.Protocol(), SourceKind: "outline", Line: 1, ID: p.ID, Name: p.Name, Server: p.Server, IconID: p.Icon(), Duplicate: duplicate, Profile: p}}, Errors: []profiles.Issue{}}
+		source = raw
+	} else {
+		out.Preview = profiles.PreviewText(text, user.Profiles)
+	}
 	for i := range out.Profiles {
 		for _, p := range user.Profiles {
 			if p.ID == out.Profiles[i].ID {

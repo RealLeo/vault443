@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.1",
   "language": "en",
   "mode": "demo",
   "logicalSize": [
@@ -11,38 +11,38 @@
     "renderer": "software",
     "config": "temporary XDG_CONFIG_HOME, discarded after capture",
     "network": "demo bridge; no D-Bus service or network operations",
-    "command": "XDG_CONFIG_HOME=<temporary> QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software LANGUAGE=en .cache/v120/gui/vault443 --demo --demo-state <demoState> --demo-screen <demoScreen> --screenshot docs/images/readme/<file>"
+    "command": "LANGUAGE=en QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software build/vault443 --demo --demo-state <demoState> --demo-screen <demoScreen> --screenshot docs/images/readme/<file> (temporary XDG_CONFIG_HOME)"
   },
   "screens": [
     {
       "file": "main.png",
       "demoScreen": "main",
-      "demoState": "connected",
-      "sha256": "4364a920c852dd7b9d59530bffd86aafed7254e284c97de63b96da004f094296"
+      "demoState": "proxy",
+      "sha256": "bccace24d9e293027021dedabe0f8ce79c6b4f8325145960f44c8cb42870790d"
     },
     {
       "file": "import.png",
       "demoScreen": "import-preview",
       "demoState": "connected",
-      "sha256": "07d2b486a624e55ad3eeb2e273833fee7028778e73e679323c1c284cf2a327f3"
+      "sha256": "5e1afcba99b7faf4ca0a518de33b50b7973ded5a97165f13d863adcd2003d044"
     },
     {
       "file": "settings.png",
       "demoScreen": "settings",
-      "demoState": "connected",
-      "sha256": "13d137a01d0b6b8032b05be4ce0d706b5f6e170f7fe3d86c24d89d9db31e1501"
+      "demoState": "proxy",
+      "sha256": "f9adf28ee969b96f551ba4fb3e42fdf433c54c3ada9f1edf561972b82e3e29df"
     },
     {
       "file": "icons.png",
       "demoScreen": "icons",
-      "demoState": "connected",
+      "demoState": "proxy",
       "sha256": "e9604d05e29225bb9413b9d1694f1d7b637086a0b80d611a3504f59eaed9addb"
     },
     {
       "file": "logs.png",
       "demoScreen": "logs",
-      "demoState": "connected",
-      "sha256": "35d01594cbbe3e38d8cf515ed88a59afbad4ed2934ca37f928537067ba42bada"
+      "demoState": "proxy",
+      "sha256": "f392ba9496c42bd04054370678afa56630250ac15d87399f43d1d708ac7e77c1"
     },
     {
       "file": "work-vpns.png",
@@ -72,7 +72,13 @@
       "file": "peers.png",
       "demoScreen": "peers",
       "demoState": "connected",
-      "sha256": "4a10fd728e4d6485283c254e5b38113b12967bdc38d6bd9f057a8e6b2312db1d"
+      "sha256": "39538282c522ec7fedec6c6b66b8678be75741a0b382778475aa83f6ff47e406"
+    },
+    {
+      "file": "outline.png",
+      "demoScreen": "outline",
+      "demoState": "proxy",
+      "sha256": "e881b284d7908d5593326d0ddf52bad625d5335d93b21063b08c8767544e5707"
     }
   ]
 }

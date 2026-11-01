@@ -28,13 +28,15 @@ var shortPattern = regexp.MustCompile(`^[0-9a-fA-F]{0,16}$`)
 var hostPattern = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9.-]{0,251}[a-zA-Z0-9])?$`)
 
 type Entry struct {
-	Line      int           `json:"line"`
-	ID        string        `json:"id"`
-	Name      string        `json:"name"`
-	Server    string        `json:"server"`
-	IconID    string        `json:"iconId"`
-	Duplicate bool          `json:"duplicate"`
-	Profile   model.Profile `json:"-"`
+	Kind       string        `json:"kind"`
+	SourceKind string        `json:"sourceKind,omitempty"`
+	Line       int           `json:"line"`
+	ID         string        `json:"id"`
+	Name       string        `json:"name"`
+	Server     string        `json:"server"`
+	IconID     string        `json:"iconId"`
+	Duplicate  bool          `json:"duplicate"`
+	Profile    model.Profile `json:"-"`
 }
 type Issue struct {
 	Line    int    `json:"line"`
@@ -59,6 +61,15 @@ func Name(s string) (string, error) {
 }
 
 func Parse(raw string) (model.Profile, error) {
+	if strings.HasPrefix(strings.TrimSpace(raw), "trojan://") {
+		return parseTrojan(raw)
+	}
+	if strings.HasPrefix(strings.TrimSpace(raw), "ss://") {
+		return parseShadowsocks(raw)
+	}
+	return parseVLESS(raw)
+}
+func parseVLESS(raw string) (model.Profile, error) {
 	p := model.Profile{IconID: "antenna"}
 	if len(raw) > 16384 {
 		return p, errors.New("profile link exceeds 16 KiB")
@@ -249,6 +260,12 @@ func hasAny(q url.Values, keys ...string) bool {
 	return false
 }
 func Identity(p model.Profile) string {
+	if p.Source != nil {
+		return sourceIdentity(p.Source.URL)
+	}
+	if p.Protocol() != "vless" {
+		return proxyIdentity(p)
+	}
 	parts := []string{p.Server, strconv.Itoa(p.Port), p.UUID, p.Transport, p.Security, p.Flow, p.SNI, p.Fingerprint, p.PublicKey, p.ShortID, p.SpiderX, p.Path, p.Host, p.ServiceName, strings.Join(p.ALPN, ","), p.Mode}
 	h := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
 	return hex.EncodeToString(h[:16])
@@ -259,12 +276,12 @@ func Decode(text string) (string, error) {
 		return "", errors.New("import exceeds 1 MiB")
 	}
 	text = strings.TrimSpace(strings.TrimPrefix(text, "\ufeff"))
-	if strings.HasPrefix(text, "vless://") || strings.Contains(text, "\nvless://") {
+	if containsLink(text) {
 		return text, nil
 	}
 	compact := strings.Join(strings.Fields(text), "")
 	for _, encoding := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
-		if b, err := encoding.DecodeString(compact); err == nil && utf8.Valid(b) && strings.Contains(string(b), "vless://") {
+		if b, err := encoding.DecodeString(compact); err == nil && utf8.Valid(b) && containsLink(string(b)) {
 			return string(b), nil
 		}
 	}
@@ -298,11 +315,20 @@ func PreviewText(text string, existing []model.Profile) Preview {
 			out.Errors = append(out.Errors, Issue{i + 1, err.Error()})
 			continue
 		}
-		out.Profiles = append(out.Profiles, Entry{Line: i + 1, ID: p.ID, Name: p.Name, Server: p.Server, IconID: p.Icon(), Duplicate: seen[p.ID], Profile: p})
+		out.Profiles = append(out.Profiles, Entry{Line: i + 1, ID: p.ID, Name: p.Name, Server: p.Server, Kind: p.Protocol(), IconID: p.Icon(), Duplicate: seen[p.ID], Profile: p})
 		seen[p.ID] = true
 	}
 	if count == 0 {
-		out.Errors = append(out.Errors, Issue{0, "no VLESS profiles found"})
+		out.Errors = append(out.Errors, Issue{0, "no supported proxy profiles found"})
 	}
 	return out
+}
+
+func containsLink(text string) bool {
+	for _, scheme := range []string{"vless://", "trojan://", "ss://"} {
+		if strings.HasPrefix(text, scheme) || strings.Contains(text, "\n"+scheme) {
+			return true
+		}
+	}
+	return false
 }

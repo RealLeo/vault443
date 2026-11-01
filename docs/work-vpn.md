@@ -1,8 +1,9 @@
 # Managed work VPNs
 
-Vault 443 1.2.0 manages OpenVPN, WireGuard and AmneziaWG clients in addition to
-its existing VLESS connection. The GUI remains unprivileged. Operator access uses
-the same authenticated local D-Bus caller and `vault443` group as VLESS.
+Vault 443 manages OpenVPN, WireGuard and AmneziaWG clients alongside one main
+Internet connection: VLESS, Trojan or Shadowsocks/Outline. The GUI remains
+unprivileged. All protocols use the same authenticated local D-Bus caller and
+`vault443` operator group.
 
 ## Import
 
@@ -41,7 +42,7 @@ for supported parameters, import formats and handshake semantics.
 
 Up to 16 work profiles may run at once, with one owner for the complete active
 connection set. Each has its own operation, cancellation, protected endpoint,
-TUN and log session. VLESS disconnect does not disconnect work profiles. Closing
+TUN and log session. Disconnecting the main VPN does not disconnect work profiles. Closing
 the GUI does not disconnect either. Recovery waits 1, 2, 4, 8, 16, then 30 seconds
 from the end of the failed attempt. Cancellation is persisted before stopping
 the process; failed cleanup retains ownership and can be retried.
@@ -61,10 +62,10 @@ the upstream [management interface](https://openvpn.net/community-docs/managemen
 and [OpenVPN 2.6 manual](https://openvpn.net/community-docs/community-articles/openvpn-2-6-manual/).
 
 Work profile data and manual route/DNS rules live in schema-v2 `work-vpn.json` beside the
-unchanged VLESS schema-v2 store. Files are root-owned and private. Known work
+main schema-v3 store. Files are root-owned and private. Known work
 prefixes remain blocked after unexpected tunnel or supervisor failure. A service
 restart in the same OS boot restores the requested set; a new OS boot does not
-autoconnect work profiles. VLESS boot-profile behavior is unchanged.
+autoconnect work profiles. Boot autoconnect selects one main Internet profile.
 
 Explicitly disconnecting a work profile removes its owned policy and restores
 the remaining routing choices. Unrelated Pritunl, NetworkManager and Docker
@@ -75,7 +76,7 @@ are redacted.
 ## Overlapping networks
 
 Effective order is explicit destination rules, work routes, ordinary local or
-Docker routes, then VLESS Internet routing. Transport and physical gateway paths
+Docker routes, then main Internet routing. Transport and physical gateway paths
 are handled independently. Work routes use their own policy-routing layer, so a
 more-specific Docker route cannot accidentally win over a corporate prefix.
 Owned tables 52783–52787 separate transport, manual, work, full-tunnel and local
@@ -94,9 +95,9 @@ They cannot allow arbitrary direct Internet traffic. A narrower rule overrides a
 broader one. Equal prefixes from different work profiles retain the incumbent
 and show a conflict until explicitly assigned. DNS rules select a provider for
 a routing domain; unrelated DNS retains its current path. A full-tunnel provider
-pauses the requested VLESS connection; competing full tunnels require a choice.
+pauses the requested main connection; competing full tunnels require a choice.
 
-The bottom counters continue to show VLESS traffic only. A connected work tunnel
+The bottom counters show main VPN traffic only. A connected work tunnel
 confirms tunnel setup and policy application; it does not prove authorization to
 every corporate server or application port.
 
@@ -105,7 +106,8 @@ every corporate server or application port.
 Version 1.2.0 migrates work schema v1 atomically, retaining OpenVPN IDs, metadata,
 rules and requested sessions. A private `work-vpn.v1.backup.json` is durably
 published before conversion. Unknown versions or conflicting backups are refused
-without replacing data. The VLESS schema is unchanged. An older 1.1.x daemon
+without replacing data. This work migration is separate from the
+[main store migration in 1.3.0](proxy-protocols.md#storage-upgrade-and-rollback). An older 1.1.x daemon
 cannot read work schema v2; downgrade requires a deliberate offline restore of
 the saved v1 work file after stopping/releasing managed connections. Keep the v2
 file separately if newer WG/AWG profiles must be retained.
@@ -117,4 +119,4 @@ acceptance check with the organization's server; release tests do not connect
 to the user's real work endpoint.
 
 Install the release through APT so the system OpenVPN dependency is available.
-Updating from Vault 443 1.0.x preserves existing VLESS data and access rights.
+The 1.3.1 package upgrade is validated from 1.3.0 and preserves profiles and access rights.

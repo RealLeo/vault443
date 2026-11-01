@@ -8,6 +8,7 @@
 #include <QDBusServiceWatcher>
 #include <QSettings>
 #include <QTimer>
+#include <QSet>
 #include <functional>
 
 class Bridge final : public QObject {
@@ -111,9 +112,11 @@ public:
     Q_INVOKABLE void copyProfileLogs();
     Q_INVOKABLE void connectProfile(const QString &id);
     Q_INVOKABLE void disconnectProfile();
+    Q_INVOKABLE void cancelProfileSwitch(const QString &operationId);
     Q_INVOKABLE void takeControl();
     Q_INVOKABLE void removeProfile(const QString &id);
     Q_INVOKABLE void refreshSubscriptions();
+    Q_INVOKABLE void refreshProfileSource(const QString &id);
     Q_INVOKABLE void removeSubscription(const QString &id);
     Q_INVOKABLE void setBootProfile(const QString &id);
     Q_INVOKABLE void getDiagnostics(const QString &profileId = {});
@@ -169,6 +172,8 @@ private:
     void updateDemo(const QString &state, const QString &id = {});
     void invalidateVPNCompatibility();
     void requestConnection(const QString &action, const QString &profileId);
+    bool m_cancelSwitchQueued = false;
+    bool m_cancelSwitchPending = false;
     void requestWorkConnection(const QString &action, const QString &profileId);
     void workRouteCall(const QString &method, const QVariantList &args = {});
     void acceptSnapshot(const QVariantMap &snapshot);
@@ -176,6 +181,7 @@ private:
     QString autostartPath() const;
     QVariantMap m_snapshot, m_preview;
     QString m_importKind = "text";
+    QSet<QString> m_sourceRefreshPending;
     QVariantMap m_workRequests, m_workRoutes;
     QString m_workRoutesError;
     bool m_workRoutesPending = false;

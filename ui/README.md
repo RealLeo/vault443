@@ -18,10 +18,10 @@ ctest --test-dir build --output-on-failure
 bash scripts/test-gui-dbus.sh
 ```
 
-Create the screenshot output directory first. If using downloaded local Qt
+Use `python3 scripts/capture-readme.py` to regenerate the English demo gallery and its checksum manifest. Create the screenshot output directory first. If using downloaded local Qt
 libraries, source `scripts/qt-env.sh` before running binaries. Useful demo
 screens: `main`, `import-preview`, `settings`, `subscriptions`, `vpn`, `profile`,
-`logs`, `icons`, `combo`, `diagnostics`. States include `connecting`,
+`logs`, `icons`, `combo`, `diagnostics`, `outline`. Use `--demo-state proxy` for the mixed main-profile gallery. States include `connecting`,
 `reconnecting`, `paused_external`, `retry-wait`, `disconnecting`, `offline`,
 `foreign`, `traffic-unavailable`, `large-traffic`, `empty`, `single`, and `many`.
 

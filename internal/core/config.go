@@ -9,18 +9,21 @@ import (
 	"strings"
 
 	"vault443/internal/model"
+	"vault443/internal/profiles"
 )
 
 const Version = "26.9.30"
 
 type Options struct {
-	Interface  string
-	Gateway4   netip.Prefix
-	Gateway6   netip.Prefix
-	DNSAddress netip.Addr
-	Endpoint   netip.Addr
-	Uplink     string
-	Mark       uint32
+	Interface                string
+	Gateway4                 netip.Prefix
+	Gateway6                 netip.Prefix
+	DNSAddress               netip.Addr
+	Endpoint                 netip.Addr
+	Uplink                   string
+	Mark                     uint32
+	LocalPort                int
+	LocalUser, LocalPassword string
 }
 
 // Build targets Xray 26.9.30. Addresses, routes and DNS are owned by our manager;
@@ -29,9 +32,50 @@ func Build(p model.Profile, o Options) ([]byte, error) {
 	if !o.Endpoint.IsValid() || !o.Gateway4.IsValid() || !o.Gateway6.IsValid() || !o.DNSAddress.IsValid() || o.Interface == "" || o.Uplink == "" || o.Mark == 0 {
 		return nil, errors.New("incomplete core network options")
 	}
-	if p.Port < 1 || p.Port > 65535 || p.UUID == "" || (p.Security != "tls" && p.Security != "reality") {
-		return nil, errors.New("invalid secured VLESS profile")
+	var proxy map[string]any
+	switch p.Protocol() {
+	case "vless", "trojan":
+		if p.Port < 1 || p.Port > 65535 || (p.Security != "tls" && p.Security != "reality") || (p.Protocol() == "vless" && p.UUID == "") || (p.Protocol() == "trojan" && (p.Password == "" || p.Security != "tls" || p.Flow != "")) {
+			return nil, errors.New("invalid secured proxy profile")
+		}
+		stream, e := buildStream(p, o)
+		if e != nil {
+			return nil, e
+		}
+		var settings map[string]any
+		if p.Protocol() == "vless" {
+			user := map[string]any{"id": p.UUID, "encryption": "none", "level": 0}
+			if p.Flow != "" {
+				user["flow"] = p.Flow
+			}
+			settings = map[string]any{"vnext": []any{map[string]any{"address": o.Endpoint.String(), "port": p.Port, "users": []any{user}}}}
+		} else {
+			settings = map[string]any{"address": o.Endpoint.String(), "port": p.Port, "password": p.Password}
+		}
+		proxy = map[string]any{"tag": "proxy", "protocol": p.Protocol(), "settings": settings, "streamSettings": stream}
+	case "shadowsocks":
+		if p.Outline != nil {
+			if o.LocalPort < 1 || o.LocalPort > 65535 || o.LocalUser == "" || o.LocalPassword == "" {
+				return nil, errors.New("Outline adapter is not ready")
+			}
+			proxy = map[string]any{"tag": "proxy", "protocol": "socks", "streamSettings": map[string]any{"sockopt": map[string]any{"mark": OutlineMark}}, "settings": map[string]any{"servers": []any{map[string]any{"address": "127.0.0.1", "port": o.LocalPort, "users": []any{map[string]any{"user": o.LocalUser, "pass": o.LocalPassword}}}}}}
+		} else {
+			method, e := profiles.NormalizeMethod(p.Method, p.Password)
+			if e != nil {
+				return nil, e
+			}
+			if p.Port < 1 || p.Port > 65535 {
+				return nil, errors.New("invalid Shadowsocks port")
+			}
+			proxy = map[string]any{"tag": "proxy", "protocol": "shadowsocks", "settings": map[string]any{"address": o.Endpoint.String(), "port": p.Port, "method": method, "password": p.Password}, "streamSettings": map[string]any{"sockopt": map[string]any{"mark": o.Mark, "interface": o.Uplink}}}
+		}
+	default:
+		return nil, errors.New("unsupported proxy protocol")
 	}
+	return buildConfig(p, o, proxy)
+}
+
+func buildStream(p model.Profile, o Options) (map[string]any, error) {
 	if p.Security == "reality" && p.Transport == "ws" {
 		return nil, errors.New("REALITY does not support WebSocket transport")
 	}
@@ -93,10 +137,10 @@ func Build(p model.Profile, o Options) ([]byte, error) {
 	if p.Flow != "" && ((p.Flow != "xtls-rprx-vision" && p.Flow != "xtls-rprx-vision-udp443") || (p.Transport != "tcp" && p.Transport != "raw")) {
 		return nil, errors.New("unsupported flow for transport")
 	}
-	user := map[string]any{"id": p.UUID, "encryption": "none", "level": 0}
-	if p.Flow != "" {
-		user["flow"] = p.Flow
-	}
+	return stream, nil
+}
+
+func buildConfig(p model.Profile, o Options, proxy map[string]any) ([]byte, error) {
 	logLevel := "warning"
 	if p.DebugLogging {
 		logLevel = "debug"
@@ -107,7 +151,7 @@ func Build(p model.Profile, o Options) ([]byte, error) {
 			"name": o.Interface, "mtu": 1400, "gateway": []string{o.Gateway4.String(), o.Gateway6.String()}, "autoSystemDnsToGateway": false,
 		}}},
 		"outbounds": []any{
-			map[string]any{"tag": "proxy", "protocol": "vless", "settings": map[string]any{"vnext": []any{map[string]any{"address": o.Endpoint.String(), "port": p.Port, "users": []any{user}}}}, "streamSettings": stream},
+			proxy,
 			map[string]any{"tag": "dns", "protocol": "dns", "settings": map[string]any{"nonIPQuery": "drop"}},
 			map[string]any{"tag": "block", "protocol": "blackhole"},
 		},

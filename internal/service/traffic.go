@@ -69,6 +69,13 @@ func addCounter(total, delta uint64) uint64 {
 }
 
 func (s *Service) updateTrafficLocked(sample model.TUNCounters) {
+	if sw := s.worker.switching; sw != nil && sw.cutover {
+		// The final sample before stopping A still belongs to A. Candidate
+		// counters (including its health checks) must never enter A's totals.
+		if !sample.Valid || sample.Epoch != sw.trafficEpoch || sample.IfIndex != sw.trafficIfIndex {
+			return
+		}
+	}
 	t := &s.traffic
 	if t.started.IsZero() || !t.finished.IsZero() {
 		return

@@ -30,6 +30,8 @@ ApplicationWindow {
     property var diagnosticProfile: ({})
     property var operation: backend.connectionRequest.action ? backend.connectionRequest : (snap.operation || ({}))
     property bool cleaning: operation.action === "disconnect" && operation.stage !== "disconnected"
+    property bool switching: !!operation.previousProfileId && !switchFinished(operation)
+    function switchFinished(op) { return op.stage === "switch_failed" || op.stage === "switch_cancelled" }
     property string pendingOperation: ""
     property string profileIconId: "antenna"
     property string iconTargetId: ""
@@ -75,11 +77,11 @@ ApplicationWindow {
         if (!backend.online) return qsTr("Service unavailable — traffic statistics are unknown.")
         if (snap.busyByOtherUser) return qsTr("Traffic statistics belong to another user.")
         if (!traffic.valid) return qsTr("Waiting for a reliable TUN traffic measurement.")
-        return qsTr("VLESS traffic only. IP traffic through its TUN, including internal service requests. OpenVPN, WireGuard, AmneziaWG and encrypted transport overhead are excluded.")
+        return qsTr("Main VPN traffic (VLESS, Trojan or Shadowsocks/Outline). IP traffic through its TUN, including internal service requests. Work VPNs and encrypted transport overhead are excluded.")
     }
     function stageName(stage, action) {
         i18n.language
-        var names = {requested: action === "disconnect" ? qsTr("Requesting disconnect…") : qsTr("Requesting connection…"), checking_vpn:qsTr("Checking VPNs"), enabling_guard:qsTr("Enabling protection"), resolving_endpoint:qsTr("Resolving server"), starting_core:qsTr("Starting Xray"), configuring_network:qsTr("Configuring network"), checking_connection:qsTr("Checking connection"), restoring_network:qsTr("Restoring network"), connected:qsTr("Connected"), paused_external:qsTr("Paused: another VPN"), disconnected:qsTr("Disconnected"), starting_openvpn:qsTr("Starting OpenVPN"), connecting_server:qsTr("Connecting to server"), verifying_certificate:qsTr("Verifying certificate"), receiving_config:qsTr("Receiving configuration"), applying_routes:qsTr("Applying work routes"), route_conflict:qsTr("Choose routes"), dns_conflict:qsTr("Choose DNS routes"), creating_interface:qsTr("Creating interface"), exchanging_keys:qsTr("Exchanging keys"), partial:qsTr("Partially connected")}
+        var names = {preparing_switch:qsTr("Preparing new profile"), switching_profile:qsTr("Switching VPN"), restoring_previous:qsTr("Restoring previous VPN"), requested: action === "disconnect" ? qsTr("Requesting disconnect…") : qsTr("Requesting connection…"), checking_vpn:qsTr("Checking VPNs"), enabling_guard:qsTr("Enabling protection"), refreshing_source:qsTr("Updating Outline configuration"), resolving_endpoint:qsTr("Resolving server"), starting_core:qsTr("Starting Xray"), configuring_network:qsTr("Configuring network"), checking_connection:qsTr("Checking connection"), restoring_network:qsTr("Restoring network"), connected:qsTr("Connected"), paused_external:qsTr("Paused: another VPN"), disconnected:qsTr("Disconnected"), starting_openvpn:qsTr("Starting OpenVPN"), connecting_server:qsTr("Connecting to server"), verifying_certificate:qsTr("Verifying certificate"), receiving_config:qsTr("Receiving configuration"), applying_routes:qsTr("Applying work routes"), route_conflict:qsTr("Choose routes"), dns_conflict:qsTr("Choose DNS routes"), creating_interface:qsTr("Creating interface"), exchanging_keys:qsTr("Exchanging keys"), partial:qsTr("Partially connected")}
         return names[stage] || qsTr("Connecting…")
     }
     function failureName(failure) {
@@ -106,21 +108,23 @@ ApplicationWindow {
     }
     function isWork(profile) { return ["openvpn", "wireguard", "amneziawg"].indexOf(profile.kind) >= 0 || /^(ovpn|wg|awg)-/.test(String(profile.id || "")) }
     function isWireGuard(profile) { return profile.kind === "wireguard" || profile.kind === "amneziawg" || /^(wg|awg)-/.test(String(profile.id || "")) }
-    function protocolName(profile) { return {openvpn:"OpenVPN", wireguard:"WireGuard", amneziawg:"AmneziaWG"}[profile.kind] || (isWork(profile) ? "OpenVPN" : "VLESS") }
+    function protocolName(profile) { return ({vless:"VLESS", trojan:"Trojan", shadowsocks:"Shadowsocks", openvpn:"OpenVPN", wireguard:"WireGuard", amneziawg:"AmneziaWG"}[profile.kind] || (isWork(profile) ? "OpenVPN" : "VLESS")) + (profile.sourceKind === "outline" || (profile.source && profile.source.kind === "outline") ? " · Outline" : "") }
     function profileTabCount() { return isWireGuard(selectedProfile) ? 4 : isWork(selectedProfile) ? 3 : 2 }
     function peerState(value) { i18n.language; return {connected:qsTr("Connected"), connecting:qsTr("Waiting for handshake"), waiting_handshake:qsTr("Waiting for handshake"), reconnecting:qsTr("Reconnecting…"), error:qsTr("Peer unavailable"), disconnected:qsTr("Disconnected")}[value] || value }
-    function liveProfile(profile) { return isWork(profile) ? ((snap.workProfiles || []).filter(function(p) { return p.id === profile.id })[0] || profile) : profile }
-    function profileRuntime(profile) { return isWork(profile) ? (liveProfile(profile).runtime || ({})) : (profile.id === activeId ? runtime : {state:"disconnected"}) }
+    function liveProfile(profile) { return ((isWork(profile) ? snap.workProfiles : snap.profiles) || []).filter(function(p) { return p.id === profile.id })[0] || profile }
+    function profileRuntime(profile) { return isWork(profile) ? (liveProfile(profile).runtime || ({})) : (profile.id === activeId || (!activeId && !operation.previousProfileId && operation.profileId === profile.id) ? runtime : {state:"disconnected"}) }
     function profileOperation(profile) { return isWork(profile) ? (backend.workRequests[profile.id] || liveProfile(profile).operation || ({})) : operation.profileId === profile.id ? operation : ({}) }
-    function profileFailure(profile) { return isWork(profile) ? (liveProfile(profile).lastFailure || ({})) : (snap.lastFailure || ({})) }
+    function profileFailure(profile) { return isWork(profile) ? (liveProfile(profile).lastFailure || ({})) : (profileOperation(profile).failure || (snap.lastFailure && snap.lastFailure.profileId === profile.id ? snap.lastFailure : ({}))) }
+    function failedSwitch(profile) { return liveProfile(profile).switchFailure || ({}) }
     function profileActive(profile) {
         var op = profileOperation(profile), state = profileRuntime(profile).state || "disconnected"
-        return (op.action && op.stage !== "disconnected" && op.stage !== "request_failed") || state !== "disconnected"
+        return (op.action && !switchFinished(op) && op.stage !== "disconnected" && op.stage !== "request_failed") || state !== "disconnected"
     }
     function canActivate(profile) {
         if (!backend.online || snap.busyByOtherUser) return false
         var op = profileOperation(profile)
         if (isWork(profile)) return !(op.action === "disconnect" && op.stage !== "disconnected" && op.stage !== "cleanup_failed" && op.stage !== "request_failed")
+        if (switching && profile.id !== operation.profileId && profile.id !== activeId) return false
         return (!cleaning || (profileActive(profile) && operation.stage === "cleanup_failed")) && (profileActive(profile) || !backend.networkBusy)
     }
     function statusText(profile) {
@@ -131,15 +135,19 @@ ApplicationWindow {
         if (backend.connectionErrorProfile === profile.id && backend.connectionError.length) return qsTr("Request failed")
         var op = profileOperation(profile)
         if (op.error) return qsTr("Request failed")
+        if (op.stage === "switch_failed" && profile.id !== activeId) return qsTr("Switch failed")
+        if (op.stage === "switch_cancelled" && profile.id !== activeId) return qsTr("Switch cancelled")
+        if (!profileActive(profile) && failedSwitch(profile).message) return qsTr("Switch failed")
         var failure = profileFailure(profile)
+        if (!profileActive(profile) && failedSwitch(profile).message) failure = failedSwitch(profile)
         if (op.stage === "route_conflict" || op.stage === "dns_conflict") return qsTr("Choose routes")
         if (op.stage === "cleanup_failed") return qsTr("Disconnect failed\nRetry cleanup")
         if (op.stage === "retry_wait") return qsTr("%1\nRetry in %2 s").arg(failureName(failure)).arg(Math.max(0, Math.ceil((Number(op.nextRetryAt) - Date.now()) / 1000)))
-        if (op.stage && op.stage !== "disconnected" && op.stage !== "connected" && op.stage !== "partial" && op.stage !== "paused_external") {
+        if (op.stage && !switchFinished(op) && op.stage !== "disconnected" && op.stage !== "connected" && op.stage !== "partial" && op.stage !== "paused_external") {
             var elapsed = op.stageStartedAt ? Math.max(0, Math.floor((Date.now() - Number(op.stageStartedAt)) / 1000)) : 0
             return elapsed > 0 ? qsTr("%1 · %2 s").arg(stageName(op.stage, op.action)).arg(elapsed) : stageName(op.stage, op.action)
         }
-        if (!isWork(profile) && profile.id !== activeId) return qsTr("Disconnected")
+        if (!isWork(profile) && profile.id !== activeId && (!op.action || switchFinished(op))) return qsTr("Disconnected")
         var names = {connected:qsTr("Connected"), partial:qsTr("Partially connected"), connecting:qsTr("Connecting…"), reconnecting:qsTr("Reconnecting…"), paused_external:qsTr("Another VPN is active"), error:qsTr("Connection failed"), conflict:qsTr("Choose routes"), disconnected:qsTr("Disconnected")}
         return names[profileRuntime(profile).state] || qsTr("Disconnected")
     }
@@ -152,20 +160,23 @@ ApplicationWindow {
         if (op.error) return appWindow.localizedMessage(op.error)
         var text = statusText(profile)
         var failure = profileFailure(profile)
+        if (!profileActive(profile) && failedSwitch(profile).message) failure = failedSwitch(profile)
         var current = profileRuntime(profile)
         if (current.message) text += "\n" + appWindow.localizedMessage(current.message)
         if (op.stage === "cleanup_failed") return qsTr("Could not fully restore the network. Click Retry to disconnect again.\n%1").arg(appWindow.localizedMessage(current.message || ""))
         if (op.attempt) text += "\n" + qsTr("Attempt %1").arg(op.attempt)
-        if (op.stage === "retry_wait" && failure.message) text += "\n" + appWindow.localizedMessage(failure.message)
+        if ((op.stage === "retry_wait" || switchFinished(op) || !profileActive(profile)) && failure.message) text += "\n" + appWindow.localizedMessage(failure.message)
         return text + "\n" + qsTr("Click to open profile diagnostics.")
     }
     function connectionLabel(profile) {
         i18n.language
         var op = profileOperation(profile)
+        if (op.stage === "switch_failed" && profile.id !== activeId) return qsTr("Retry")
+        if (!profileActive(profile) && failedSwitch(profile).message) return qsTr("Retry")
         if (op.stage === "cleanup_failed") return qsTr("Retry")
         if (op.action === "disconnect" && op.stage !== "disconnected") return qsTr("Disconnecting…")
         if (!profileActive(profile)) return qsTr("Connect")
-        if (op.stage && op.stage !== "connected" && op.stage !== "partial" && op.stage !== "paused_external" && op.stage !== "retry_wait") return qsTr("Cancel")
+        if (op.stage && !switchFinished(op) && op.stage !== "connected" && op.stage !== "partial" && op.stage !== "paused_external" && op.stage !== "retry_wait") return qsTr("Cancel")
         var current = profileRuntime(profile)
         return current.state === "connecting" || current.state === "reconnecting" ? qsTr("Cancel") : qsTr("Disconnect")
     }
@@ -185,7 +196,8 @@ ApplicationWindow {
         if (isWork(profile)) {
             if (profileActive(profile)) backend.disconnectWorkProfile(profile.id)
             else backend.connectWorkProfile(profile.id)
-        } else if (profileActive(profile)) backend.disconnectProfile()
+        } else if (switching && profile.id === operation.profileId) backend.cancelProfileSwitch(operation.id || "")
+        else if (profileActive(profile)) backend.disconnectProfile()
         else backend.connectProfile(profile.id)
     }
     function openSettings() { bootProfile.beginEdit(); settingsDialog.open() }
@@ -231,7 +243,8 @@ ApplicationWindow {
         else if (demoScreen === "diagnostics") openDiagnostics()
         else if ((demoScreen === "profile" || demoScreen === "logs" || demoScreen === "icons") && appWindow.profiles.length) { appWindow.showProfile(appWindow.profiles[0]); if (demoScreen === "logs") profileTabs.currentIndex = 1; if (demoScreen === "icons") appWindow.chooseIcon("profile", "", appWindow.profileIconId) }
         else if (demoScreen === "combo") { openSettings(); comboPreviewTimer.start() }
-        else if (demoScreen === "import-preview") { openImport(); importArea.text = "vless://00000000-0000-4000-8000-000000000011@example.net:443?security=tls#" + qsTr("Primary") + "\nvless://00000000-0000-4000-8000-000000000012@backup.example.net:443?security=tls#" + qsTr("Backup") + "\nvless://00000000-0000-4000-8000-000000000013@work.example.net:443?security=tls#" + qsTr("Work"); importDialog.previewInput = importArea.text; backend.prepareImport(importArea.text, "text", "") }
+        else if (demoScreen === "outline") { backend.setDemoState("proxy"); appWindow.showProfile(appWindow.profiles[2]) }
+        else if (demoScreen === "import-preview") { openImport(); importArea.text = "vless://00000000-0000-4000-8000-000000000011@example.net:443?security=tls#" + qsTr("Primary") + "\ntrojan://synthetic-password@backup.example.net:443?security=tls#" + qsTr("Backup") + "\nss://aes-256-gcm:synthetic-password@work.example.net:443#" + qsTr("Work"); importDialog.previewInput = importArea.text; backend.prepareImport(importArea.text, importMode.currentIndex === 1 ? "outline" : "text", "") }
         else if (demoScreen === "error") errorDialog.open()
     } }
 
@@ -411,7 +424,7 @@ ApplicationWindow {
             Column {
                 anchors.centerIn: parent; spacing: 24
                 Text { textFormat: Text.PlainText; width: 690; text: backend.online ? qsTr("No profiles") : qsTr("System service unavailable"); color: "#8ceaa0"; font.family: appWindow.bodyFont; font.pixelSize: 38; horizontalAlignment: Text.AlignHCenter }
-                Text { textFormat: Text.PlainText; width: 690; text: backend.online ? qsTr("Import vless:// links\nor add a subscription in settings.") : qsTr("Install and start vault443d,\nthen refresh the status."); color: "#829a89"; font.family: appWindow.bodyFont; font.pixelSize: 26; horizontalAlignment: Text.AlignHCenter }
+                Text { textFormat: Text.PlainText; width: 690; text: backend.online ? qsTr("Import VPN links\nor add a subscription in settings.") : qsTr("Install and start vault443d,\nthen refresh the status."); color: "#829a89"; font.family: appWindow.bodyFont; font.pixelSize: 26; horizontalAlignment: Text.AlignHCenter }
                 MetalButton { objectName: "empty-action"; anchors.horizontalCenter: parent.horizontalCenter; text: backend.online ? qsTr("Import") : qsTr("Refresh"); onClicked: backend.online ? openImport() : backend.refresh() }
             }
         }
@@ -506,14 +519,20 @@ ApplicationWindow {
         onClosed: { backend.cancelImport(); previewReady = false }
         ColumnLayout {
             anchors.fill: parent; spacing: 13
-            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: importDialog.sourceKind === "subscription" ? qsTr("Review subscription profiles and choose their emblems. The subscription is saved after confirmation.") : importDialog.sourceKind === "work" ? qsTr("Review the VPN profiles and choose their emblems. Certificates and keys stay private.") : qsTr("Paste VLESS links, a WireGuard configuration or Amnezia vpn:// keys. You can also select VPN files."); color: "#c3b38e"; wrapMode: Text.Wrap; font.pixelSize: 21 }
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: importDialog.sourceKind === "subscription" ? qsTr("Review subscription profiles and choose their emblems. The subscription is saved after confirmation.") : importDialog.sourceKind === "work" ? qsTr("Review the VPN profiles and choose their emblems. Certificates and keys stay private.") : qsTr("Paste VLESS, Trojan, Shadowsocks or ssconf:// links, a WireGuard configuration or Amnezia vpn:// keys."); color: "#c3b38e"; wrapMode: Text.Wrap; font.pixelSize: 21 }
+            TerminalCombo {
+                id: importMode; objectName: "import-mode"; visible: importDialog.sourceKind === "text"
+                Layout.fillWidth: true; model: [qsTr("Links / VPN configuration"), qsTr("Outline · HTTPS / ssconf://")]
+                enabled: !backend.importPreparing && !backend.importCommitting
+                onActivated: {importDialog.previewReady = false; backend.cancelImport()}
+            }
             ScrollView {
                 visible: importDialog.sourceKind === "text"
                 Layout.fillWidth: true; Layout.preferredHeight: 175
                 TextArea {
                     id: importArea; wrapMode: TextEdit.WrapAnywhere; color: "#88d995"; font.family: appWindow.monoFont; font.pixelSize: 18
                     objectName: "import-text"
-                    placeholderText: "vless://…  ·  vpn://…  ·  [Interface]…"; placeholderTextColor: "#667969"; selectByMouse: true
+                    placeholderText: "vless://…  trojan://…  ss://…  ssconf://…"; placeholderTextColor: "#667969"; selectByMouse: true
                     background: Rectangle { color: "#09120c"; border.color: "#6d6046"; radius: 5 }
                     enabled: !backend.importCommitting
                     onTextChanged: { importDialog.previewReady = false; backend.cancelImport() }
@@ -524,7 +543,7 @@ ApplicationWindow {
                 MetalButton { visible: importDialog.sourceKind === "text"; text: qsTr("From file"); small: true; enabled: !backend.importPreparing && !backend.importCommitting; onClicked: importFile.open() }
                 MetalButton { objectName: "import-work"; text: qsTr("VPN files"); small: true; implicitWidth: 220; enabled: !backend.importPreparing && !backend.importCommitting; onClicked: workVPNFiles.open() }
                 Item { Layout.fillWidth: true }
-                MetalButton { visible: importDialog.sourceKind === "text"; objectName: "import-preview"; text: qsTr("Review"); small: true; enabled: importArea.text.trim().length > 0 && !backend.importPreparing && !backend.importCommitting; onClicked: { importDialog.previewInput = importArea.text; backend.prepareImport(importArea.text, "text", "") } }
+                MetalButton { visible: importDialog.sourceKind === "text"; objectName: "import-preview"; text: qsTr("Review"); small: true; enabled: importArea.text.trim().length > 0 && !backend.importPreparing && !backend.importCommitting; onClicked: { importDialog.previewInput = importArea.text; backend.prepareImport(importArea.text, importMode.currentIndex === 1 ? "outline" : "text", "") } }
             }
             Text { textFormat: Text.PlainText; objectName: "import-preparing"; visible: backend.importPreparing; text: qsTr("Preparing profiles…"); color: "#a8b794"; font.pixelSize: 21 }
             ListView {
@@ -595,6 +614,15 @@ ApplicationWindow {
                     }
                     Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Server: %1\nTransport: %2\nSecurity: %3").arg(appWindow.selectedProfile.server || "").arg(appWindow.selectedProfile.transport || "").arg(appWindow.isWireGuard(appWindow.selectedProfile) ? appWindow.protocolName(appWindow.selectedProfile) : appWindow.isWork(appWindow.selectedProfile) ? "TLS" : appWindow.selectedProfile.security || ""); color: "#bcb294"; font.pixelSize: 23; lineHeight: 1.4; wrapMode: Text.WrapAnywhere }
                     Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Click the emblem to change it. To change connection details, import a new profile."); color: "#829485"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                    ColumnLayout {
+                        visible: !!appWindow.liveProfile(appWindow.selectedProfile).source
+                        Layout.fillWidth: true
+                        property var source: appWindow.liveProfile(appWindow.selectedProfile).source || ({})
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Outline · updated %1").arg(parent.source.updatedAt ? appWindow.displayDateTime(Number(parent.source.updatedAt) * 1000) : "—"); color: "#bcb294"; font.pixelSize: 20; elide: Text.ElideRight }
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: parent.source.blocked ? qsTr("Source denied access. Cached connection is blocked.") : parent.source.usingCached ? qsTr("Using the last verified configuration.") : qsTr("Verified configuration. Updates apply at the next connection."); color: parent.source.blocked || parent.source.usingCached ? "#e6af72" : "#829485"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; visible: !!parent.source.lastError; text: appWindow.localizedMessage(parent.source.lastError || ""); color: "#e6af72"; font.pixelSize: 18; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight }
+                        MetalButton { objectName: "source-refresh"; Layout.fillWidth: true; small: true; text: parent.source.updating ? qsTr("Updating configuration…") : qsTr("Update configuration"); enabled: backend.online && !parent.source.updating; onClicked: backend.refreshProfileSource(appWindow.selectedProfile.id) }
+                    }
                     Item { Layout.fillHeight: true }
                     RowLayout {
                         MetalButton { text: qsTr("Remove"); danger: true; enabled: !backend.busy; onClicked: deleteDialog.open() }
@@ -760,7 +788,7 @@ ApplicationWindow {
                     ColumnLayout {
                         width: vpnScroll.availableWidth; spacing: 13
                         MetalButton { objectName: "work-routes-open"; text: qsTr("Routes"); Layout.fillWidth: true; enabled: backend.online && !appWindow.snap.busyByOtherUser; onClicked: appWindow.openRoutes() }
-                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Import .ovpn files from the main window. Work VPNs connect independently of VLESS."); color: "#b1aa92"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Import .ovpn files from the main window. Work VPNs connect independently of the main VPN."); color: "#b1aa92"; font.pixelSize: 20; wrapMode: Text.Wrap }
                         Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Compatibility with other VPNs"); color: "#8fd89a"; font.pixelSize: 25 }
                         Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Pritunl is detected automatically. No fields need to be filled in."); color: "#c5b995"; font.pixelSize: 22; wrapMode: Text.Wrap }
                         Repeater {
@@ -781,7 +809,7 @@ ApplicationWindow {
                             }
                         }
                         Text { objectName: "vpn-discovery-status"; textFormat: Text.PlainText; Layout.fillWidth: true; visible: text.length > 0; text: { i18n.language; return appWindow.localizedMessage(backend.vpnCompatibilityError || backend.vpnCompatibility.message || "") || (backend.vpnCompatibility.busyByOtherUser ? qsTr("In use by another user") : backend.vpnCompatibilityPending ? qsTr("Checking tunnels…") : (backend.vpnCompatibility.items || []).length ? "" : qsTr("No active external VPNs found. Connect Pritunl, then open this tab.")) } color: backend.vpnCompatibilityError ? "#e6af72" : "#b9bc9e"; font.pixelSize: 20; wrapMode: Text.Wrap }
-                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Work routes: Pritunl handles work networks; VLESS handles the internet.\n\nFull tunnel: the requested VLESS connection waits while Pritunl handles the internet, then resumes when those routes are released. Pritunl settings stay unchanged."); color: "#c5b995"; font.pixelSize: 21; wrapMode: Text.Wrap }
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Work routes: Pritunl handles work networks; the main VPN handles the internet.\n\nFull tunnel: the requested main VPN connection waits while Pritunl handles the internet, then resumes when those routes are released. Pritunl settings stay unchanged."); color: "#c5b995"; font.pixelSize: 21; wrapMode: Text.Wrap }
                         MetalButton { objectName: "vpn-diagnostics"; text: qsTr("Diagnostics"); small: true; Layout.preferredWidth: 220; onClicked: appWindow.openDiagnostics() }
                         MetalButton { id: vpnAdvanced; objectName: "vpn-advanced"; Layout.fillWidth: true; checkable: true; text: (checked ? "▾ " : "▸ ") + qsTr("Advanced: manual binding"); onClicked: if (checked) Qt.callLater(function() { vpnScroll.contentItem.contentY = vpnAdvanced.y }) }
                         ColumnLayout {
@@ -943,7 +971,7 @@ ApplicationWindow {
     TerminalDialog {
         id: takeoverDialog; title: qsTr("Take over VPN"); height: 390
         ColumnLayout { anchors.fill: parent; spacing: 20
-            Text { textFormat: Text.PlainText; Layout.fillWidth: true; Layout.fillHeight: true; text: qsTr("Another user is using the VPN. Taking control disconnects all their VLESS and work VPN connections. You can then connect your own profiles."); color: "#d5ba91"; wrapMode: Text.Wrap; font.pixelSize: 23 }
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; Layout.fillHeight: true; text: qsTr("Another user is using the VPN. Taking control disconnects all their main and work VPN connections. You can then connect your own profiles."); color: "#d5ba91"; wrapMode: Text.Wrap; font.pixelSize: 23 }
             RowLayout { MetalButton { text: qsTr("Cancel"); onClicked: takeoverDialog.close() } Item { Layout.fillWidth: true } MetalButton { text: qsTr("Take control"); danger: true; enabled: backend.online && !backend.networkBusy; onClicked: { backend.takeControl(); takeoverDialog.close() } } }
         }
     }

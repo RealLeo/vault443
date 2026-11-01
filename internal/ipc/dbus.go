@@ -113,6 +113,23 @@ func (a *API) CancelImport(sender dbus.Sender, draftID string) *dbus.Error {
 	}
 	return busError(a.service.CancelImport(c, draftID))
 }
+func (a *API) RequestSourceRefresh(sender dbus.Sender, id string) (string, *dbus.Error) {
+	c, e := a.caller(sender)
+	if e != nil {
+		return "", e
+	}
+	operation, err := a.service.RequestSourceRefresh(c, id)
+	return result(map[string]string{"operationId": operation}, err)
+}
+
+func (a *API) CancelSwitch(sender dbus.Sender, operationID string) (string, *dbus.Error) {
+	c, e := a.caller(sender)
+	if e != nil {
+		return "", e
+	}
+	id, err := a.service.CancelSwitch(c, operationID)
+	return result(map[string]string{"operationId": id}, err)
+}
 func (a *API) UpdateProfile(sender dbus.Sender, id, name, iconID string) *dbus.Error {
 	c, e := a.caller(sender)
 	if e != nil {

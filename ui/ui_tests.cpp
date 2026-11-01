@@ -782,6 +782,57 @@ private slots:
         bridge->setDemoState("connected");
         QVERIFY(!trayPresentation(bridge->snapshot(), true, true).canDisconnect);
     }
+    void switchingKeepsActiveCardAndCancelRestoresIt() {
+        for (const auto &lang : {"en", "ru"}) {
+            language->setPreference(lang);
+            bridge->setDemoState("switch-preparing");
+            const auto active = bridge->profiles()[0], candidate = bridge->profiles()[1];
+            const auto label = [this](const char *method, const QVariant &profile) {
+                QVariant result;
+                QMetaObject::invokeMethod(window, method, Q_RETURN_ARG(QVariant, result), Q_ARG(QVariant, profile));
+                return result.toString();
+            };
+            QCOMPARE(label("statusText", active), qmlText("Connected"));
+            QCOMPARE(label("connectionLabel", active), qmlText("Disconnect"));
+            QCOMPARE(label("connectionLabel", candidate), qmlText("Cancel"));
+            auto tray = trayPresentation(bridge->snapshot(), true, false);
+            QVERIFY(tray.text.contains(active.toMap().value("name").toString()));
+            QVERIFY(tray.text.contains(candidate.toMap().value("name").toString()));
+            QVERIFY(tray.canDisconnect);
+            bridge->cancelProfileSwitch("demo-switch");
+            QCOMPARE(bridge->snapshot().value("activeProfileId").toString(), QString("demo-main"));
+            QCOMPARE(label("connectionLabel", candidate), qmlText("Connect"));
+            QCOMPARE(label("statusText", active), qmlText("Connected"));
+            bridge->setDemoState("switch-failed");
+            QCOMPARE(label("connectionLabel", candidate), qmlText("Retry"));
+            QVERIFY(label("statusDetail", candidate).contains(language->serviceMessage("Xray rejected the prepared configuration")));
+            QCOMPARE(label("connectionLabel", active), qmlText("Disconnect"));
+            QVERIFY(!bridge->busy());
+        }
+    }
+    void realDBusSwitchCancellationPreservesActiveProfile() {
+        if (!qEnvironmentVariableIsSet("VAULT443_UI_PRIVATE_BUS_TEST")) QSKIP("Private D-Bus fixture required");
+        cleanup(); loadWindow(false);
+        QTRY_VERIFY(bridge->online());
+        bridge->disconnectProfile();
+        QTRY_COMPARE(bridge->snapshot().value("runtime").toMap().value("state").toString(), QString("disconnected"));
+        importProfiles(bridge.get(), "trojan://synthetic@switch-good.example:443#Switch-A\nvless://00000000-0000-4000-8000-000000000131@blocked.example:443?security=tls#Switch-B");
+        QString a,b;
+        for(const auto &v:bridge->profiles()){auto p=v.toMap();if(p.value("name")=="Switch-A")a=p.value("id").toString();if(p.value("name")=="Switch-B")b=p.value("id").toString();}
+        QVERIFY(!a.isEmpty() && !b.isEmpty());
+        bridge->connectProfile(a);
+        QTRY_COMPARE(bridge->snapshot().value("activeProfileId").toString(),a);
+        bridge->connectProfile(b);
+        QTRY_COMPARE(bridge->snapshot().value("operation").toMap().value("previousProfileId").toString(),a);
+        QCOMPARE(bridge->snapshot().value("activeProfileId").toString(),a);
+        bridge->cancelProfileSwitch(bridge->snapshot().value("operation").toMap().value("id").toString());
+        QTRY_COMPARE(bridge->snapshot().value("operation").toMap().value("stage").toString(),QString("switch_cancelled"));
+        QCOMPARE(bridge->snapshot().value("activeProfileId").toString(),a);
+        QCOMPARE(bridge->snapshot().value("runtime").toMap().value("state").toString(),QString("connected"));
+        QVERIFY(bridge->connectionError().isEmpty());
+        bridge->disconnectProfile();
+        QTRY_COMPARE(bridge->snapshot().value("runtime").toMap().value("state").toString(),QString("disconnected"));
+    }
     void trayIconSizesAndStateColors() {
         const QStringList states{"disconnected", "connected", "connecting", "reconnecting", "paused_external", "error"};
         const QStringList colors{"#92988f", "#64e875", "#f5ca55", "#f5ca55", "#68acff", "#f06b5f"};
@@ -836,6 +887,51 @@ private slots:
         bridge->Raise(); QTRY_VERIFY(bridge->vpnCompatibilityActive());
         if (QGuiApplication::platformName() != "offscreen") QTRY_VERIFY(window->isActive());
         QTest::keyClick(window, Qt::Key_Escape); QTRY_VERIFY(!bridge->vpnCompatibilityActive());
+    }
+    void outlinePropertiesPreserveEditsWhileRefreshing() {
+        bridge->setDemoState("proxy");
+        for (const auto &locale : {QString("en"), QString("ru")}) {
+            language->setPreference(locale);
+            QVERIFY(QMetaObject::invokeMethod(window, "showProfile", Q_ARG(QVariant, bridge->profiles()[2])));
+            auto *name = item("profile-name"); QVERIFY(name); name->setProperty("text", "Unsaved custom name");
+            QVERIFY(item("source-refresh")->isVisible());
+            click("source-refresh");
+            QCOMPARE(name->property("text").toString(),QString("Unsaved custom name"));
+            QCOMPARE(bridge->snapshot().value("activeProfileId").toString(),QString("demo-main"));
+            const auto rect = item("source-refresh")->mapRectToScene(item("source-refresh")->boundingRect());
+            QVERIFY(rect.left() >= 0 && rect.right() <= window->width());
+            QTest::keyClick(window, Qt::Key_Escape);
+        }
+    }
+    void realDBusProxyImportsAndOutlineRefresh() {
+        if (qEnvironmentVariable("VAULT443_UI_PRIVATE_BUS_TEST") != "1") QSKIP("Private D-Bus fixture required");
+        cleanup(); loadWindow(false);
+        QTRY_VERIFY_WITH_TIMEOUT(bridge->online(), 5000);
+        bridge->prepareImport("trojan://synthetic-password@trojan.example:443#Trojan\nss://aes-256-gcm:synthetic-password@ss.example:443#Shadowsocks", "text", "");
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->preview().value("draftId").toString().isEmpty(), 5000);
+        const auto entries = bridge->preview().value("profiles").toList();
+        QCOMPARE(entries.size(), 2); QCOMPARE(entries[0].toMap().value("kind").toString(), QString("trojan"));
+        QCOMPARE(entries[1].toMap().value("kind").toString(), QString("shadowsocks"));
+        bridge->commitImport({{entries[0].toMap().value("id").toString(), "shield"}});
+        QTRY_VERIFY_WITH_TIMEOUT(bridge->preview().isEmpty(), 5000);
+        bridge->prepareImport("https://outline.example/synthetic", "outline", "Outline");
+        QTRY_VERIFY_WITH_TIMEOUT(!bridge->preview().value("draftId").toString().isEmpty(), 5000);
+        const auto id = bridge->preview().value("profiles").toList().first().toMap().value("id").toString();
+        bridge->commitImport({{id, "vault-door"}});
+        QTRY_VERIFY_WITH_TIMEOUT(bridge->preview().isEmpty(), 5000);
+        auto find = [&]() { for (const auto &p : bridge->snapshot().value("profiles").toList()) if (p.toMap().value("id") == id) return p.toMap(); return QVariantMap{}; };
+        QTRY_VERIFY_WITH_TIMEOUT(!find().isEmpty(), 5000);
+        QCOMPARE(find().value("source").toMap().value("kind").toString(), QString("outline"));
+        const auto before = bridge->snapshot().value("activeProfileId");
+        QSignalSpy stable(bridge.get(), &Bridge::bootProfilesChanged);
+        QSignalSpy busy(bridge.get(), &Bridge::busyChanged);
+        bridge->refreshProfileSource(id);
+        QTRY_VERIFY_WITH_TIMEOUT(find().value("source").toMap().value("updating").toBool(), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(!find().value("source").toMap().value("updating").toBool(), 5000);
+        QCOMPARE(bridge->snapshot().value("activeProfileId"), before);
+        QCOMPARE(stable.count(), 0); QCOMPARE(busy.count(), 0);
+        QCOMPARE(find().value("iconId").toString(), QString("vault-door"));
+        bridge->removeProfile(id);
     }
     void realDBusPollingDoesNotBlinkOrClosePopup() {
         if (qEnvironmentVariable("VAULT443_UI_PRIVATE_BUS_TEST") != "1") QSKIP("Private D-Bus fixture required");

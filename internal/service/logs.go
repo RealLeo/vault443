@@ -14,12 +14,7 @@ func (s *Service) beginLog(owner *store.Session, p model.Profile) {
 	if s.journal == nil || owner == nil {
 		return
 	}
-	secrets := []string{p.UUID, p.PublicKey, p.ShortID}
-	for _, value := range []string{p.SpiderX, p.Path, p.ServiceName} {
-		if len(value) > 1 {
-			secrets = append(secrets, value)
-		}
-	}
+	secrets := p.Secrets()
 	s.logSession = s.journal.NewSession(owner.UID, p.ID, secrets...)
 	s.logOwner = &store.Session{UID: owner.UID, ProfileID: owner.ProfileID}
 	if runtime, ok := s.runtime.(interface{ SetLogSession(*journal.Session) }); ok {
@@ -70,6 +65,10 @@ func (s *Service) ClearProfileLogs(c Caller, id string) error {
 	if s.journal == nil {
 		s.stateMu.Lock()
 		delete(s.worker.failures[c.UID], id)
+		delete(s.worker.switchFailures[c.UID], id)
+		if op := s.worker.operation; op != nil && s.worker.operationUID == c.UID && op.ProfileID == id {
+			op.Failure = nil
+		}
 		s.stateMu.Unlock()
 		s.changed()
 		return nil
@@ -81,6 +80,12 @@ func (s *Service) ClearProfileLogs(c Caller, id string) error {
 	s.stateMu.Lock()
 	if failure, ok := s.worker.failures[c.UID][id]; ok && failure.journalEpoch < epoch {
 		delete(s.worker.failures[c.UID], id)
+	}
+	if failure, ok := s.worker.switchFailures[c.UID][id]; ok && failure.journalEpoch < epoch {
+		delete(s.worker.switchFailures[c.UID], id)
+	}
+	if op := s.worker.operation; op != nil && s.worker.operationUID == c.UID && op.ProfileID == id && op.Failure != nil && op.Failure.journalEpoch < epoch {
+		op.Failure = nil
 	}
 	s.stateMu.Unlock()
 	s.changed()

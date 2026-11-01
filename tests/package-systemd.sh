@@ -25,7 +25,7 @@ docker run --detach --pull never --name "$name" --network none --cgroupns privat
   --mount "type=bind,src=$PWD,dst=/src,readonly" \
   --mount "type=bind,src=$results,dst=/results" \
   -e container=docker -e VAULT443_PACKAGE_TEST=1 -e VAULT443_REAL_SYSTEMD=1 \
-  -e VAULT443_E2E_ISOLATED=1 -e VAULT443_PACKAGE_NETWORK=1 \
+  -e VAULT443_E2E_ISOLATED=1 -e VAULT443_PROXY_E2E=1 -e VAULT443_PACKAGE_NETWORK=1 \
   "$image" /bin/sh -ec 'mount -o remount,rw /sys/fs/cgroup; exec /usr/lib/systemd/systemd' >/dev/null
 ready=0
 for _ in $(seq 1 100); do

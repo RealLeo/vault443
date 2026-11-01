@@ -25,6 +25,7 @@ import (
 
 type Config struct {
 	StateDir, RuntimeDir, XrayPath string
+	OutlinePath                    string
 	DryRun                         bool
 }
 type Manager struct {
@@ -36,6 +37,10 @@ type Manager struct {
 	config                  Config
 	r                       runner
 	core                    core.Process
+	outline                 core.OutlineProcess
+	prepared                *preparedConnection
+	verified                bool
+	endpoints               []Endpoint
 	status                  model.RuntimeStatus
 	statusView              atomic.Value
 	diagnosticsView         atomic.Value
@@ -77,7 +82,10 @@ func New(c Config) *Manager {
 	if c.XrayPath == "" {
 		c.XrayPath = "/usr/lib/vault443/xray"
 	}
-	m := &Manager{config: c, r: execRunner{}, status: model.RuntimeStatus{State: "disconnected", ExternalVPNs: []string{}}, ipv6State: "inactive", ipv6Message: "VLESS IPv6 is inactive"}
+	if c.OutlinePath == "" {
+		c.OutlinePath = "/usr/lib/vault443/vault443-outline"
+	}
+	m := &Manager{config: c, r: execRunner{}, status: model.RuntimeStatus{State: "disconnected", ExternalVPNs: []string{}}, ipv6State: "inactive", ipv6Message: "Main VPN IPv6 is inactive"}
 	m.nm.state = "inactive"
 	m.publish()
 	return m
@@ -272,8 +280,8 @@ func (m *Manager) applyGuard(ctx context.Context, s Snapshot, x []external, read
 	if m.profile != nil {
 		port = m.profile.Port
 	}
-	rejectQUIC := m.profile != nil && m.profile.Flow == "xtls-rprx-vision"
-	script := guardScript(guardOptions{Snapshot: s, External: x, Protected: m.protected, Endpoint: m.endpoint, Port: port, Uplink: m.uplink.Device, TunnelReady: ready, RejectQUIC: rejectQUIC, BlockTunnelIPv6: m.ipv6State != "available", AllowIPv6Probe: m.ipv6State == "checking"}, exists)
+	rejectQUIC := m.profile != nil && m.profile.Protocol() == "vless" && m.profile.Flow == "xtls-rprx-vision"
+	script := guardScript(guardOptions{Snapshot: s, External: x, Protected: m.protected, Endpoint: m.endpoint, Port: port, Endpoints: m.endpoints, Uplink: m.uplink.Device, TunnelReady: ready, RejectQUIC: rejectQUIC, BlockTunnelIPv6: m.ipv6State != "available", AllowIPv6Probe: m.ipv6State == "checking"}, exists)
 	if e = m.execute(ctx, command{Path: "/usr/sbin/nft", Args: []string{"-f", "-"}, Input: script}); e != nil {
 		return errors.New("cannot atomically install protection")
 	}
@@ -375,13 +383,14 @@ func (m *Manager) arm(ctx context.Context) error {
 func (m *Manager) Connect(ctx context.Context, p model.Profile) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.verified = false
 	m.operationContext = ctx
 	defer func() { m.operationContext = nil }()
 	m.logSession.Log("info", "Preparing protected connection")
 	m.nm = nmConnectivity{state: "inactive"}
 	// IPv6 availability belongs to a single core session. Never carry a prior
 	// server's success into another connection or restore it from disk.
-	m.ipv6State, m.ipv6Message = "inactive", "VLESS IPv6 is inactive"
+	m.ipv6State, m.ipv6Message = "inactive", "Main VPN IPv6 is inactive"
 	if e := m.load(); e != nil {
 		return m.fail(e)
 	}
@@ -394,6 +403,7 @@ func (m *Manager) Connect(ctx context.Context, p model.Profile) error {
 	}
 	m.profile = &p
 	m.endpoint = netip.Addr{}
+	m.endpoints = nil
 	m.lastPlan = ""
 	s, e := collect(ctx, m.r)
 	if e != nil {
@@ -423,24 +433,39 @@ func (m *Manager) Connect(ctx context.Context, p model.Profile) error {
 	if e = m.installRoutes(ctx, s, x, false, false); e != nil {
 		return m.fail(e)
 	}
-	if m.config.DryRun {
-		a, e := netip.ParseAddr(p.Server)
-		if e != nil {
-			a = netip.MustParseAddr("203.0.113.1")
-		}
-		m.endpoint = a
-	} else {
-		m.stage("resolving_endpoint", "Resolving VPN server address")
-		m.logSession.Log("info", "Resolving VPN endpoint through protected bootstrap DNS")
-		m.endpoint, e = m.resolveEndpoint(ctx, p.Server)
+	m.stage("resolving_endpoint", "Resolving VPN server address")
+	prepared := m.prepared
+	m.prepared = nil
+	if !prepared.matches(p, m.uplink) {
+		prepared, e = m.resolveProfile(ctx, p, m.uplink)
 		if e != nil {
 			return m.fail(e)
 		}
 	}
-	bytes, e := core.Build(p, core.Options{Interface: TunName, Gateway4: m.v4, Gateway6: m.v6, DNSAddress: m.v4.Addr().Next(), Endpoint: m.endpoint, Uplink: m.uplink.Device, Mark: OuterMark})
+	m.endpoint, m.endpoints = prepared.endpoint, prepared.endpoints
+	resolved := prepared.resolved
+	options := core.Options{Interface: TunName, Gateway4: m.v4, Gateway6: m.v6, DNSAddress: m.v4.Addr().Next(), Endpoint: m.endpoint, Uplink: m.uplink.Device, Mark: OuterMark}
+	if p.Outline != nil {
+		if !m.config.DryRun {
+			if e = m.outline.Prepare(); e != nil {
+				return m.fail(e)
+			}
+			if e = m.protectOutline(ctx); e != nil {
+				_ = m.outline.Stop(ctx)
+				return m.fail(e)
+			}
+		} else {
+			m.outline.Port = 1080
+			m.outline.User = "dry-run"
+			m.outline.Password = "dry-run"
+		}
+		options.LocalPort, options.LocalUser, options.LocalPassword = m.outline.Port, m.outline.User, m.outline.Password
+	}
+	bytes, e := core.Build(p, options)
 	if e != nil {
 		return m.fail(e)
 	}
+
 	if e = m.applyGuard(ctx, s, x, false); e != nil {
 		return m.fail(e)
 	}
@@ -465,6 +490,12 @@ func (m *Manager) Connect(ctx context.Context, p model.Profile) error {
 		m.status.GuardArmed = false
 		m.publish()
 		return nil
+	}
+	if p.Outline != nil {
+		m.stage("starting_core", "Starting Outline transport adapter")
+		if e = m.outline.Start(ctx, m.config.OutlinePath, model.OutlineRuntime{Transport: p.Outline, Resolved: resolved, Interface: m.uplink.Device, Mark: OuterMark}); e != nil {
+			return m.fail(e)
+		}
 	}
 	m.ipv6State, m.ipv6Message = "checking", "IPv6 is blocked until HTTPS through the tunnel has been verified"
 	path, e := core.WriteConfig(m.config.RuntimeDir, bytes)
@@ -516,12 +547,12 @@ func (m *Manager) Connect(ctx context.Context, p model.Profile) error {
 	if e = m.configureExternalDNS(ctx, x); e != nil {
 		return m.fail(e)
 	}
-	m.stage("checking_connection", "Verifying connection through VLESS")
-	m.logSession.Log("info", "Verifying DNS and HTTPS through VLESS")
+	m.stage("checking_connection", "Verifying connection through the main VPN")
+	m.logSession.Log("info", "Verifying DNS and HTTPS through the main VPN")
 	if e = m.health(ctx); e != nil {
 		return m.fail(e)
 	}
-	m.stage("checking_connection", "Verifying IPv6 through VLESS")
+	m.stage("checking_connection", "Verifying IPv6 through the main VPN")
 	available, e := m.checkIPv6(ctx)
 	if e != nil {
 		return m.fail(e)
@@ -531,6 +562,7 @@ func (m *Manager) Connect(ctx context.Context, p model.Profile) error {
 	}
 	m.syncNetworkManager(ctx, s)
 	m.status.State = "connected"
+	m.verified = true
 	m.status.Message = "Connected"
 	m.status.Stage = "connected"
 	m.status.StageStartedAt = time.Now().UnixMilli()
@@ -576,7 +608,7 @@ func (m *Manager) finishIPv6Check(ctx context.Context, s Snapshot, x []external,
 
 func (m *Manager) pause(ctx context.Context, s Snapshot, x []external) error {
 	m.nm = nmConnectivity{state: "inactive"}
-	m.ipv6State, m.ipv6Message = "inactive", "VLESS IPv6 is inactive while another VPN owns Internet routing"
+	m.ipv6State, m.ipv6Message = "inactive", "Main VPN IPv6 is inactive while another VPN owns Internet routing"
 	if e := m.applyGuard(ctx, s, x, false); e != nil {
 		return m.fail(e)
 	}
@@ -639,9 +671,9 @@ func (m *Manager) Reconcile(ctx context.Context) error {
 			return m.fail(e)
 		}
 		m.status.State = "reconnecting"
-		m.status.Message = "External VPN released Internet; restoring protected VLESS"
+		m.status.Message = "External VPN released Internet; restoring protected main VPN"
 		m.publish()
-		return errors.New("VLESS needs reconnect after external VPN")
+		return errors.New("Main VPN needs reconnect after external VPN")
 	}
 	u, e := s.Uplink()
 	if e != nil {
@@ -658,7 +690,7 @@ func (m *Manager) Reconcile(ctx context.Context) error {
 		}
 		return m.fail(errors.New("network changed; reconnect required"))
 	}
-	ready := m.core.Alive()
+	ready := m.verified && m.core.Alive() && (m.profile == nil || m.profile.Outline == nil || m.outline.Alive())
 	if e = m.applyGuard(ctx, s, x, ready); e != nil {
 		return m.fail(e)
 	}
@@ -701,7 +733,7 @@ func (m *Manager) Disconnect(ctx context.Context) error {
 	defer m.mu.Unlock()
 	m.operationContext = ctx
 	defer func() { m.operationContext = nil }()
-	m.ipv6State, m.ipv6Message = "inactive", "VLESS IPv6 is inactive"
+	m.ipv6State, m.ipv6Message = "inactive", "Main VPN IPv6 is inactive"
 	m.nm = nmConnectivity{state: "inactive"}
 	m.status.State = "disconnecting"
 	m.stage("restoring_network", "Stopping Xray and restoring network state")
@@ -760,6 +792,7 @@ func (m *Manager) Disconnect(ctx context.Context) error {
 	}
 	m.profile = nil
 	m.endpoint = netip.Addr{}
+	m.endpoints = nil
 	m.lastPlan = ""
 	m.status = model.RuntimeStatus{State: "disconnected", Stage: "disconnected", StageStartedAt: time.Now().UnixMilli(), ExternalVPNs: []string{}}
 	return m.persist()
@@ -817,6 +850,8 @@ func (m *Manager) Diagnostics(ctx context.Context) interface{} {
 	}
 	out["routeTables"] = []int{ProxyTable, BypassTable, UnderlayTable}
 	out["coreRunning"] = m.core.Alive()
+	out["outlineRunning"] = m.outline.Alive()
+	out["sourceRouteTable"] = sourceTable
 	return out
 }
 
@@ -860,7 +895,7 @@ func (m *Manager) checkOwnership(s Snapshot) error {
 func (m *Manager) installRoutes(ctx context.Context, s Snapshot, x []external, tunnel, paused bool) error {
 	plan := routePlan(s, x, m.protected, m.uplink, tunnel)
 	transportMetadata, _ := json.Marshal(x)
-	key := planKey(plan) + strconv.FormatBool(paused) + fmt.Sprintf("%x", sha256.Sum256(transportMetadata)) + m.endpoint.String()
+	key := planKey(plan) + strconv.FormatBool(paused) + fmt.Sprintf("%x", sha256.Sum256(transportMetadata)) + fmt.Sprint(m.endpoints) + m.endpoint.String()
 	if m.profile != nil {
 		key += strconv.Itoa(m.profile.Port)
 	}
@@ -897,12 +932,18 @@ func (m *Manager) installRoutes(ctx context.Context, s Snapshot, x []external, t
 				priority++
 			}
 		}
-		if !paused && m.endpoint.IsValid() && m.profile != nil && (f == 4) == m.endpoint.Is4() {
-			for _, protocol := range []string{"tcp", "udp"} {
-				rules = append(rules, []string{"priority", strconv.Itoa(priority), "uidrange", "0-0", "to", m.endpoint.String(), "ipproto", protocol, "dport", strconv.Itoa(m.profile.Port), "lookup", strconv.Itoa(UnderlayTable)})
-				priority++
+		for _, ep := range m.mainEndpoints() {
+			a, err := netip.ParseAddr(ep.Address)
+			if paused || err != nil || (f == 4) != a.Is4() {
+				continue
 			}
+			if priority >= RuleBase+90 {
+				return errors.New("too many main transport endpoints")
+			}
+			rules = append(rules, []string{"priority", strconv.Itoa(priority), "uidrange", "0-0", "to", ep.Address, "ipproto", ep.Protocol, "dport", strconv.Itoa(ep.Port), "lookup", strconv.Itoa(UnderlayTable)})
+			priority++
 		}
+
 		for _, v := range x {
 			for _, ep := range v.Binding.Endpoints {
 				if priority >= RuleBase+90 {

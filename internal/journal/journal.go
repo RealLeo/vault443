@@ -170,6 +170,13 @@ func (s *Session) Log(level, message string) {
 	if s == nil || s.journal.closed.Load() {
 		return
 	}
+	// Dropped messages never leave this call. Avoid sanitization/serialization
+	// work when the bounded queue is already full; reserved failure records use
+	// RecordFailure and remain independent of this ordinary-message fast path.
+	if len(s.journal.queue) == cap(s.journal.queue) {
+		s.dropped.Add(1)
+		return
+	}
 	message = sanitize(message, s.secrets)
 	if message == "" {
 		return
@@ -208,7 +215,7 @@ func (s *Session) RecordFailure(code, message string, at int64) (string, uint64)
 // Only controller-defined classifications are allowed in unredacted metadata.
 func NormalizeFailureCode(code string) string {
 	switch code {
-	case "dns_timeout", "dns_no_answer", "dns_not_found", "dns_tls", "dns_transport", "dns_invalid_response", "dns_unavailable", "connection_failed", "openvpn_failed", "core_exited", "cleanup_failed", "previous_failure", "vpn_dns_failed", "vpn_https_timeout", "vpn_https_tls", "vpn_https_response", "vpn_https_failed":
+	case "switch_failed", "dns_timeout", "dns_no_answer", "dns_not_found", "dns_tls", "dns_transport", "dns_invalid_response", "dns_unavailable", "connection_failed", "openvpn_failed", "core_exited", "cleanup_failed", "previous_failure", "vpn_dns_failed", "vpn_https_timeout", "vpn_https_tls", "vpn_https_response", "vpn_https_failed":
 		return code
 	default:
 		return "connection_failed"

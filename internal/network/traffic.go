@@ -62,6 +62,16 @@ func (m *Manager) observeTraffic() {
 func (m *Manager) stopCore(ctx context.Context) error {
 	// Read while the owned TUN still exists, before Xray closes its descriptor.
 	m.observeTraffic()
+	m.verified = false
 	m.trafficActive.Store(false)
-	return m.core.StopContext(ctx)
+	err := m.core.StopContext(ctx)
+	_ = m.outline.Stop(ctx)
+	if !m.config.DryRun {
+		if _, e := m.r.Run(ctx, command{Path: "/usr/sbin/nft", Args: []string{"list", "table", "inet", "vault443_outline"}}); e == nil {
+			if e = m.execute(ctx, command{Path: "/usr/sbin/nft", Args: []string{"delete", "table", "inet", "vault443_outline"}}); err == nil {
+				err = e
+			}
+		}
+	}
+	return err
 }

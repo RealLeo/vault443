@@ -18,6 +18,7 @@ type guardOptions struct {
 	Snapshot        Snapshot
 	External        []external
 	Protected       []protectedRoute
+	Endpoints       []Endpoint
 	Endpoint        netip.Addr
 	Port            int
 	Uplink          string
@@ -43,6 +44,7 @@ func guardScript(o guardOptions, exists bool) string {
 		fmt.Fprintf(&b, "delete table inet %s\n", TableName)
 	}
 	fmt.Fprintf(&b, "table inet %s {\n", TableName)
+	fmt.Fprintln(&b, SourceGuardDeclarations())
 	fmt.Fprintln(&b, " chain managed_output {\n# vault443-managed-output\n }")
 	fmt.Fprintln(&b, " chain managed_forward {\n# vault443-managed-forward\n }")
 	// Mark externally managed userspace transports before policy routing. Match
@@ -77,7 +79,15 @@ func guardScript(o guardOptions, exists bool) string {
 		fmt.Fprintf(&b, " chain %s_guard { type filter hook %s priority filter + 50; policy drop;\n", hook, hook)
 		fmt.Fprintf(&b, " jump managed_%s\n", hook)
 		if hook == "output" {
-			fmt.Fprintln(&b, "  oifname \"lo\" accept")
+			fmt.Fprintln(&b, " jump source_download\n  oifname \"lo\" accept")
+		}
+		// A tracked reply to a forwarded LAN/Docker client is not a new
+		// connection to a corporate destination, even if those subnets overlap.
+		if hook == "forward" && o.TunnelReady {
+			for _, r := range localRoutes(o.Snapshot) {
+				p, _ := r.Prefix()
+				fmt.Fprintf(&b, "iifname %s ct direction reply %s daddr %s oifname %s accept\n", nftQuote(TunName), familyOf(p.Addr()), p, nftQuote(r.Device))
+			}
 		}
 		// Protected corporate prefixes never fall through to LAN or VLESS after
 		// their owner disappears. More-specific routes are emitted first.
@@ -136,11 +146,19 @@ func guardScript(o guardOptions, exists bool) string {
 		if hook == "output" {
 			// Endpoint permissions are never in FORWARD: a container cannot gain
 			// a direct Internet exception by copying the core's destination.
-			if o.Endpoint.IsValid() && core.SafeInterface(o.Uplink) {
+			endpoints := o.Endpoints
+			if len(endpoints) == 0 && o.Endpoint.IsValid() {
 				for _, proto := range []string{"tcp", "udp"} {
-					fmt.Fprintf(&b, "  meta mark 0x%x %s daddr %s %s dport %d oifname %s accept\n", OuterMark, familyOf(o.Endpoint), o.Endpoint, proto, o.Port, nftQuote(o.Uplink))
+					endpoints = append(endpoints, Endpoint{Address: o.Endpoint.String(), Port: o.Port, Protocol: proto})
 				}
 			}
+			for _, ep := range endpoints {
+				a, err := netip.ParseAddr(ep.Address)
+				if err == nil && core.SafeInterface(o.Uplink) && (ep.Protocol == "tcp" || ep.Protocol == "udp") && ep.Port > 0 && ep.Port <= 65535 {
+					fmt.Fprintf(&b, "  meta mark 0x%x %s daddr %s %s dport %d oifname %s accept\n", OuterMark, familyOf(a), a, ep.Protocol, ep.Port, nftQuote(o.Uplink))
+				}
+			}
+
 			if core.SafeInterface(o.Uplink) {
 				fmt.Fprintf(&b, "  meta mark 0x%x ip daddr 1.1.1.1 udp dport 53 oifname %s accept\n", BootstrapMark, nftQuote(o.Uplink))
 				fmt.Fprintf(&b, "  meta mark 0x%x ip daddr 1.1.1.1 tcp dport 53 oifname %s accept\n", BootstrapMark, nftQuote(o.Uplink))
@@ -198,7 +216,7 @@ func guardScript(o guardOptions, exists bool) string {
 		fmt.Fprintln(&b, " }")
 	}
 	fmt.Fprintln(&b, "}")
-	return b.String()
+	return b.String() + "# vault443-source-elements\n"
 }
 
 func localRoutes(s Snapshot) []Route {

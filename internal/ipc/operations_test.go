@@ -139,4 +139,53 @@ func TestPrivateDBusCancellableOperationAndDiagnostics(t *testing.T) {
 		t.Fatal("diagnostics missing cause")
 	}
 	call("RequestDisconnect")
+	// Existing accepted methods and the new switch cancellation coexist on the bus.
+	for i := 0; i < 200; i++ {
+		json.Unmarshal([]byte(call("GetSnapshot")), &snapshot)
+		if snapshot.Runtime.State == "disconnected" {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	good, e := s.ImportProfiles(caller, "trojan://synthetic@healthy.example:443#A")
+	if e != nil {
+		t.Fatal(e)
+	}
+	a := good.Profiles[0].ID
+	if e = s.Connect(ctx, caller, a); e != nil {
+		t.Fatal(e)
+	}
+	var accepted map[string]string
+	if e = json.Unmarshal([]byte(call("RequestConnect", preview.Profiles[0].ID)), &accepted); e != nil {
+		t.Fatal(e)
+	}
+	op := accepted["operationId"]
+	if op == "" {
+		t.Fatal("switch operation missing")
+	}
+	if e = object.CallWithContext(ctx, BusName+".CancelSwitch", 0, op+"stale").Err; e == nil {
+		t.Fatal("stale switch cancellation accepted")
+	}
+	if e = object.CallWithContext(ctx, BusName+".CancelSwitch", 0, uint32(0), op).Err; e == nil {
+		t.Fatal("caller UID spoof accepted")
+	}
+	if !strings.Contains(call("CancelSwitch", op), op) {
+		t.Fatal("wrong cancellation result")
+	}
+	until = time.Now().Add(time.Second)
+	for {
+		json.Unmarshal([]byte(call("GetSnapshot")), &snapshot)
+		if snapshot.Operation != nil && snapshot.Operation.Stage == "switch_cancelled" {
+			break
+		}
+		if time.Now().After(until) {
+			t.Fatal("switch cancellation stalled", snapshot)
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if snapshot.ActiveProfileID != a || snapshot.Runtime.State != "connected" || st.Snapshot().Desired.ProfileID != a {
+		t.Fatal("cancel replaced A", snapshot)
+	}
+	call("RequestDisconnect")
+
 }

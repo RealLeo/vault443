@@ -4,7 +4,7 @@ Managed OpenVPN, WireGuard and AmneziaWG connections use the shared
 [work coordinator](work-vpn.md) and independent lifecycle workers. WG/AWG import,
 engines and peer behavior are described in [WireGuard support](wireguard.md).
 Their work schema v2 migrates existing OpenVPN profiles with a private backup;
-the separate VLESS v2 data and API remain intact.
+the main profile store is v3; existing VLESS IDs and API signatures are preserved.
 
 The GUI talks to `org.vault443.Service1` on the system bus. Its wire contract
 is in [interfaces.md](interfaces.md). JSON replies omit UUIDs, public keys,
@@ -34,6 +34,8 @@ active session still yields only its generic state and busy flag.
 
 ## Supported imports
 
+[Trojan, Shadowsocks AEAD/2022 and dynamic Outline](proxy-protocols.md) share the main Internet connection lifecycle, traffic counters and autoconnect. The VLESS details below remain applicable to VLESS profiles.
+
 - `vless://UUID@host:port` links, a multiline list, or a Base64-encoded list.
 - TCP/RAW, WebSocket, gRPC, and XHTTP; TLS and REALITY. REALITY with WebSocket is
   rejected. Vision flows require TCP.
@@ -60,8 +62,7 @@ Direct multiline import adds valid, unique rows and returns per-line errors.
 Subscriptions use public HTTPS endpoints, valid certificates, bounded redirects,
 20-second downloads, and the same 1 MiB decoded-body limit. DNS addresses are
 checked immediately before dialing to reject private/link-local endpoints and
-rebinding. A maximum of 32 subscriptions per user is supported. Mixed-protocol
-sources are rejected in this version; use a provider's VLESS-only source.
+rebinding. A maximum of 32 subscriptions per user is supported. Mixed VLESS/Trojan/Shadowsocks lists are supported. Dynamic ssconf sources are separate imports.
 
 Source updates run daily or on explicit request. Any invalid row prevents the
 entire source replacement. Failed updates keep the previous library. Active and
@@ -119,7 +120,7 @@ core/process death and persisted recovery. It never changes host networking.
 
 `iconId` and `debugLogging` are user metadata outside the canonical connection
 hash. Refreshing a subscription preserves them and the user-assigned name.
-The current persistent schema is v2. Unsupported schema versions are rejected
+The current main persistent schema is v3, with a private backup when migrating v2. Unsupported schema versions are rejected
 without rewriting their files; there is no pre-1.0 conversion in this release.
 
 Prepared imports are UID-owned, bounded in-memory drafts with a ten-minute
@@ -172,12 +173,12 @@ service units, private directories, and desktop resources. The system bus is
 `org.vault443.Service1`, the TUN interface is `vault4430`, and the application
 nftables table is `vault443`. Numeric routing tables, priorities and socket marks
 remain stable across 1.x updates. Normal package upgrades retain profile IDs
-and the requested/boot connection; they do not convert or merge pre-Vault stores. The documented work-schema
-migration from 1.1.1 is separate from the unchanged VLESS store.
+and the requested/boot connection; they do not convert or merge pre-Vault stores.
+Work-schema migration and the main v2 → v3 migration have separate private backups.
 
 A service-owned sampler reads real kernel RX/TX counters once per second without
 waiting for connection work. RX means downloaded IP bytes and TX uploaded IP
-bytes on the owned TUN; outer VLESS transport overhead is excluded. Core epoch
+bytes on the owned main TUN; outer encrypted transport overhead is excluded. Core epoch
 and interface index identify counter resets and recreated devices. A final
 observation is taken before an orderly stop; abrupt core death retains the last
 successful sample. Rates use monotonic elapsed time rather than assuming a
@@ -190,3 +191,21 @@ profile/owner changes and service/OS restarts reset them. Closing the GUI does
 not reset anything. Counters are not written to disk and are visible only to
 the owning UID. The GUI uses the `traffic` snapshot object rather than raw
 interface lifetime counters.
+
+
+## Main-profile switch transactions (1.3.1)
+
+The service keeps an immutable confirmed profile A separately from candidate B's
+operation. Source refresh, endpoint resolution and Xray configuration validation
+run before changing the active TUN. The network executor remains sequential;
+short state locks publish snapshots independently of network waits. Candidate
+traffic never enters A's accumulated counters. The final owned-interface sample
+is still attributed to A before shutdown, and a restored interface starts a new
+physical baseline without resetting the logical session.
+
+A verified B is committed to desired intent before its identity is published.
+Preparation failure preserves A; later failure restores its last working config
+unless its source is known to deny use. CancelSwitch is ownership/generation
+checked; Disconnect cancels restoration too. Failed B is not auto-retried while A
+remains selected. The network manager never reconciles an unverified surviving
+core into a healthy connection. Main/work storage formats remain unchanged.

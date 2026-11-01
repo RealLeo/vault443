@@ -379,6 +379,7 @@ func (m *Manager) guard(s network.Snapshot, u network.Route, sel selection, exis
 		fmt.Fprintf(&b, "delete table inet %s\n", workTable)
 	}
 	fmt.Fprintf(&b, "table inet %s {\n", workTable)
+	fmt.Fprintln(&b, network.SourceGuardDeclarations())
 	for _, ss := range sortedSessions(m.sessions) {
 		if ss.Kind == "wireguard" || ss.Kind == "amneziawg" {
 			writePeerGuard(&b, ss)
@@ -392,7 +393,7 @@ func (m *Manager) guard(s network.Snapshot, u network.Route, sel selection, exis
 			}
 		}
 		if hook == "output" {
-			fmt.Fprintln(&b, "oifname \"lo\" accept")
+			fmt.Fprintln(&b, "jump source_download\noifname \"lo\" accept")
 			for _, ss := range m.sessions {
 				if !ss.Active {
 					continue
@@ -427,6 +428,10 @@ func (m *Manager) guard(s network.Snapshot, u network.Route, sel selection, exis
 		}
 
 		if hook == "forward" {
+			for _, lr := range network.LocalRoutes(s) {
+				p, _ := lr.Prefix()
+				fmt.Fprintf(&b, "iifname %s ct direction reply %s daddr %s oifname %s accept\n", nftQ(network.TunName), nftFamily(p), p, nftQ(lr.Device))
+			}
 			for _, ss := range m.sessions {
 				for _, lr := range network.LocalRoutes(s) {
 					p, _ := lr.Prefix()
@@ -475,7 +480,7 @@ func (m *Manager) guard(s network.Snapshot, u network.Route, sel selection, exis
 		fmt.Fprintln(&b, "}")
 	}
 	fmt.Fprintln(&b, "}")
-	return b.String()
+	return b.String() + "# vault443-work-source-elements\n"
 }
 func hasTable(ctx context.Context, k network.Kernel, name string) (bool, error) {
 	b, e := k.Run(ctx, "/usr/sbin/nft", []string{"-j", "list", "tables"}, "")
@@ -732,6 +737,9 @@ func (m *Manager) applyLocked(ctx context.Context) error {
 					rules = append(rules, []string{"priority", "5199", "iif", ss.Interface, "lookup", strconv.Itoa(replyTable)})
 				}
 			}
+			// Main TUN replies to forwarded LAN clients must not be diverted
+			// into overlapping corporate routes. This table contains only LANs.
+			rules = append(rules, []string{"priority", "5199", "iif", network.TunName, "lookup", strconv.Itoa(replyTable)})
 			for _, pair := range [][2]int{{5200, manualTable}, {5201, specificTable}, {5202, fullTable}} {
 				rules = append(rules, []string{"priority", strconv.Itoa(pair[0]), "lookup", strconv.Itoa(pair[1])})
 			}

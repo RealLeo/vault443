@@ -31,13 +31,16 @@ type Caller struct {
 	Admin bool
 }
 type ProfileInfo struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Server       string `json:"server"`
-	Transport    string `json:"transport"`
-	Security     string `json:"security"`
-	IconID       string `json:"iconId"`
-	DebugLogging bool   `json:"debugLogging"`
+	Kind          string      `json:"kind"`
+	Source        *SourceInfo `json:"source,omitempty"`
+	ID            string      `json:"id"`
+	Name          string      `json:"name"`
+	Server        string      `json:"server"`
+	Transport     string      `json:"transport"`
+	Security      string      `json:"security"`
+	IconID        string      `json:"iconId"`
+	DebugLogging  bool        `json:"debugLogging"`
+	SwitchFailure *Failure    `json:"switchFailure,omitempty"`
 }
 type SubscriptionInfo struct {
 	ID        string `json:"id"`
@@ -59,6 +62,8 @@ type Snapshot struct {
 }
 type Fetch func(context.Context, string) (string, error)
 type Service struct {
+	sourceMu        sync.Mutex
+	sourceJobs      map[string]chan struct{}
 	work            *workService
 	controlChanging bool // guarded by mu; reserves ownership during explicit takeover
 	mu              sync.Mutex
@@ -87,6 +92,12 @@ func New(st *store.Store, r Runtime, journals ...*journal.Journal) *Service {
 	s := &Service{store: st, runtime: r, fetch: profiles.FetchSubscription, retryDelay: time.Second, drafts: map[string]importDraft{}, now: time.Now}
 	if len(journals) > 0 {
 		s.journal = journals[0]
+	}
+	s.sourceJobs = map[string]chan struct{}{}
+	if f, ok := r.(interface {
+		FetchSource(context.Context, string) (string, error)
+	}); ok {
+		s.fetch = f.FetchSource
 	}
 	s.initWorker()
 	return s
@@ -123,6 +134,7 @@ func (s *Service) RemoveProfile(c Caller, id string) error {
 	s.stateMu.Lock()
 	owner := s.worker.owner
 	removingActive := owner != nil && owner.UID == c.UID && owner.ProfileID == id
+	removingActive = removingActive || s.worker.switching != nil && s.worker.operationUID == c.UID && s.worker.operation.ProfileID == id
 	s.stateMu.Unlock()
 	if removingActive {
 		return errors.New("disconnect the profile before removing it")
@@ -148,6 +160,7 @@ func (s *Service) RemoveProfile(c Caller, id string) error {
 	if err == nil {
 		s.stateMu.Lock()
 		delete(s.worker.failures[c.UID], id)
+		delete(s.worker.switchFailures[c.UID], id)
 		s.stateMu.Unlock()
 		s.changed()
 	}
@@ -204,6 +217,7 @@ func (s *Service) RunSubscriptions(ctx context.Context) {
 	defer ticker.Stop()
 	for {
 		s.refreshDue(ctx, time.Now())
+		s.refreshSourcesDue(ctx)
 		select {
 		case <-ctx.Done():
 			return

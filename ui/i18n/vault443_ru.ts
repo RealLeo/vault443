@@ -222,6 +222,10 @@
       <source>The selected VPN files exceed the 8 MB import limit.</source>
       <translation>Выбранные файлы VPN превышают ограничение импорта 8 МБ.</translation>
     </message>
+    <message>
+      <source>Expected a vless://, trojan:// or ss:// link</source>
+      <translation>Ожидается ссылка vless://, trojan:// или ss://</translation>
+    </message>
   </context>
   <context>
     <name>IconPicker</name>
@@ -1430,6 +1434,92 @@ Domains: %2</source>
       <source>No work routes yet. Connect an OpenVPN, WireGuard or AmneziaWG profile.</source>
       <translation>Рабочих маршрутов пока нет. Подключите профиль OpenVPN, WireGuard или AmneziaWG.</translation>
     </message>
+    <message>
+      <source>Main VPN traffic (VLESS, Trojan or Shadowsocks/Outline). IP traffic through its TUN, including internal service requests. Work VPNs and encrypted transport overhead are excluded.</source>
+      <translation>Трафик основного VPN (VLESS, Trojan или Shadowsocks/Outline) через TUN, включая служебные запросы. Рабочие VPN и накладные расходы шифрованного транспорта не учитываются.</translation>
+    </message>
+    <message>
+      <source>Paste VLESS, Trojan, Shadowsocks or ssconf:// links, a WireGuard configuration or Amnezia vpn:// keys.</source>
+      <translation>Вставьте ссылки VLESS, Trojan, Shadowsocks, ssconf://, конфигурацию WireGuard или ключи Amnezia vpn://.</translation>
+    </message>
+    <message>
+      <source>Links / VPN configuration</source>
+      <translation>Ссылки / конфигурация VPN</translation>
+    </message>
+    <message>
+      <source>Outline · HTTPS / ssconf://</source>
+      <translation>Outline · HTTPS / ssconf://</translation>
+    </message>
+    <message>
+      <source>Updating Outline configuration</source>
+      <translation>Обновление Outline</translation>
+    </message>
+    <message>
+      <source>Outline · updated %1</source>
+      <translation>Outline · обновлено %1</translation>
+    </message>
+    <message>
+      <source>Source denied access. Cached connection is blocked.</source>
+      <translation>Источник запретил доступ. Подключение из кэша заблокировано.</translation>
+    </message>
+    <message>
+      <source>Using the last verified configuration.</source>
+      <translation>Используется последняя проверенная конфигурация.</translation>
+    </message>
+    <message>
+      <source>Verified configuration. Updates apply at the next connection.</source>
+      <translation>Конфигурация проверена. Обновления применятся при следующем подключении.</translation>
+    </message>
+    <message>
+      <source>Updating configuration…</source>
+      <translation>Обновление конфигурации…</translation>
+    </message>
+    <message>
+      <source>Update configuration</source>
+      <translation>Обновить конфигурацию</translation>
+    </message>
+    <message>
+      <source>Import .ovpn files from the main window. Work VPNs connect independently of the main VPN.</source>
+      <translation>Импортируйте файлы .ovpn из главного окна. Рабочие VPN подключаются независимо от основного VPN.</translation>
+    </message>
+    <message>
+      <source>Work routes: Pritunl handles work networks; the main VPN handles the internet.
+
+Full tunnel: the requested main VPN connection waits while Pritunl handles the internet, then resumes when those routes are released. Pritunl settings stay unchanged.</source>
+      <translation>Рабочие маршруты: Pritunl обслуживает рабочие сети, основной VPN — интернет.
+
+Полный туннель: основной VPN ожидает, пока Pritunl обслуживает интернет, и возобновляется после освобождения маршрутов. Настройки Pritunl не изменяются.</translation>
+    </message>
+    <message>
+      <source>Another user is using the VPN. Taking control disconnects all their main and work VPN connections. You can then connect your own profiles.</source>
+      <translation>VPN используется другим пользователем. Передача управления отключит все его основные и рабочие VPN. После этого вы сможете подключить свои профили.</translation>
+    </message>
+    <message>
+      <source>Import VPN links
+or add a subscription in settings.</source>
+      <translation>Импортируйте ссылки VPN
+или добавьте подписку в настройках.</translation>
+    </message>
+    <message>
+      <source>Preparing new profile</source>
+      <translation>Подготовка профиля</translation>
+    </message>
+    <message>
+      <source>Switching VPN</source>
+      <translation>Переключение VPN</translation>
+    </message>
+    <message>
+      <source>Restoring previous VPN</source>
+      <translation>Восстановление прежнего VPN</translation>
+    </message>
+    <message>
+      <source>Switch failed</source>
+      <translation>Переключение не удалось</translation>
+    </message>
+    <message>
+      <source>Switch cancelled</source>
+      <translation>Переключение отменено</translation>
+    </message>
   </context>
   <context>
     <name>QObject</name>
@@ -1484,6 +1574,26 @@ Domains: %2</source>
     <message>
       <source>Work VPN needs attention</source>
       <translation>Рабочий VPN требует внимания</translation>
+    </message>
+    <message>
+      <source>Main VPN: %1 · Work VPNs: %2 connected / %3 active</source>
+      <translation>Основной VPN: %1 · Рабочие: %2 подключено / %3 активно</translation>
+    </message>
+    <message>
+      <source>Main VPN: %1</source>
+      <translation>Основной VPN: %1</translation>
+    </message>
+    <message>
+      <source>Restoring previous VPN</source>
+      <translation>Восстановление прежнего VPN</translation>
+    </message>
+    <message>
+      <source>Switching to %1</source>
+      <translation>Переключение на %1</translation>
+    </message>
+    <message>
+      <source>Switch failed</source>
+      <translation>Переключение не удалось</translation>
     </message>
   </context>
   <context>
@@ -3131,6 +3241,210 @@ Domains: %2</source>
     <message>
       <source>a work VPN import may contain at most 32 profiles</source>
       <translation>Один импорт рабочих VPN может содержать не более 32 профилей</translation>
+    </message>
+    <message>
+      <source>Refreshing Outline configuration</source>
+      <translation>Обновление конфигурации Outline</translation>
+    </message>
+    <message>
+      <source>Starting Outline transport adapter</source>
+      <translation>Запуск транспорта Outline</translation>
+    </message>
+    <message>
+      <source>Source refresh failed; saved configuration retained</source>
+      <translation>Источник недоступен; сохранённая конфигурация оставлена</translation>
+    </message>
+    <message>
+      <source>no verified Outline configuration is available</source>
+      <translation>Нет проверенной конфигурации Outline</translation>
+    </message>
+    <message>
+      <source>dynamic profile not found</source>
+      <translation>Динамический профиль не найден</translation>
+    </message>
+    <message>
+      <source>dynamic profile no longer exists</source>
+      <translation>Динамический профиль был удалён</translation>
+    </message>
+    <message>
+      <source>source refresh could not be saved</source>
+      <translation>Не удалось сохранить обновление источника</translation>
+    </message>
+    <message>
+      <source>too many source refreshes</source>
+      <translation>Выполняется слишком много обновлений источников</translation>
+    </message>
+    <message>
+      <source>Outline provider: key expired</source>
+      <translation>Провайдер Outline: срок действия ключа истёк</translation>
+    </message>
+    <message>
+      <source>Outline provider: quota exceeded</source>
+      <translation>Провайдер Outline: квота исчерпана</translation>
+    </message>
+    <message>
+      <source>Outline provider: source access is expired or denied</source>
+      <translation>Провайдер Outline: срок доступа истёк или доступ запрещён</translation>
+    </message>
+    <message>
+      <source>Outline provider: configuration is unavailable</source>
+      <translation>Провайдер Outline: конфигурация недоступна</translation>
+    </message>
+    <message>
+      <source>configuration download failed (HTTPS, DNS, or timeout)</source>
+      <translation>Не удалось загрузить конфигурацию: HTTPS, DNS или тайм-аут</translation>
+    </message>
+    <message>
+      <source>Outline requires an ssconf:// or HTTPS URL</source>
+      <translation>Для Outline требуется ссылка ssconf:// или HTTPS</translation>
+    </message>
+    <message>
+      <source>invalid or oversized Outline document</source>
+      <translation>Документ Outline повреждён или превышает допустимый размер</translation>
+    </message>
+    <message>
+      <source>invalid Outline JSON/YAML</source>
+      <translation>Некорректный JSON/YAML Outline</translation>
+    </message>
+    <message>
+      <source>Outline must contain one document</source>
+      <translation>Outline должен содержать один документ</translation>
+    </message>
+    <message>
+      <source>Outline document must contain a Shadowsocks link</source>
+      <translation>Документ Outline должен содержать ссылку Shadowsocks</translation>
+    </message>
+    <message>
+      <source>Outline document must be an object or ss:// link</source>
+      <translation>Документ Outline должен быть объектом или ссылкой ss://</translation>
+    </message>
+    <message>
+      <source>unsupported Outline transport type</source>
+      <translation>Неподдерживаемый транспорт Outline</translation>
+    </message>
+    <message>
+      <source>extended Outline requires AES-GCM or ChaCha20 AEAD; Shadowsocks 2022 and XChaCha20 are unsupported</source>
+      <translation>Расширенный Outline требует AES-GCM или ChaCha20 AEAD; 2022 и XChaCha20 не поддерживаются</translation>
+    </message>
+    <message>
+      <source>Outline prefix leaves insufficient random salt for this cipher</source>
+      <translation>Префикс Outline оставляет слишком мало случайных байтов соли для этого шифра</translation>
+    </message>
+    <message>
+      <source>invalid Trojan link</source>
+      <translation>Некорректная ссылка Trojan</translation>
+    </message>
+    <message>
+      <source>Trojan password delimiters must be percent encoded</source>
+      <translation>Разделители в пароле Trojan должны быть URL-кодированы</translation>
+    </message>
+    <message>
+      <source>invalid Trojan parameters</source>
+      <translation>Некорректные параметры Trojan</translation>
+    </message>
+    <message>
+      <source>duplicate Trojan parameter</source>
+      <translation>Повторяющийся параметр Trojan</translation>
+    </message>
+    <message>
+      <source>Trojan requires TLS; REALITY and plaintext are unsupported</source>
+      <translation>Trojan требует TLS; REALITY и открытый транспорт не поддерживаются</translation>
+    </message>
+    <message>
+      <source>TLS certificate verification cannot be disabled</source>
+      <translation>Проверку сертификата TLS нельзя отключить</translation>
+    </message>
+    <message>
+      <source>conflicting TLS server names</source>
+      <translation>Конфликт имён TLS-сервера</translation>
+    </message>
+    <message>
+      <source>unsupported Shadowsocks cipher</source>
+      <translation>Неподдерживаемый шифр Shadowsocks</translation>
+    </message>
+    <message>
+      <source>unsupported Shadowsocks 2022 key chain</source>
+      <translation>Неподдерживаемая цепочка ключей Shadowsocks 2022</translation>
+    </message>
+    <message>
+      <source>Shadowsocks 2022 requires correctly sized Base64 keys</source>
+      <translation>Shadowsocks 2022 требует ключи Base64 правильной длины</translation>
+    </message>
+    <message>
+      <source>invalid Shadowsocks link</source>
+      <translation>Некорректная ссылка Shadowsocks</translation>
+    </message>
+    <message>
+      <source>invalid Shadowsocks credentials</source>
+      <translation>Некорректные учётные данные Shadowsocks</translation>
+    </message>
+    <message>
+      <source>External VPN released Internet; restoring protected main VPN</source>
+      <translation>Другой VPN освободил интернет; восстанавливается основной VPN</translation>
+    </message>
+    <message>
+      <source>Main VPN needs reconnect after external VPN</source>
+      <translation>После другого VPN требуется восстановить основной VPN</translation>
+    </message>
+    <message>
+      <source>Outline adapter did not become ready</source>
+      <translation>Адаптер Outline не запустился вовремя</translation>
+    </message>
+    <message>
+      <source>cannot start Outline adapter</source>
+      <translation>Не удалось запустить адаптер Outline</translation>
+    </message>
+    <message>
+      <source>installed Outline adapter unavailable</source>
+      <translation>Установленный адаптер Outline недоступен</translation>
+    </message>
+    <message>
+      <source>Profile switch is no longer active</source>
+      <translation>Переключение профиля уже завершено</translation>
+    </message>
+    <message>
+      <source>A profile switch is already in progress</source>
+      <translation>Переключение профиля уже выполняется</translation>
+    </message>
+    <message>
+      <source>Profile switch cancelled</source>
+      <translation>Переключение профиля отменено</translation>
+    </message>
+    <message>
+      <source>Previous profile is unavailable or denied by its source</source>
+      <translation>Прежний профиль недоступен или заблокирован источником</translation>
+    </message>
+    <message>
+      <source>Candidate profile is unavailable or denied by its source</source>
+      <translation>Новый профиль недоступен или заблокирован источником</translation>
+    </message>
+    <message>
+      <source>Previous connection could not be restored; traffic remains protected</source>
+      <translation>Не удалось восстановить прежнее подключение; трафик остаётся защищённым</translation>
+    </message>
+    <message>
+      <source>Previous connection is unavailable; traffic remains protected</source>
+      <translation>Прежнее подключение недоступно; трафик остаётся защищённым</translation>
+    </message>
+    <message>
+      <source>Another VPN provides Internet access; switching is postponed</source>
+      <translation>Интернет обслуживает другой VPN; переключение отложено</translation>
+    </message>
+    <message>
+      <source>Cannot prepare private configuration</source>
+      <translation>Не удалось подготовить приватную конфигурацию</translation>
+    </message>
+    <message>
+      <source>Xray rejected the prepared configuration</source>
+      <translation>Xray отклонил подготовленную конфигурацию</translation>
+    </message>
+    <message>
+      <source>Candidate connection was not verified</source>
+      <translation>Новое подключение не прошло проверку</translation>
+    </message>
+    <message>
+      <source>Outline alternatives exceed the bounded search limit (256 configurations)</source>
+      <translation>Превышен предел перебора Outline (256 конфигураций)</translation>
     </message>
   </context>
   <context>

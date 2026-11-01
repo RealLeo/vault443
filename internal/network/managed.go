@@ -50,7 +50,13 @@ func WithKernel(ctx context.Context, f func(Kernel) error) error {
 func (Kernel) Run(ctx context.Context, path string, args []string, input string) ([]byte, error) {
 	if path == "/usr/sbin/nft" && strings.Contains(input, "# vault443-managed-output") {
 		input = strings.ReplaceAll(input, "# vault443-managed-output", managedRules("output"))
+
 		input = strings.ReplaceAll(input, "# vault443-managed-forward", managedRules("forward"))
+	}
+	if path == "/usr/sbin/nft" {
+		input = strings.ReplaceAll(input, "# vault443-source-rules", sourceRules())
+		input = strings.ReplaceAll(input, "# vault443-source-elements", sourceElements("add element inet "+TableName))
+		input = strings.ReplaceAll(input, "# vault443-work-source-elements", sourceElements("add element inet vault443_work"))
 	}
 	return runCommand(ctx, command{Path: path, Args: args, Input: input})
 }

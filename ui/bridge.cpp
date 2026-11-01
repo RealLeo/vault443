@@ -46,7 +46,13 @@ Bridge::Bridge(bool demo, QObject *parent)
         }
         if (m_bootProfiles != bootProfiles) { m_bootProfiles = bootProfiles; emit bootProfilesChanged(); }
         auto profiles = m_snapshot.value("profiles").toList();
-        for (auto &value : profiles) { auto profile = value.toMap(); profile["kind"] = "vless"; value = profile; }
+        for (auto &value : profiles) {
+            auto profile = value.toMap();
+            if (profile.value("kind").toString().isEmpty()) profile["kind"] = "vless";
+            if (!profile.value("source").toMap().isEmpty()) profile["sourceKind"] = "outline";
+            profile.remove("source"); // Source polling must not recycle cards.
+            value = profile;
+        }
         // Runtime stages change independently of the library. Replacing a
         // QVariantList model on each stage recycled visible cards and lost the
         // scroll/focus while another work connection was being clicked.
@@ -302,6 +308,8 @@ void Bridge::acceptSnapshot(const QVariantMap &snapshot) {
 }
 
 void Bridge::serviceChanged(const QString &, const QString &, const QString &newOwner) {
+    m_cancelSwitchQueued = false; m_cancelSwitchPending = false;
+    m_sourceRefreshPending.clear();
     ++m_serviceGeneration;
     const auto pendingTokens = m_requests.keys();
     for (auto token : pendingTokens) endRequest(token);
@@ -434,7 +442,27 @@ void Bridge::copyProfileLogs() {
     QApplication::clipboard()->setText(lines.join('\n'));
 }
 void Bridge::connectProfile(const QString &id) { requestConnection("connect", id); }
+void Bridge::cancelProfileSwitch(const QString &operationId) {
+    if (m_networkPending > 0) { m_cancelSwitchQueued = true; return; }
+    if (operationId.isEmpty() || m_cancelSwitchPending) return;
+    if (m_demo) {
+        auto op = m_snapshot.value("operation").toMap(); op["stage"] = "switch_cancelled";
+        m_snapshot["operation"] = op; m_snapshot["activeProfileId"] = op.value("previousProfileId");
+        m_snapshot["runtime"] = QVariantMap{{"state", "connected"}};
+        m_connectionRequest.clear(); emit snapshotChanged(); emit connectionRequestChanged(); return;
+    }
+    m_cancelSwitchPending = true;
+    call("CancelSwitch", {operationId}, [this](const QVariantMap &) {m_cancelSwitchPending=false; refresh();},
+         RequestScope::Background, {}, [this, operationId](const QVariantMap &r) {
+             m_cancelSwitchPending=false;
+             if (m_snapshot.value("operation").toMap().value("id").toString() != operationId || !m_connectionRequest.isEmpty()) return;
+             m_connectionError=r.value("error").toString();
+             m_connectionErrorProfile=m_snapshot.value("operation").toMap().value("profileId").toString();
+             emit connectionRequestChanged(); refresh();
+         });
+}
 void Bridge::disconnectProfile() {
+    m_cancelSwitchQueued = false;
     const auto id = m_connectionRequest.value("profileId", m_snapshot.value("activeProfileId")).toString();
     // Keep D-Bus acceptance ordered even if Cancel is clicked before Connect's ACK.
     if (m_networkPending > 0) {
@@ -449,6 +477,8 @@ void Bridge::requestConnection(const QString &action, const QString &profileId) 
     m_connectionError.clear(); m_connectionErrorProfile.clear(); m_acceptedOperationId.clear();
     m_unconfirmedRequest.clear();
     m_connectionRequest = {{"action", action}, {"profileId", profileId}, {"stage", "requested"}, {"stageStartedAt", QDateTime::currentMSecsSinceEpoch()}};
+    if (action == "connect" && !m_snapshot.value("activeProfileId").toString().isEmpty())
+        m_connectionRequest["previousProfileId"] = m_snapshot.value("activeProfileId");
     emit connectionRequestChanged();
     const auto method = action == "connect" ? QString("RequestConnect") : QString("RequestDisconnect");
     if (m_demo) {
@@ -486,6 +516,7 @@ void Bridge::requestConnection(const QString &action, const QString &profileId) 
         }
         emit connectionRequestChanged(); emit operationDone(method, result);
         if (m_disconnectQueued) { m_disconnectQueued = false; requestConnection("disconnect", profileId); }
+        else if (m_cancelSwitchQueued) { m_cancelSwitchQueued=false; if (m_connectionError.isEmpty()) cancelProfileSwitch(m_acceptedOperationId); }
         refresh();
     });
 }
@@ -597,6 +628,22 @@ void Bridge::updateDemo(const QString &state, const QString &id) {
 }
 void Bridge::setDemoState(const QString &state) {
     if (!m_demo) return;
+    if (state.startsWith("switch-")) {
+        updateDemo("connected", "demo-main");
+        const auto candidate = m_snapshot.value("profiles").toList()[1].toMap().value("id");
+        const auto stage = state == "switch-failed" ? "switch_failed" : state == "switch-restoring" ? "restoring_previous" : "preparing_switch";
+        QVariantMap op{{"id", "demo-switch"}, {"action", "connect"}, {"profileId", candidate}, {"previousProfileId", "demo-main"},
+                       {"stage", stage}, {"stageStartedAt", QDateTime::currentMSecsSinceEpoch()}};
+        if (state == "switch-failed") op["failure"] = QVariantMap{{"profileId", candidate}, {"code", "switch_failed"}, {"message", "Xray rejected the prepared configuration"}};
+        m_snapshot["operation"] = op; emit snapshotChanged(); return;
+    }
+    if (state == "proxy") {
+        auto profiles = m_snapshot.value("profiles").toList();
+        auto trojan = profiles[1].toMap(); trojan["kind"] = "trojan"; profiles[1] = trojan;
+        auto outline = profiles[2].toMap(); outline["kind"] = "shadowsocks"; outline["transport"] = "outline"; outline["security"] = "shadowsocks";
+        outline["source"] = QVariantMap{{"kind","outline"},{"updatedAt",QDateTime::currentSecsSinceEpoch()}, {"usingCached",false}, {"blocked",false}, {"updating",false}};
+        profiles[2] = outline; m_snapshot["profiles"] = profiles; emit snapshotChanged(); return;
+    }
     if (state == "offline") { setOnline(false); return; }
     if (state == "foreign") { m_snapshot["busyByOtherUser"] = true; m_snapshot["activeProfileId"] = ""; emit snapshotChanged(); return; }
     if (state == "large-traffic") {
@@ -736,6 +783,12 @@ void Bridge::demoCall(const QString &method, const QVariantList &args, Reply rep
         updateDemo("connected", args.value(0).toString()); result["operationId"] = "demo-operation";
     }
     else if (method == "RequestDisconnect") { updateDemo("disconnected"); result["operationId"] = "demo-operation"; }
+    else if (method == "RequestSourceRefresh") {
+        auto profiles = m_snapshot.value("profiles").toList();
+        for (auto &value : profiles) { auto p = value.toMap(); if (p.value("id") != args.value(0)) continue;
+            auto source = p.value("source").toMap(); source["updatedAt"] = QDateTime::currentSecsSinceEpoch(); source["usingCached"] = false; source["lastError"] = ""; p["source"] = source; value = p; }
+        m_snapshot["profiles"] = profiles; emit snapshotChanged(); result["operationId"] = "demo-source";
+    }
     else if (method == "SetBootProfile") { m_snapshot["bootProfileId"] = args.value(0); emit snapshotChanged(); }
     else if (method == "UpdateProfile" || method == "SetProfileDebug" || method == "RemoveProfile" || method == "UpdateWorkProfile" || method == "SetWorkDebug" || method == "RemoveWorkProfile") {
         const auto key = isWorkID(args.value(0).toString()) ? "workProfiles" : "profiles";
@@ -755,13 +808,13 @@ void Bridge::demoCall(const QString &method, const QVariantList &args, Reply rep
         for (int i = 0; i < lines.size(); ++i) {
             const auto line = lines[i].trimmed(); if (line.isEmpty()) continue;
             const QUrl url(line);
-            if (url.scheme() != "vless" || url.host().isEmpty()) { errors.append(QVariantMap{{"line",i+1},{"message",QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "Expected a vless:// link"))}}); continue; }
+            if (!QStringList{"vless", "trojan", "ss"}.contains(url.scheme()) || url.host().isEmpty()) { errors.append(QVariantMap{{"line",i+1},{"message",QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "Expected a vless://, trojan:// or ss:// link"))}}); continue; }
             auto identity = url; identity.setFragment({});
             const auto id = QString::fromLatin1(QCryptographicHash::hash(identity.toEncoded(), QCryptographicHash::Sha256).toHex().left(24));
             bool duplicate = false;
             for (const auto &existing : m_profiles) if (existing.toMap().value("id").toString() == id) duplicate = true;
             for (const auto &existing : profiles) if (existing.toMap().value("id").toString() == id) duplicate = true;
-            profiles.append(QVariantMap{{"iconId","antenna"},{"debugLogging",false},{"id", id}, {"line",i+1}, {"name",url.fragment().isEmpty() ? url.host() : url.fragment()}, {"server",url.host()}, {"transport","tcp"},{"security","tls"},{"duplicate",duplicate}});
+            profiles.append(QVariantMap{{"kind",url.scheme() == "ss" ? "shadowsocks" : url.scheme()},{"iconId","antenna"},{"debugLogging",false},{"id", id}, {"line",i+1}, {"name",url.fragment().isEmpty() ? url.host() : url.fragment()}, {"server",url.host()}, {"transport","tcp"},{"security","tls"},{"duplicate",duplicate}});
         }
         result = {{"profiles",profiles},{"errors",errors}};
         {
@@ -938,4 +991,11 @@ void Bridge::workRouteCall(const QString &method, const QVariantList &args) {
         emit workRoutesChanged();
         if (method != "GetWorkRoutes" && m_workRoutesError.isEmpty()) refreshWorkRoutes();
     });
+}
+
+void Bridge::refreshProfileSource(const QString &id) {
+    if (id.isEmpty() || m_sourceRefreshPending.contains(id)) return;
+    m_sourceRefreshPending.insert(id);
+    call("RequestSourceRefresh", {id}, [this,id](const QVariantMap &) {m_sourceRefreshPending.remove(id);refresh();},
+         RequestScope::Background, {}, [this,id](const QVariantMap &r) {m_sourceRefreshPending.remove(id);setError(r.value("error").toString());});
 }

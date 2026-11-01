@@ -16,13 +16,15 @@ import (
 // Operation is an accepted intention, independent of an individual retry. Times
 // are Unix milliseconds so clients can display elapsed time without guessing.
 type Operation struct {
-	ID             string `json:"id"`
-	Action         string `json:"action"`
-	ProfileID      string `json:"profileId,omitempty"`
-	Stage          string `json:"stage"`
-	StageStartedAt int64  `json:"stageStartedAt"`
-	Attempt        int    `json:"attempt"`
-	NextRetryAt    int64  `json:"nextRetryAt,omitempty"`
+	ID                string   `json:"id"`
+	Action            string   `json:"action"`
+	ProfileID         string   `json:"profileId,omitempty"`
+	Stage             string   `json:"stage"`
+	StageStartedAt    int64    `json:"stageStartedAt"`
+	Attempt           int      `json:"attempt"`
+	NextRetryAt       int64    `json:"nextRetryAt,omitempty"`
+	PreviousProfileID string   `json:"previousProfileId,omitempty"`
+	Failure           *Failure `json:"failure,omitempty"`
 }
 type Failure struct {
 	ProfileID    string `json:"profileId"`
@@ -38,6 +40,8 @@ type workItem struct {
 	done       chan error
 }
 type workerState struct {
+	confirmed        *model.Profile
+	switching        *profileSwitch
 	queue            []*workItem
 	running          bool
 	generation       uint64
@@ -51,6 +55,7 @@ type workerState struct {
 	runtime          model.RuntimeStatus
 	diagnostics      interface{}
 	failures         map[uint32]map[string]Failure
+	switchFailures   map[uint32]map[string]Failure
 	wake             chan struct{}
 }
 
@@ -58,6 +63,7 @@ func (s *Service) initWorker() {
 	s.worker.runtime = s.runtime.Status()
 	s.worker.diagnostics = s.runtime.Diagnostics(context.Background())
 	s.worker.failures = make(map[uint32]map[string]Failure)
+	s.worker.switchFailures = make(map[uint32]map[string]Failure)
 	s.worker.wake = make(chan struct{}, 1)
 	s.recoverFailures()
 }
@@ -108,6 +114,10 @@ func copyOperation(op *Operation) *Operation {
 		return nil
 	}
 	value := *op
+	if op.Failure != nil {
+		failure := *op.Failure
+		value.Failure = &failure
+	}
 	return &value
 }
 func copyStatus(status model.RuntimeStatus) model.RuntimeStatus {
@@ -161,14 +171,18 @@ func (s *Service) GetSnapshot(c Caller) Snapshot {
 	defer s.stateMu.Unlock()
 	out := Snapshot{Profiles: []ProfileInfo{}, Subscriptions: []SubscriptionInfo{}, Runtime: copyStatus(s.worker.runtime), CanAdmin: c.Admin, WorkProfiles: s.workProfiles(c)}
 	for _, p := range u.Profiles {
-		out.Profiles = append(out.Profiles, ProfileInfo{ID: p.ID, Name: p.Name, Server: p.Server, Transport: p.Transport, Security: p.Security, IconID: p.Icon(), DebugLogging: p.DebugLogging})
+		view := ProfileInfo{Kind: p.Protocol(), Source: s.sourceInfo(c.UID, p), ID: p.ID, Name: p.Name, Server: p.Server, Transport: p.Transport, Security: p.Security, IconID: p.Icon(), DebugLogging: p.DebugLogging}
+		if failure, ok := s.worker.switchFailures[c.UID][p.ID]; ok {
+			view.SwitchFailure = &failure
+		}
+		out.Profiles = append(out.Profiles, view)
 	}
 	for _, sub := range u.Subscriptions {
 		out.Subscriptions = append(out.Subscriptions, SubscriptionInfo{sub.ID, sub.Name, sub.UpdatedAt})
 	}
 	if owner := s.ownerLocked(st); owner != nil {
 		out.BusyByOtherUser = owner.UID != c.UID
-		if !out.BusyByOtherUser {
+		if !out.BusyByOtherUser && s.worker.confirmed != nil {
 			out.ActiveProfileID = owner.ProfileID
 		}
 	}
@@ -230,7 +244,8 @@ func (s *Service) profileDiagnostics(c Caller, id string) (interface{}, error) {
 	if s.worker.operationUID != c.UID || (id != "" && op != nil && op.ProfileID != id) {
 		op = nil
 	}
-	return map[string]interface{}{"network": network, "runtime": copyStatus(current), "operation": op, "lastFailure": s.latestFailureLocked(c.UID, id), "profileCount": len(u.Profiles), "subscriptions": subs, "capturedAt": time.Now().UnixMilli()}, nil
+	profile, _ := st.Profile(&store.Session{UID: c.UID, ProfileID: id})
+	return map[string]interface{}{"protocol": profile.Protocol(), "source": s.sourceInfo(c.UID, profile), "network": network, "runtime": copyStatus(current), "operation": op, "lastFailure": s.latestFailureLocked(c.UID, id), "profileCount": len(u.Profiles), "subscriptions": subs, "capturedAt": time.Now().UnixMilli()}, nil
 }
 
 // enqueueLocked and workLoop implement one sequential network executor. The
@@ -302,10 +317,17 @@ func (s *Service) progress(status model.RuntimeStatus) {
 		return
 	}
 	s.worker.runtime = copyStatus(status)
-	s.syncTrafficLocked(status, sample, time.Now())
+	if sw := s.worker.switching; sw != nil && sw.cutover && !sw.restoring {
+		// A remains the confirmed identity until the durable commit. Never
+		// publish B's successful probe as an active/connected A.
+		s.worker.runtime.State = "connecting"
+	}
+	if s.worker.switching == nil || !s.worker.switching.cutover {
+		s.syncTrafficLocked(status, sample, time.Now())
+	}
 	s.worker.diagnostics = diagnostics
-	if op := s.worker.operation; op != nil && status.Stage != "" && op.NextRetryAt == 0 {
-		if op.Stage != status.Stage {
+	if op := s.worker.operation; op != nil && status.Stage != "" && op.NextRetryAt == 0 && (s.worker.switching != nil || s.worker.owner != nil && op.ProfileID == s.worker.owner.ProfileID) {
+		if op.Stage != status.Stage && (s.worker.switching == nil || !s.worker.switching.restoring && status.Stage != "connected") {
 			op.Stage = status.Stage
 			op.StageStartedAt = status.StageStartedAt
 			if op.StageStartedAt == 0 {
@@ -326,7 +348,9 @@ func (s *Service) captureRuntime(generation uint64) {
 	}
 	if generation == s.worker.generation && !s.cleanupFailedLocked() {
 		s.worker.runtime = copyStatus(status)
-		s.syncTrafficLocked(status, sample, time.Now())
+		if s.worker.switching == nil || !s.worker.switching.cutover {
+			s.syncTrafficLocked(status, sample, time.Now())
+		}
 		s.worker.diagnostics = diagnostics
 	}
 	s.stateMu.Unlock()
@@ -369,12 +393,25 @@ func (s *Service) requestConnect(ctx context.Context, c Caller, id string) (stri
 		s.stateMu.Unlock()
 		return "", nil, errors.New("network cleanup is in progress; wait until disconnection completes")
 	}
+	if s.worker.switching != nil {
+		s.stateMu.Unlock()
+		return "", nil, errors.New("A profile switch is already in progress")
+	}
 	s.stateMu.Unlock()
 	wanted := &store.Session{UID: c.UID, ProfileID: id}
 	p, ok := st.Profile(wanted)
 	if !ok {
 		return "", nil, errors.New("profile not found")
 	}
+	s.stateMu.Lock()
+	delete(s.worker.switchFailures[c.UID], id)
+	if s.worker.confirmed != nil && s.worker.owner != nil {
+		id, job := s.requestSwitchLocked(ctx, c, wanted, p)
+		s.stateMu.Unlock()
+		s.changed()
+		return id, job, nil
+	}
+	s.stateMu.Unlock()
 	if err := s.store.Update(func(st *store.State) error { st.Desired = wanted; return nil }); err != nil {
 		return "", nil, err
 	}
@@ -437,6 +474,7 @@ func (s *Service) requestDisconnect(ctx context.Context, c Caller, takeover bool
 		s.worker.cancel()
 	}
 	s.worker.generation++
+	s.worker.switching = nil
 	generation := s.worker.generation
 	s.worker.sequence++
 	operationID := fmt.Sprintf("%d-%d", time.Now().UnixNano(), s.worker.sequence)
@@ -460,6 +498,8 @@ func (s *Service) requestDisconnect(ctx context.Context, c Caller, takeover bool
 			if err == nil {
 				s.finishTrafficLocked(time.Now())
 				s.worker.owner = nil
+				s.worker.confirmed = nil
+				s.worker.switching = nil
 				s.worker.operation.Stage = "disconnected"
 			} else {
 				s.worker.operation.Stage = "cleanup_failed"
@@ -521,6 +561,19 @@ func (s *Service) attempt(ctx context.Context, generation uint64, owner *store.S
 	s.stage(generation, "enabling_guard")
 	err := s.runtime.Arm(ctx)
 	s.captureRuntime(generation)
+	if err == nil && p.Source != nil && ctx.Err() == nil {
+		s.stage(generation, "refreshing_source")
+		s.stateMu.Lock()
+		first := s.worker.operation != nil && s.worker.operation.Attempt <= 1
+		s.stateMu.Unlock()
+		p, err = s.refreshSource(ctx, owner.UID, p.ID, first)
+		if err == nil {
+			s.beginLog(owner, p)
+			if p.Source.UsingCached {
+				s.log("warning", p.Source.LastError)
+			}
+		}
+	}
 	if err == nil && ctx.Err() == nil {
 		s.stage(generation, "checking_vpn")
 		err = s.runtime.Connect(ctx, p)
@@ -529,6 +582,10 @@ func (s *Service) attempt(ctx context.Context, generation uint64, owner *store.S
 		return ctx.Err()
 	}
 	status := s.runtime.Status()
+	if err != nil && status.State != "error" {
+		status.State = "error"
+		status.Message = err.Error()
+	}
 	s.captureRuntime(generation)
 	s.stateMu.Lock()
 	if generation != s.worker.generation {
@@ -543,6 +600,10 @@ func (s *Service) attempt(ctx context.Context, generation uint64, owner *store.S
 	}
 	s.retryDelay = time.Second
 	s.nextRetry = time.Time{}
+	if status.State == "connected" {
+		confirmed := p
+		s.worker.confirmed = &confirmed
+	}
 	stage := "connected"
 	if status.State == "paused_external" {
 		stage = "paused_external"
@@ -766,8 +827,11 @@ func (s *Service) tickJob(ctx context.Context, now time.Time) *workItem {
 			s.worker.owner = copyOwner(owner)
 			s.worker.operationUID = owner.UID
 			s.worker.operation.Attempt++
+			s.worker.operation.ProfileID = p.ID
+			s.worker.operation.PreviousProfileID = ""
+			s.worker.operation.Failure = nil
 			s.worker.operation.NextRetryAt = 0
-		} else if generation == s.worker.generation && s.worker.operation != nil && s.worker.operation.Action == "connect" && status.State == "paused_external" {
+		} else if generation == s.worker.generation && s.worker.operation != nil && s.worker.operation.Action == "connect" && owner != nil && s.worker.operation.ProfileID == owner.ProfileID && status.State == "paused_external" {
 			s.worker.operation.Stage = "paused_external"
 			s.worker.operation.NextRetryAt = 0
 			s.nextRetry = time.Time{}

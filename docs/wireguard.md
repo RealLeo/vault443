@@ -3,7 +3,7 @@
 Use Import to select `.conf` / `.vpn` files or paste native configuration text
 or an autonomous Amnezia `vpn://` client export. Review profiles and choose
 emblems before saving. Each profile starts manually without sudo, independent
-of VLESS/OpenVPN. Closing the window does not disconnect it. Same-boot daemon
+of the main Internet connection and OpenVPN. Closing the window does not disconnect it. Same-boot daemon
 recovery restores requested connections; reboot does not autostart work profiles.
 
 ## Engines and configuration
@@ -53,10 +53,11 @@ domains request the root zone and use existing provider-conflict resolution.
 Domain-only DNS settings without a server are rejected.
 
 All managed protocols share the [work routing coordinator](work-vpn.md).
-Specific work routes beat Docker; full tunnels pause VLESS. Failed peers,
+Specific work routes beat Docker; full tunnels pause the main Internet VPN. Failed peers,
 engine crashes and supervisor recovery retain destination protection. Explicit
 Disconnect releases the selected connection only. IPv4/IPv6 and Docker forwarded
-traffic use the same guard. The bottom counters still measure VLESS only.
+traffic use the same guard. The bottom counters measure only the main Internet VPN
+(VLESS, Trojan or Shadowsocks/Outline).
 
 Owned interfaces carry service-generated names and ownership metadata. A kernel
 WireGuard interface surviving daemon death is validated before reuse/removal.

@@ -79,6 +79,13 @@ mv /fixture/server.next.json /fixture/server.json
 printf 'vless://11111111-2222-4333-8444-555555555555@192.0.2.1:8444?security=reality&type=tcp&flow=xtls-rprx-vision&sni=vpn.e2e.invalid&fp=chrome&pbk=%s&sid=0123456789abcdef#Private-REALITY\n' "$reality_public" >/fixture/reality.uri
 chmod 0600 /fixture/reality.uri
 unset reality_private reality_public
+if [ "${VAULT443_PROXY_E2E:-}" = 1 ]; then
+  python3 /src/tests/e2e/proxy-fixture.py
+  if [ "${VAULT443_QUIC_E2E:-}" = 1 ]; then ip netns exec fixture /src/.cache/quic-fixture server >/results/quic-server.log 2>&1 & fi
+  ip netns exec fixture /usr/lib/vault443/xray run -config /fixture/outline-exit.json >/results/outline-exit.log 2>&1 &
+  install -m755 /src/.cache/outline/amd64/vault443-outline /usr/lib/vault443/vault443-outline
+  ip netns exec fixture /src/.cache/outline/testserver >/results/outline-fixture.log 2>&1 &
+fi
 ip netns exec fixture /usr/lib/vault443/xray run -config /fixture/server.json >/results/server.log 2>&1 &
 
 if [ "${VAULT443_REAL_SYSTEMD:-}" = 1 ]; then

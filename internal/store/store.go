@@ -44,7 +44,7 @@ type State struct {
 func UserKey(uid uint32) string             { return strconv.FormatUint(uint64(uid), 10) }
 func (s State) User(uid uint32) User        { return s.Users[UserKey(uid)] }
 func (s *State) SetUser(uid uint32, u User) { s.Users[UserKey(uid)] = u }
-func (s *State) Profile(session *Session) (model.Profile, bool) {
+func (s State) Profile(session *Session) (model.Profile, bool) {
 	if session == nil {
 		return model.Profile{}, false
 	}
@@ -67,7 +67,7 @@ type Store struct {
 // OpenExclusive serializes the daemon and root maintenance commands. A second
 // process cannot race a running service's in-memory copy of the state document.
 func OpenExclusive(dir string, allowUnprivileged bool) (*Store, error) {
-	s, err := Open(dir, allowUnprivileged)
+	s, err := open(dir, allowUnprivileged, false)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +110,9 @@ func (s *Store) Close() error {
 }
 
 func Open(dir string, allowUnprivileged bool) (*Store, error) {
+	return open(dir, allowUnprivileged, true)
+}
+func open(dir string, allowUnprivileged, migrate bool) (*Store, error) {
 	if !filepath.IsAbs(dir) {
 		return nil, errors.New("state directory must be absolute")
 	}
@@ -155,7 +158,7 @@ func Open(dir string, allowUnprivileged bool) (*Store, error) {
 	if err = secureInfo(info, owner, true); err != nil {
 		return nil, err
 	}
-	s := &Store{dir: dir, owner: owner, state: State{Version: 2, Users: map[string]User{}}}
+	s := &Store{dir: dir, owner: owner, state: State{Version: 3, Users: map[string]User{}}}
 	path := filepath.Join(dir, "state.json")
 	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
 	if os.IsNotExist(err) {
@@ -188,7 +191,8 @@ func Open(dir string, allowUnprivileged bool) (*Store, error) {
 	if d.Decode(&extra) != io.EOF {
 		return nil, errors.New("invalid trailing state data")
 	}
-	if s.state.Version != 2 || s.state.Users == nil {
+	legacy := s.state.Version == 2
+	if (s.state.Version != 3 && !legacy) || s.state.Users == nil {
 		return nil, errors.New("unsupported state version")
 	}
 	if _, ok := s.state.Profile(s.state.Boot); s.state.Boot != nil && !ok {
@@ -196,6 +200,25 @@ func Open(dir string, allowUnprivileged bool) (*Store, error) {
 	}
 	if _, ok := s.state.Profile(s.state.Desired); s.state.Desired != nil && !ok {
 		return nil, errors.New("desired profile is missing")
+	}
+	if legacy && migrate {
+		for key, user := range s.state.Users {
+			for i := range user.Profiles {
+				p := &user.Profiles[i]
+				if p.Protocol() != "vless" || p.Source != nil || p.Outline != nil || p.Password != "" || p.Method != "" {
+					return nil, errors.New("invalid legacy proxy profile")
+				}
+				p.Kind = "vless"
+			}
+			s.state.Users[key] = user
+		}
+		if err = s.backupLegacy(original); err != nil {
+			return nil, err
+		}
+		s.state.Version = 3
+		if err = s.save(s.state); err != nil {
+			return nil, err
+		}
 	}
 	return s, nil
 }

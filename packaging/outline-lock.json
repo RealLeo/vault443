@@ -1,0 +1,22 @@
+{
+  "modules": [
+    {
+      "module": "golang.getoutline.org/sdk",
+      "version": "v0.1.0-rc1",
+      "commit": "aa3171c04df0c66d5047e16229933c81ce2ded16",
+      "zipSha256": "b2ab967901618d17f8603b3dd4194ced48c2028ad8604de2b7d8de81270e186f"
+    },
+    {
+      "module": "golang.getoutline.org/sdk/x",
+      "version": "v0.0.9-alpha.1",
+      "commit": "6ba38df544ba29d9d2c86e689e0add30338ec403",
+      "zipSha256": "4e5072e18f131a2d6fe8c21e0528182202085fbf3deab21c98465c5d39c0d7fc"
+    },
+    {
+      "module": "github.com/things-go/go-socks5",
+      "version": "v0.0.5",
+      "commit": "8de715f29cc8d0002d9e56e3bab208988d9cb3c6",
+      "zipSha256": "f488adffb29b9b4f0ace6965097c854db4727b196e22aefe919eca6edf448461"
+    }
+  ]
+}

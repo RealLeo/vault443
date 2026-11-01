@@ -344,3 +344,15 @@ func (a *slowDiagnosticsAPI) GetProfileDiagnostics(sender dbus.Sender, id string
 	}
 	return a.API.GetProfileDiagnostics(sender, id)
 }
+
+func (r *guiRuntime) FetchSource(ctx context.Context, raw string) (string, error) {
+	if raw != "https://outline.example/synthetic" {
+		return "", errors.New("fixture source unavailable")
+	}
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case <-time.After(300 * time.Millisecond):
+	}
+	return "ss://aes-256-gcm:synthetic-password@source.example:443", nil
+}

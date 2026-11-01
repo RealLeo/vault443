@@ -39,7 +39,7 @@ func run() error {
 	xray := flag.String("xray", "/usr/lib/vault443/xray", "packaged Xray executable")
 	check := flag.Bool("check", false, "inspect configuration without writes, D-Bus or network changes")
 	dry := flag.Bool("dry-run", false, "alias for the side-effect-free check mode")
-	checkProfile := flag.Bool("check-profile", false, "read bounded VLESS links from stdin and print a redacted preview")
+	checkProfile := flag.Bool("check-profile", false, "read bounded VLESS/Trojan/Shadowsocks links from stdin and print a redacted preview")
 	bootGuard := flag.Bool("boot-guard", false, "arm persisted boot/recovery protection before networking; no D-Bus or connection")
 	releaseNetwork := flag.Bool("release-network", false, "root maintenance: after stopping daemon, clear desired/boot sessions and release owned networking")
 	openVPNEvent := flag.Bool("openvpn-event", false, "internal authenticated OpenVPN event handler")
@@ -95,6 +95,12 @@ func run() error {
 	s := service.New(st, runtime)
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
+	resetCtx, stopReset := context.WithTimeout(ctx, 10*time.Second)
+	err = network.ResetSourceDownloads(resetCtx)
+	stopReset()
+	if err != nil {
+		return fmt.Errorf("cannot expire source download permissions: %w", err)
+	}
 	if *releaseNetwork {
 		releaseCtx, stop := context.WithTimeout(ctx, 30*time.Second)
 		defer stop()

@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -55,6 +56,29 @@ func answer(q []byte) ([]byte, error) {
 }
 func main() {
 	web := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/outline" {
+			data, e := os.ReadFile("/fixture/dynamic-outline")
+			if e != nil {
+				http.Error(w, "unavailable", 503)
+				return
+			}
+			w.Header().Set("Content-Type", "text/plain")
+			_, _ = w.Write(data)
+			return
+		}
+		if r.URL.Path == "/redirect-local" {
+			http.Redirect(w, r, "https://127.0.0.1/private", http.StatusFound)
+			return
+		}
+		if r.URL.Path == "/slow-source" {
+			select {
+			case <-r.Context().Done():
+				return
+			case <-time.After(15 * time.Second):
+			}
+			return
+		}
+
 		if r.URL.Path == "/upload" {
 			n, err := io.Copy(io.Discard, http.MaxBytesReader(w, r.Body, 8<<20))
 			if err != nil {

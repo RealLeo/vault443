@@ -2,23 +2,23 @@
   <img src="assets/profile-icons/vault-door.png" width="96" height="96" alt="Vault 443 vault door emblem">
 </p>
 <h1 align="center">Vault 443</h1>
-<p align="center"><strong>A retro terminal for modern VLESS connections.</strong></p>
+<p align="center"><strong>A retro terminal for modern VPN connections.</strong></p>
 <p align="center">
   A native Ubuntu VPN client with worn brass, green phosphor, and one-click connections.<br>
-  Qt Quick on the desktop. Go behind the scenes. VLESS, OpenVPN, WireGuard and AmneziaWG in one place.
+  Qt Quick on the desktop. Go behind the scenes. VLESS, Trojan, Shadowsocks/Outline and your work VPNs in one place.
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Ubuntu-24.04%20%7C%2026.04-E95420?style=flat-square" alt="Ubuntu 24.04 and 26.04">
-  <img src="https://img.shields.io/badge/version-1.2.1-b6a166?style=flat-square" alt="Version 1.2.1">
+  <img src="https://img.shields.io/badge/version-1.3.1-b6a166?style=flat-square" alt="Version 1.3.1">
   <img src="https://img.shields.io/badge/Qt-6%20Quick-41CD52?style=flat-square" alt="Qt 6 Quick">
-  <img src="https://img.shields.io/badge/Go-1.22%2B-00ADD8?style=flat-square" alt="Go 1.22 or later">
+  <img src="https://img.shields.io/badge/Go-1.27.3-00ADD8?style=flat-square" alt="Go 1.27.3">
 </p>
 <p align="center">
   <a href="#install">Install</a> ·
   <a href="#first-connection">Get started</a> ·
   <a href="#working-alongside-other-vpns">Other VPNs</a> ·
   <a href="#build-from-source">Build</a> ·
-  <a href="docs/RELEASE-1.2.1.md">What's new</a>
+  <a href="docs/RELEASE-1.3.1.md">What's new</a>
 </p>
 <p align="center">
   <a href="docs/images/readme/main.png"><img src="docs/images/readme/main.png" width="472" alt="Vault 443 main window with three demo profiles and an active connection"></a>
@@ -28,15 +28,15 @@
 ## Your connections, in one place
 
 - **Connect with one click.** After an administrator grants access once, everyday connections need no password prompt. Watch connection stages, cancel a pending attempt, or disconnect from the tray.
-- **Bring your own profiles.** Import VLESS links, text files, Base64 lists, or HTTPS subscriptions. Review entries and choose from 23 emblems before saving. Subscription updates retain your choices.
-- **Connect your work VPNs.** Import self-contained `.ovpn` and WireGuard/AmneziaWG `.conf` files, or paste an autonomous Amnezia `vpn://` export. Run several connections alongside VLESS and choose how overlapping work and Docker networks are routed. Each profile has its own status, cancel button, and journal.
+- **Bring your own profiles.** Import mixed VLESS, Trojan and Shadowsocks links, text files, Base64 lists, or HTTPS subscriptions. Dynamic Outline keys refresh safely before connecting. Review entries and choose from 23 emblems before saving. Subscription updates retain your choices.
+- **Connect your work VPNs.** Import self-contained `.ovpn` and WireGuard/AmneziaWG `.conf` files, or paste an autonomous Amnezia `vpn://` export. Run several connections alongside the main Internet connection and choose how overlapping work and Docker networks are routed. Each profile has its own status, cancel button, and journal.
 - **Keep control when the tunnel fails.** The network guard blocks direct Internet traffic during recovery, including forwarded Docker bridge traffic. Explicitly disconnect to restore ordinary routing.
 - **Keep local networks reachable.** Attached LANs and verified work VPN routes retain their paths. IPv4 and IPv6 are checked separately; unavailable tunnel IPv6 fails quickly so applications can fall back to IPv4.
 - **Start the way you want.** Launch the interface at login, connect a selected system profile at boot, or use both. Closing the window leaves the VPN running.
 - **Track your session.** One line shows session time, download/upload speed, and accumulated transfer totals. Counters live in the service, survive closing the GUI and automatic reconnection, and reset for a new manual connection or service restart.
 - **See what happened.** Per-profile connection logs retain up to seven days of history, with optional detailed logging. English and Russian interfaces switch instantly without reconnecting.
 
-A valid VLESS, OpenVPN, WireGuard or AmneziaWG client profile is required. Vault 443 does not provide a VPN service or require its own account. Supported transports and import limits are documented in [service and profile behavior](docs/backend.md#supported-imports) and [work VPN details](docs/work-vpn.md).
+A valid VLESS, Trojan, Shadowsocks/Outline, OpenVPN, WireGuard or AmneziaWG client profile is required. Vault 443 does not provide a VPN service or require its own account. Supported transports and import limits are documented in [service and profile behavior](docs/backend.md#supported-imports) and [work VPN details](docs/work-vpn.md).
 
 ## A closer look
 
@@ -58,11 +58,13 @@ A valid VLESS, OpenVPN, WireGuard or AmneziaWG client profile is required. Vault
   </tr>
 </table>
 
+<p align="center"><a href="docs/images/readme/outline.png"><img src="docs/images/readme/outline.png" width="236" alt="Dynamic Outline profile with configuration refresh and cache status"></a><br><strong>Dynamic Outline sources</strong></p>
+
 All screenshots use the application's demo mode and contain fictional profiles.
 
 <table>
   <tr>
-    <td align="center"><a href="docs/images/readme/wireguard.png"><img src="docs/images/readme/wireguard.png" width="236" alt="WireGuard and AmneziaWG profiles alongside VLESS"></a><br><strong>Choose your protocol</strong></td>
+    <td align="center"><a href="docs/images/readme/wireguard.png"><img src="docs/images/readme/wireguard.png" width="236" alt="WireGuard and AmneziaWG profiles alongside the main Internet connection"></a><br><strong>Choose your protocol</strong></td>
     <td align="center"><a href="docs/images/readme/peers.png"><img src="docs/images/readme/peers.png" width="236" alt="Peer endpoints, last handshakes and allowed networks"></a><br><strong>Understand every peer</strong></td>
   </tr>
 </table>
@@ -72,21 +74,25 @@ All screenshots use the application's demo mode and contain fictional profiles.
 Install a locally built `.deb` from `dist/`. Run these commands in your **normal desktop user's terminal**:
 
 ```sh
-sudo apt install ./dist/vault443_1.2.1_amd64.deb
+sudo apt install ./dist/vault443_1.3.1_amd64.deb
 sudo vault443-access "$USER"
 ```
 
-For ARM64, use `vault443_1.2.1_arm64.deb`. The access command is a one-time setup per local user; an existing Vault 443 account keeps its permissions. Open **Vault 443** from the application launcher afterward. The GUI runs as your regular user, and the service checks current group membership on each request.
+For ARM64, use `vault443_1.3.1_arm64.deb`. The access command is a one-time setup per local user; an existing Vault 443 account keeps its permissions. Open **Vault 443** from the application launcher afterward. The GUI runs as your regular user, and the service checks current group membership on each request.
 
-**Updating Vault 443:** use the same APT command. Updates from **1.0.0 onward** preserve profiles, subscriptions, logs, group membership and startup settings. The service may briefly restart and resumes the requested connection under the traffic guard. Earlier VLESS Terminal installations must first complete their transition using the **1.0.0 release tools**; this source tree no longer includes that migration.
+**Updating Vault 443:** use the same APT command. Updates from **1.3.0** preserve profiles, subscriptions, logs, group membership and startup settings. The service may briefly restart and resumes the requested connection under the traffic guard. Earlier VLESS Terminal installations must first complete their transition using the **1.0.0 release tools**; this source tree no longer includes that migration.
 
-**Release status:** 1.2.0 adds managed WireGuard and AmneziaWG connections. It keeps the pinned Xray core unchanged. The project uses isolated networking and desktop validation on Ubuntu 24.04 and 26.04 amd64; ARM64 packages are cross-compiled and still require device acceptance. The bundled [Xray 26.9.30](https://github.com/XTLS/Xray-core/releases/tag/v26.9.30) is an upstream **prerelease**, pinned with [archive checksums](packaging/xray-lock.json). AmneziaWG is built separately from [locked upstream sources](packaging/amneziawg-lock.json). See the [validation record](docs/VALIDATION.md) for tested scenarios and remaining limitations.
+**Release status:** 1.3.1 fixes audited switching and Outline issues and pins Go 1.27.3 for all application-owned Go binaries. It keeps the pinned Xray core unchanged. The project uses isolated networking and desktop validation on Ubuntu 24.04 and 26.04 amd64; ARM64 packages are cross-compiled and still require device acceptance. The bundled [Xray 26.9.30](https://github.com/XTLS/Xray-core/releases/tag/v26.9.30) is an upstream **prerelease**, pinned with [archive checksums](packaging/xray-lock.json). AmneziaWG is built separately from [locked upstream sources](packaging/amneziawg-lock.json). See the [validation record](docs/VALIDATION.md) for tested scenarios and remaining limitations.
+
+See [Trojan, Shadowsocks and Outline](docs/proxy-protocols.md) for supported formats, source caching and rollback. The Outline SDK and dependencies are [pinned separately](packaging/outline-lock.json) and built with the [shared private Go 1.27.3 toolchain](packaging/go-toolchain-lock.json) as the supervisor and AmneziaWG.
 
 ### First connection
 
-1. Open **Import**, paste one or more `vless://` links or choose a text file, then review the profiles and select their emblems. Add an HTTPS subscription from **Settings → Subscriptions**.
+1. Open **Import**, paste one or more `vless://`, `trojan://`, `ss://` or `ssconf://` links or choose a text file, then review the profiles and select their emblems. Add an HTTPS subscription from **Settings → Subscriptions**.
 2. Click **Connect**. The line below the profile name shows progress, recovery attempts, or a specific error. Click it to open diagnostics.
-3. Click the profile emblem to rename it, choose another emblem, or open **Logs**. Detailed logging takes effect on the next connection.
+For an ordinary HTTPS dynamic Outline URL, select **Outline · HTTPS / ssconf://** in the import dialog. Use **Update configuration** in profile properties to refresh manually; an active connection keeps its current configuration.
+
+Click the profile emblem to rename it, choose another emblem, or open **Logs**. Detailed logging takes effect on the next connection.
 
 In **Settings → General**, choose **System default**, **English**, or **Русский**. System default uses the first supported language in your system preferences and falls back to English. The choice is saved per user and applies immediately, including the tray.
 
@@ -95,7 +101,7 @@ In **Settings → General**, choose **System default**, **English**, or **Рус
 | Launch the interface at login | Opens the GUI when this user signs in. It does not select a boot VPN profile. |
 | Connect VPN at system boot | Starts the selected system profile before desktop login. Requires an authorized administrator. |
 
-One owner controls the active set of connections: one VLESS session and up to 16 work sessions shared by OpenVPN, WireGuard and AmneziaWG. Each user has a private profile library and journal. Operator access requires an active local desktop session. Boot autoconnect remains a VLESS option; work profiles start manually. Boot-profile and manual VPN binding changes additionally require membership in `sudo` or `admin`.
+One owner controls the active set of connections: one main Internet session (VLESS, Trojan or Shadowsocks/Outline) and up to 16 work sessions shared by OpenVPN, WireGuard and AmneziaWG. Each user has a private profile library and journal. Operator access requires an active local desktop session. Boot autoconnect applies to the selected main Internet profile; work profiles start manually. Boot-profile and manual VPN binding changes additionally require membership in `sudo` or `admin`.
 
 ## Work VPN profiles
 
@@ -107,14 +113,14 @@ WireGuard uses the Linux kernel; AmneziaWG uses a bundled Go engine with private
 
 Open **Settings → Other VPNs → Routes** to inspect received networks, overlaps and DNS zones. Work routes take precedence over overlapping Docker networks. A rule can select a work profile for an IP/CIDR, or preserve access to an existing local/Docker subnet. If two work profiles claim the same prefix or DNS zone, select the intended provider explicitly. Physical Internet bypass rules are not allowed.
 
-The bottom traffic panel continues to measure **VLESS only**. Per-work-profile diagnostics show its interface, routes, DNS and connection stages. During an unexpected work VPN outage, its known destinations stay blocked until recovery; **Disconnect** releases that profile's protection.
+The bottom traffic panel continues to measure **the current main Internet connection only**. Per-work-profile diagnostics show its interface, routes, DNS and connection stages. During an unexpected work VPN outage, its known destinations stay blocked until recovery; **Disconnect** releases that profile's protection.
 
 | Work routing | Behavior |
 | --- | --- |
-| Specific work networks | Work VPN carries those networks; VLESS continues to carry Internet traffic. |
+| Specific work networks | Work VPN carries those networks; The main connection continues to carry Internet traffic. |
 | Work subnet overlaps Docker | Work route wins automatically; the Routes window can preserve selected local destinations. |
 | Same prefix or DNS zone claimed twice | Existing choice is retained; the conflict is displayed for explicit resolution. |
-| Full Internet tunnel | VLESS pauses and resumes when the full tunnel is released. |
+| Full Internet tunnel | The main connection pauses and resumes when the full tunnel is released. |
 
 [Work VPN details and limitations](docs/work-vpn.md).
 
@@ -124,8 +130,8 @@ Connect Pritunl normally, then open **Settings → Other VPNs**. Automatically v
 
 | Other VPN's routing | Vault 443 behavior |
 | --- | --- |
-| Work networks only, such as a split-tunnel Pritunl profile | Work routes stay with Pritunl; VLESS carries Internet traffic. |
-| All Internet traffic, such as a full-tunnel Pritunl profile | The requested VLESS connection pauses. Internet stays on the verified other VPN; VLESS resumes when those routes are released. |
+| Work networks only, such as a split-tunnel Pritunl profile | Work routes stay with Pritunl; The main connection carries Internet traffic. |
+| All Internet traffic, such as a full-tunnel Pritunl profile | The requested main connection pauses. Internet stays on the verified other VPN; it resumes when those routes are released. |
 | Tunnel identity cannot be verified | Diagnostics explains the problem. An administrator can use the advanced manual binding form for a supported custom tunnel. |
 
 The application does not rewrite Pritunl settings or force it into split-tunnel mode. Verification is repeated when the network changes; a reused name such as `tun0` never grants trust by itself. Corporate DNS suffixes may need explicit configuration in the compatibility settings. Ordinary physical unicast DNS is blocked while protection is active; local IP access and mDNS remain available.
@@ -139,24 +145,28 @@ The application does not rewrite Pritunl settings or force it into split-tunnel 
 | **OpenVPN 2.6+ · distribution package** | Managed certificate-based work tunnels, private management sockets and validated route/DNS events. |
 | **WireGuard · Linux kernel** | Managed encrypted work interfaces and peer handshakes; no `wg-quick` scripts. |
 | **AmneziaWG · separate Go process** | Pinned protocol implementation through 3.1 with a private Unix control socket. |
-| **Xray-core · separate process** | VLESS, REALITY/Vision, supported transports, and TUN traffic. |
+| **Xray-core · separate process** | VLESS, Trojan, Shadowsocks AEAD/2022, supported transports, and TUN traffic. |
+| **Outline SDK · separate Go adapter** | Extended Outline transports through private authenticated SOCKS; no route or DNS ownership. |
 | **systemd · nftables · systemd-resolved** | Boot startup, application-owned routes and traffic guard, and DNS integration. |
 
 The guard remains active if Xray or the supervisor crashes. **Disconnect** is the explicit way to release it. When boot autoconnect is configured, an early guard runs before NetworkManager or systemd-networkd; other network managers are outside the validated boot contract.
 
-VLESS connection checks use certificate-verified HTTPS through the tunnel. Work status confirms protocol establishment and routing; it cannot establish application authorization to every work server. Per-profile journals redact known credentials and retain at most **7 days / 10 MiB per profile / 50 MiB per user**. Xray access logging stays disabled. See the [service design](docs/backend.md) and [D-Bus contract](docs/interfaces.md) for details.
+Main connection checks use certificate-verified HTTPS through the tunnel. Work status confirms protocol establishment and routing; it cannot establish application authorization to every work server. Per-profile journals redact known credentials and retain at most **7 days / 10 MiB per profile / 50 MiB per user**. Xray access logging stays disabled. See the [service design](docs/backend.md) and [D-Bus contract](docs/interfaces.md) for details.
 
 ## Build from source
 
-Use Go **1.22+**, CMake **3.21+**, a C++20 compiler, Ninja, and Qt **6.4+**. On Ubuntu 24.04, install the native build dependencies:
+The build scripts fetch a checksum-pinned private **Go 1.27.3**; system Go is not used or replaced. Use CMake **3.21+**, a C++20 compiler, Ninja, and Qt **6.4+**. On Ubuntu 24.04, install the native build dependencies:
 
 ```sh
-sudo apt install build-essential cmake ninja-build pkg-config golang-go \
+sudo apt install build-essential cmake ninja-build pkg-config python3 \
   qt6-base-dev qt6-declarative-dev qt6-l10n-tools qt6-wayland qt6-qpa-plugins \
   qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
   qml6-module-qtquick-window qml6-module-qtquick-templates \
   qml6-module-qtquick-dialogs qml6-module-qtqml qml6-module-qtqml-workerscript
+python3 scripts/go.py --fetch-only
+python3 scripts/go.py mod download
 python3 scripts/build-amneziawg.py amd64 --fetch-only
+python3 scripts/build-outline.py amd64
 bash scripts/build.sh
 ./build/vault443 --demo
 ```
@@ -169,6 +179,7 @@ Build distributable packages from the repository root:
 
 ```sh
 python3 scripts/fetch-xray.py
+python3 scripts/check-vulnerabilities.py
 bash scripts/package.sh amd64
 
 # ARM64: Docker cross-builder with native host tools and an ARM64 Qt sysroot.
@@ -178,16 +189,16 @@ BUILD_DIR=build-arm64 bash scripts/package.sh arm64
 
 The root `VERSION` file is the single release-version source for Qt, the Go daemon, and packaging.
 
-The AmneziaWG build helper downloads checksum-pinned sources and a private Go 1.25.14 toolchain under `.cache/amneziawg`; it does not replace system Go. Fetching prepares dependencies once. Both normal and ARM64 builds then compile that engine offline, include dependency licenses, and package its build manifest. Source builds require Python 3.12+ for safe archive extraction. Kernel WireGuard must be available in the target Linux kernel; no additional DKMS module is installed for AmneziaWG.
+The shared compiler is stored under `.cache/toolchains`. Xray, Outline SDK and AmneziaWG source pins are unchanged. The AmneziaWG helper downloads checksum-pinned sources under `.cache/amneziawg`. Fetching prepares dependencies once. Both normal and ARM64 builds then compile that engine offline, include dependency licenses, and package its build manifest. Source builds require Python 3.12+ for safe archive extraction. Kernel WireGuard must be available in the target Linux kernel; no additional DKMS module is installed for AmneziaWG.
 
-Packaging verifies binary architecture and rejects local development-library RPATHs. Qt translations are compiled into the executable; no separate language pack is required.
+Packaging verifies binary architecture, actual Go compiler versions and manifests, requires a current passing vulnerability report for the exact sources, and rejects local development-library RPATHs. Toolchain auto-download is disabled during compilation. Xray is the unchanged upstream binary and has its own compiler provenance. Qt translations are compiled into the executable; no separate language pack is required.
 
 ### Development checks
 
 ```sh
 ctest --test-dir build --output-on-failure
 GOMODCACHE="$PWD/.cache/go-mod" GOCACHE="$PWD/.cache/go-build" \
-  XRAY_TEST_BINARY="$PWD/.cache/xray/amd64/xray" go test -race ./...
+  XRAY_TEST_BINARY="$PWD/.cache/xray/amd64/xray" python3 scripts/go.py test -race ./...
 bash scripts/test-gui-dbus.sh
 ```
 
@@ -213,6 +224,8 @@ This removes only Vault 443's network resources, clears the desired connection a
 
 ## Documentation and third-party components
 
+- [1.3.1 release notes](docs/RELEASE-1.3.1.md) — safe profile switching, Outline fixes and compiler security.
+- [1.3.0 release notes](docs/RELEASE-1.3.0.md) — Trojan, Shadowsocks and dynamic Outline.
 - [1.2.1 release notes](docs/RELEASE-1.2.1.md) — stable controls during background updates.
 - [1.2.0 release notes](docs/RELEASE-1.2.0.md) — WireGuard, AmneziaWG and local Amnezia imports.
 - [1.1.1 release notes](docs/RELEASE-1.1.1.md) — bracketed IPv6 OpenVPN import compatibility.

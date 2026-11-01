@@ -8,8 +8,9 @@ test "${VAULT443_PACKAGE_NETWORK:-}" = 1
 test "$(cat /proc/1/comm)" = systemd
 systemctl is-active --quiet NetworkManager.service systemd-resolved.service dbus.service
 version=$(cat /src/VERSION)
-package=/src/dist/vault443_${version}_amd64.deb
-baseline=/src/dist/vault443_1.2.0_amd64.deb
+package=/tmp/vault443_${version}_amd64.deb
+cp /src/dist/vault443_${version}_amd64.deb "$package"
+baseline=/src/dist/vault443_1.3.0_amd64.deb
 nft add table inet unrelated_test
 # Refuse pre-1.0 stores before installing binaries or touching private data.
 install -d -m700 /var/lib/vless-terminal
@@ -49,7 +50,8 @@ profile={'id':'stable-profile','name':'Private test profile','server':'192.0.2.1
          'sni':'vpn.e2e.invalid','iconId':'vault-door','debugLogging':True}
 subscription={'id':'stable-subscription','name':'Saved subscription','url':'https://subscription.invalid/list',
               'updatedAt':int(time.time()),'lastAttempt':int(time.time())}
-state={'version':2,'users':{'11000':{'profiles':[profile],'subscriptions':[subscription]},
+profile['kind']='vless'
+state={'version':3,'users':{'11000':{'profiles':[profile],'subscriptions':[subscription]},
                           '11001':{'profiles':[dict(profile,id='private-second')],'subscriptions':[]}},
        'bootId':Path('/proc/sys/kernel/random/boot_id').read_text().strip(),
        'desired':{'uid':11000,'profileId':'stable-profile'},'boot':{'uid':11000,'profileId':'stable-profile'}}
@@ -87,6 +89,7 @@ assert all(after.get(k)==v for k,v in before.items()), '1.0 D-Bus method removed
 assert ('org.vault443.Service1','PrepareOpenVPNImport') in after
 assert ('org.vault443.Service1','PrepareWorkImport') in after
 assert ('org.vault443.Service1','RequestWorkConnect') in after
+assert ('org.vault443.Service1','CancelSwitch') in after
 PYAPI
 test "$old_pid" != "$new_pid"
 python3 /src/tests/package-network-check.py connected
@@ -102,13 +105,15 @@ python3 - <<'PY'
 import json,os
 from pathlib import Path
 a=json.loads(Path('/tmp/original-state.json').read_text()); b=json.loads(Path('/var/lib/vault443/state.json').read_text())
+assert not Path('/var/lib/vault443/state.v2.backup.json').exists(), 'patch release unexpectedly migrated v3'
 assert a==b, 'saved profiles, subscriptions or boot/desired connection changed'
+
 assert Path('/var/lib/vault443/private-marker').read_text()=='retained-data'
 assert Path('/var/lib/vault443-migration/backups/completed/marker').read_text()=='retained'
 assert os.stat('/var/lib/vault443/state.json').st_mode & 0o777 == 0o600
 old_work=json.loads(Path('/tmp/work-before-upgrade.json').read_text())
 new_work=json.loads(Path('/var/lib/vault443/work-vpn.json').read_text())
-assert old_work['version']==2 and new_work==old_work, '1.2.0 work profiles or desired sessions changed'
+assert old_work['version']==2 and new_work==old_work, '1.3.0 work profiles or desired sessions changed'
 assert not Path('/var/lib/vault443/work-vpn.v1.backup.json').exists(), 'unexpected schema migration during patch update'
 PY
 # Reinstall is a normal 1.x operation and still resumes the selected connection.
@@ -123,6 +128,7 @@ XDG_RUNTIME_DIR=/tmp/lifecycle-runtime QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEN
 test -s /tmp/installed-gui.png
 /bin/bash /src/tests/package-workvpn.sh
 /bin/bash /src/tests/package-wireguard.sh
+if [ "${VAULT443_PROXY_E2E:-}" = 1 ]; then /bin/bash /src/tests/package-proxy.sh; fi
 dpkg --purge vault443
 test -f /var/lib/vault443/private-marker
 nft list table inet unrelated_test >/dev/null
@@ -135,7 +141,7 @@ import json,sys
 for r in json.load(sys.stdin):
     try: table=int(r.get("table",254))
     except (TypeError,ValueError): continue
-    assert table not in range(52783,52788) and table not in range(52800,52833), "owned work route survived removal"
+    assert table != 52789 and table not in range(52783,52788) and table not in range(52800,52833), "owned work route survived removal"
 '
 done
 # Fresh APT install uses the new package, without any previous application state.
@@ -148,4 +154,4 @@ dpkg --purge vault443
 test -f /tmp/preserved-vault443/private-marker
 nft list table inet unrelated_test >/dev/null
 systemctl is-active --quiet NetworkManager.service systemd-resolved.service dbus.service
-echo "PASS: 1.2.0 upgrade, active VLESS/work connections, unchanged work schema, continuous guard, preserved multiuser state/GID, reinstall, purge and fresh APT installation"
+echo "PASS: 1.3.0 to 1.3.1 upgrade, active VLESS/work connections, unchanged work schema, continuous guard, preserved multiuser state/GID, reinstall, purge and fresh APT installation"

@@ -117,7 +117,7 @@ func (r Route) Prefix() (netip.Prefix, bool) {
 }
 func (r Route) owned() bool {
 	t, _ := strconv.Atoi(string(r.Table))
-	return (t >= 52783 && t <= 52787 || t >= 52800 && t <= 52832) || r.Device == TunName || string(r.Table) == strconv.Itoa(ProxyTable) || string(r.Table) == strconv.Itoa(BypassTable) || string(r.Table) == strconv.Itoa(UnderlayTable)
+	return t == sourceTable || (t >= 52783 && t <= 52787 || t >= 52800 && t <= 52832) || r.Device == TunName || string(r.Table) == strconv.Itoa(ProxyTable) || string(r.Table) == strconv.Itoa(BypassTable) || string(r.Table) == strconv.Itoa(UnderlayTable)
 }
 
 type Snapshot struct {

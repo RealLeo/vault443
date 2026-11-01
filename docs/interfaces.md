@@ -3,8 +3,8 @@
 System D-Bus name `org.vault443.Service1`, object `/org/vault443/Service1`, interface `org.vault443.Service1`.
 Calls are asynchronous in the GUI. Structured replies are JSON UTF-8 strings, not arbitrary executable core configuration.
 
-- `GetSnapshot() -> s`: caller's profiles (id/name/server/transport/security/iconId/debugLogging only), subscriptions (id/name/updatedAt only), runtime status, activeProfileId only when owned by caller, busyByOtherUser, bootProfileId for authorized caller.
-- `PrepareImport(s source,s kind,s name) -> s`: kind is `text` (links, Base64 or GUI-read file contents) or `subscription` (HTTPS URL, validated name). Returns `{draftId,expiresAt,profiles:[{line,id,name,server,iconId,duplicate}],errors:[{line,message}]}`. `expiresAt` is Unix seconds. Draft is UID-bound, expires after ten minutes, and is invalid after a daemon restart. At most four drafts per UID and 64 total are held. No credentials are returned.
+- `GetSnapshot() -> s`: caller's profiles (id/name/kind/server/transport/security/iconId/debugLogging and safe source metadata), subscriptions (id/name/updatedAt only), runtime status, activeProfileId only when owned by caller, busyByOtherUser, bootProfileId for authorized caller.
+- `PrepareImport(s source,s kind,s name) -> s`: kind is `text` (links, Base64 or GUI-read file contents) , `subscription` (HTTPS URL, validated name), or `outline` (HTTPS/ssconf source). Returns `{draftId,expiresAt,profiles:[{line,id,name,server,iconId,duplicate}],errors:[{line,message}]}`. `expiresAt` is Unix seconds. Draft is UID-bound, expires after ten minutes, and is invalid after a daemon restart. At most four drafts per UID and 64 total are held. No credentials are returned.
 - `CommitImport(s draftId,s iconsJSON) -> s`: iconsJSON is an object mapping preview profile IDs to catalog icon IDs; omitted choices use the default antenna. Returns the final preview. The checked profiles and selected icons are saved in a single state transaction. Duplicates are rechecked against current state and never overwrite existing metadata. Subscription content is not fetched again; an invalid subscription is rejected as a whole. A text import can retain valid rows alongside errors. A successful commit consumes its draft; replay is rejected.
 - `CancelImport(s draftId)`: discard only this caller's pending preview. No profiles or subscriptions are created by preparing or canceling.
 - Legacy `PreviewImport(s text) -> s` and `ImportProfiles(s text) -> s` remain available with per-line results. New clients use prepare/commit for atomic icon selection.
@@ -54,7 +54,7 @@ Daemon owns user authorization, desired session owner/profile persistence, subsc
 
 The optional network `SetLogSession(*journal.Session)` binds callbacks to an immutable UID, profile and session identity before starting a core process. Old output retains the old identity after a profile/user switch. `service.New(store,runtime,journal)` accepts the persistent journal, with the two-argument form retained for fixtures. Producers sanitize and enqueue without blocking; the journal worker handles private persistence and oldest-first rotation. Read/clear avoid the service network-operation mutex. Journal polling contains neither another user's records nor raw core credentials; access logs remain disabled. Warning is the default Xray level, debug is opt-in.
 
-State schema version 2 adds `iconId` and `debugLogging` as display/diagnostic metadata, excluded from the canonical connection identity. Only schema v2 is supported; older or unknown versions are refused without writing to the document. Subscription refresh preserves user-selected name, icon and debug mode; new nodes start with antenna and debug disabled. History lives separately in the private `journal/` directory, retained for seven days with 10 MiB/profile and 50 MiB/UID limits. Early boot protection and root maintenance cleanup do not require the journal to open, so damaged history cannot block those operations. Normal daemon initialization resolves boot/restart intent before exposing mutable D-Bus calls.
+State schema version 2 adds `iconId` and `debugLogging` as display/diagnostic metadata, excluded from the canonical connection identity. Schema v3 migrates v2 atomically with a private `state.v2.backup.json`; other versions are refused without writing. Existing VLESS IDs are unchanged. Subscription refresh preserves user-selected name, icon and debug mode; new nodes start with antenna and debug disabled. History lives separately in the private `journal/` directory, retained for seven days with 10 MiB/profile and 50 MiB/UID limits. Early boot protection and root maintenance cleanup do not require the journal to open, so damaged history cannot block those operations. Normal daemon initialization resolves boot/restart intent before exposing mutable D-Bus calls.
 
 Network progress is published via optional `SetProgressHandler(func(model.RuntimeStatus))`.
 The callback receives a copy and performs no network calls. The service rejects
@@ -99,8 +99,8 @@ Additional methods on `org.vault443.Service1`:
 | `SetWorkDNS(s domain,s target)` | Canonical DNS routing zone to an owned work profile; `.` identifies the full DNS namespace. |
 | `RemoveWorkDNS(s id)` | Restore automatic DNS provider selection. |
 
-Work state uses a separate versioned private `work-vpn.json`; VLESS schema v2
-and its IDs are unchanged. Canonical work IDs have the `ovpn-` prefix and exclude
+Work state uses a separate versioned private `work-vpn.json`; main profile IDs
+are independent and preserved. Canonical OpenVPN IDs have the `ovpn-` prefix and exclude
 name/icon/logging metadata. No public method accepts executable paths, scripts,
 UIDs or arbitrary privileged configuration. `Changed()` remains payload-free.
 
@@ -137,3 +137,41 @@ Schema-v1 migration durably publishes `work-vpn.v1.backup.json` before atomic
 replacement, retaining old IDs/rules/intent. The separate network recovery record
 retains protocol ownership metadata and protected peer routes; secrets are not
 stored there. Unknown schemas are refused without overwriting them.
+
+## Main protocol additions (1.3.0)
+
+`profiles[].kind` is `vless`, `trojan` or `shadowsocks`. A dynamic profile also has
+`source:{kind:"outline",updatedAt,lastAttempt,lastError?,usingCached,blocked,updating}`.
+Times here are Unix seconds. No source URL, path, password or encryption key is exposed.
+Preview rows include `kind` and optional `sourceKind:"outline"`.
+
+`RequestSourceRefresh(s profileId) -> s` returns `{operationId}` after validating
+ownership, then refreshes asynchronously. `Changed` / `GetSnapshot` report progress.
+An active session is never restarted by this method. `GetProfileDiagnostics` adds
+safe `protocol` and `source` fields; foreign-session restrictions remain unchanged.
+Existing connection, subscription and journal signatures are retained.
+
+Network runtime's optional `FetchSource(ctx,url)` performs bounded downloads using
+short coordinated policy transactions and marked sockets. This is used by both
+subscriptions and Outline, independently of the main connection worker mutex.
+Configuration preparation downloads once; confirmation saves the checked draft.
+
+## Transactional main-profile switching (1.3.1)
+
+`activeProfileId` identifies the confirmed session; it is empty until the first
+connection passes health checks. `operation.profileId` may identify a different
+candidate. Optional `previousProfileId` records A, and `failure` carries the safe
+`{profileId,time,code,message}` candidate error. Preparation, cutover and rollback
+use `preparing_switch`, `switching_profile` and `restoring_previous`; existing
+network stages remain visible during candidate startup. Terminal failed/cancelled
+switches use `switch_failed` / `switch_cancelled`. Only the owner sees these fields.
+
+`CancelSwitch(s operationId) -> s` returns JSON `{operationId}`. It checks the real
+caller UID and the exact current operation; a stale ID is rejected. Cancellation
+is idempotent while restoration is pending. Existing `RequestDisconnect` cancels
+the switch and disconnects without restoring A. Existing signatures and store
+schemas are unchanged. `Changed` / snapshots continue updating in the background.
+
+`profiles[].switchFailure` optionally retains the failed candidate reason during
+A's automatic recovery. It is private to the profile owner, cleared by a new
+attempt or log clearing, and does not alter the persistent profile schema.

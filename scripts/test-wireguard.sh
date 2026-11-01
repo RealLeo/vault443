@@ -4,13 +4,15 @@ cd "$(dirname "$0")/.."
 release=${1:-24.04}
 case "$release" in 24.04|26.04) ;; *) echo 'Expected Ubuntu 24.04 or 26.04' >&2; exit 2;; esac
 test "$(uname -m)" = x86_64
+proxy_fixture="${VAULT443_PROXY_E2E:-0}"
+case "${VAULT443_E2E_TEST_PATTERN:-}" in *ProxyWork*) proxy_fixture=1;; esac
 test -x .cache/amneziawg/amd64/amneziawg-go
 test -x .cache/xray/amd64/xray
 export GOMODCACHE="$PWD/.cache/go-mod" GOCACHE="$PWD/.cache/go-build"
 mkdir -p .cache/wireguard-e2e
-CGO_ENABLED=0 go build -buildvcs=false -o .cache/wireguard-e2e/vault443d ./cmd/vault443d
-CGO_ENABLED=0 go build -buildvcs=false -o .cache/wireguard-e2e/fixture ./tests/e2e/fixture
-CGO_ENABLED=0 go test -c -o .cache/wireguard-e2e/tests ./tests/e2e
+CGO_ENABLED=0 python3 scripts/go.py build -buildvcs=false -o .cache/wireguard-e2e/vault443d ./cmd/vault443d
+CGO_ENABLED=0 python3 scripts/go.py build -buildvcs=false -o .cache/wireguard-e2e/fixture ./tests/e2e/fixture
+CGO_ENABLED=0 python3 scripts/go.py test -c -o .cache/wireguard-e2e/tests ./tests/e2e
 results="${VAULT443_E2E_RESULTS:-$PWD/test-results/$(cat VERSION)/wireguard-$release}"
 mkdir -p "$results"
 results=$(cd "$results" && pwd)
@@ -19,6 +21,7 @@ docker run --rm --network none \
   --security-opt apparmor=unconfined \
   --sysctl net.ipv4.ip_forward=1 --sysctl net.ipv6.conf.all.forwarding=1 \
   --env VAULT443_E2E_ISOLATED=1 --env VAULT443_WORKVPN_E2E=1 \
+  --env "VAULT443_PROXY_E2E=$proxy_fixture" \
   --env VAULT443_WIREGUARD_E2E=1 --env VAULT443_SANDBOX_FILTER_ONLY=1 \
   --env VAULT443_WORKVPN_EVENT_HELPER=/src/.cache/wireguard-e2e/vault443d \
   --env VAULT443_E2E_TEST_BINARY=/src/.cache/wireguard-e2e/tests \

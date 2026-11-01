@@ -30,21 +30,34 @@ TrayPresentation trayPresentation(const QVariantMap &snapshot, bool online, bool
     else if (state != "disconnected") { out.text = QObject::tr("VPN state unknown"); }
     const auto operation = snapshot.value("operation").toMap();
     const auto stage = operation.value("stage").toString();
+    const bool switching = !operation.value("previousProfileId").toString().isEmpty();
+    const bool switchFinished = stage == "switch_failed" || stage == "switch_cancelled";
     const bool cleaning = operation.value("action").toString() == "disconnect" && stage != "disconnected" && stage != "cleanup_failed";
     if (cleaning) { out.text = QObject::tr("Disconnecting — restoring network…"); out.color = QColor("#f5ca55"); }
     else if (stage == "cleanup_failed") { out.text = QObject::tr("Network cleanup failed — retry disconnecting"); out.color = QColor("#f06b5f"); }
-    else if (!stage.isEmpty() && stage != "connected" && stage != "disconnected" && stage != "paused_external" && stage != "retry_wait") {
+    else if (!switching && !stage.isEmpty() && stage != "connected" && stage != "disconnected" && stage != "paused_external" && stage != "retry_wait") {
         out.text = QObject::tr("Connecting…"); out.color = QColor("#f5ca55");
     }
     const auto id = snapshot.value("activeProfileId").toString();
     // activeProfileId is exposed by the daemon only to the desired session's owner.
-    out.canDisconnect = !id.isEmpty() && !busy && !cleaning;
+    out.canDisconnect = (!id.isEmpty() || (!operation.value("profileId").toString().isEmpty() && !switchFinished && stage != "disconnected")) && !busy && !cleaning;
     if (!id.isEmpty()) for (const auto &value : snapshot.value("profiles").toList()) {
         const auto profile = value.toMap();
         if (profile.value("id").toString() != id) continue;
         auto name = profile.value("name").toString().simplified().left(100);
         if (!name.isEmpty()) out.text += " · " + name;
         break;
+    }
+    if (switching && !switchFinished) {
+        QString candidate;
+        for (const auto &value : snapshot.value("profiles").toList()) {
+            const auto profile = value.toMap();
+            if (profile.value("id") == operation.value("profileId")) candidate = profile.value("name").toString().simplified().left(100);
+        }
+        out.text += " · " + (stage == "restoring_previous" ? QObject::tr("Restoring previous VPN") : QObject::tr("Switching to %1").arg(candidate));
+        out.color = QColor("#f5ca55");
+    } else if (switching && stage == "switch_failed") {
+        out.text += " · " + QObject::tr("Switch failed");
     }
     int activeWork = 0, connectedWork = 0; bool workError = false, workConflict = false;
     for (const auto &value : snapshot.value("workProfiles").toList()) {
@@ -57,7 +70,7 @@ TrayPresentation trayPresentation(const QVariantMap &snapshot, bool online, bool
         if (workState == "conflict") workConflict = true;
     }
     if (activeWork) {
-        out.text = QObject::tr("VLESS: %1 · Work VPNs: %2 connected / %3 active").arg(out.text).arg(connectedWork).arg(activeWork);
+        out.text = QObject::tr("Main VPN: %1 · Work VPNs: %2 connected / %3 active").arg(out.text).arg(connectedWork).arg(activeWork);
         if (state == "disconnected") out.color = QColor(connectedWork ? "#64e875" : "#f5ca55");
         if (workError || workConflict) { out.color = QColor(workError ? "#f06b5f" : "#f5ca55"); out.text += " · " + QObject::tr("Work VPN needs attention"); }
     }

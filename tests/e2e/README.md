@@ -24,8 +24,8 @@ directory is writable from the container.
 python3 scripts/fetch-xray.py amd64
 export GOMODCACHE="$PWD/.cache/go-mod"
 export GOCACHE="$PWD/.cache/go-build"
-CGO_ENABLED=0 go build -buildvcs=false -o .cache/e2e-fixture ./tests/e2e/fixture
-CGO_ENABLED=0 go test -c -o .cache/e2e.test ./tests/e2e
+CGO_ENABLED=0 python3 scripts/go.py build -buildvcs=false -o .cache/e2e-fixture ./tests/e2e/fixture
+CGO_ENABLED=0 python3 scripts/go.py test -c -o .cache/e2e.test ./tests/e2e
 
 for version in 24.04 26.04; do
   docker build --network=host --build-arg UBUNTU_VERSION="$version" \
@@ -59,8 +59,8 @@ network tools and resolver.
 Build the current daemon and test executable before the work run:
 
 ```sh
-CGO_ENABLED=0 go build -buildvcs=false -o build/vault443d ./cmd/vault443d
-CGO_ENABLED=0 go test -c -o .cache/workvpn-e2e.test ./tests/e2e
+CGO_ENABLED=0 python3 scripts/go.py build -buildvcs=false -o build/vault443d ./cmd/vault443d
+CGO_ENABLED=0 python3 scripts/go.py test -c -o .cache/workvpn-e2e.test ./tests/e2e
 ```
 
 Use the same isolated container command above, adding these environment values:

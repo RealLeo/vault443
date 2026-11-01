@@ -31,12 +31,13 @@ func SubscriptionURL(raw string) (*url.URL, error) {
 	return u, nil
 }
 
+func PublicIP(ip net.IP) bool { return publicIP(ip) }
 func publicIP(ip net.IP) bool {
 	if !ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() {
 		return false
 	}
 	// CGNAT and documentation/benchmark ranges are not remote subscriptions.
-	for _, cidr := range []string{"100.64.0.0/10", "192.0.0.0/24", "192.0.2.0/24", "198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "240.0.0.0/4", "2001:db8::/32"} {
+	for _, cidr := range []string{"100.64.0.0/10", "192.0.0.0/24", "192.0.2.0/24", "198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "240.0.0.0/4", "2001:db8::/32", "2001::/23", "64:ff9b::/96", "64:ff9b:1::/48", "2002::/16"} {
 		_, n, _ := net.ParseCIDR(cidr)
 		if n.Contains(ip) {
 			return false
@@ -48,6 +49,12 @@ func publicIP(ip net.IP) bool {
 // FetchSubscription never follows a redirect to a local endpoint. DNS is resolved
 // inside DialContext and the selected public IP is dialled directly (no rebind gap).
 func FetchSubscription(ctx context.Context, raw string) (string, error) {
+	return FetchDocument(ctx, raw, nil)
+}
+
+// FetchDocument lets the supervisor supply a pinned, protected dialer. Callers
+// must reject non-public destinations and prevent DNS rebinding.
+func FetchDocument(ctx context.Context, raw string, dial func(context.Context, string, string) (net.Conn, error)) (string, error) {
 	u, err := SubscriptionURL(raw)
 	if err != nil {
 		return "", err
@@ -81,6 +88,10 @@ func FetchSubscription(ctx context.Context, raw string) (string, error) {
 		_ = last
 		return nil, errors.New("subscription endpoint unavailable")
 	}
+	if dial != nil {
+		tr.DialContext = dial
+	}
+	tr.DisableKeepAlives = true
 	defer tr.CloseIdleConnections()
 	client := &http.Client{Transport: tr, Timeout: 20 * time.Second, CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) >= 3 {
@@ -96,9 +107,15 @@ func FetchSubscription(ctx context.Context, raw string) (string, error) {
 	req.Header.Set("User-Agent", "Vault443/"+app.Version())
 	res, err := client.Do(req)
 	if err != nil {
-		return "", errors.New("subscription download failed (HTTPS, DNS, or timeout)")
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
+		return "", errors.New("configuration download failed (HTTPS, DNS, or timeout)")
 	}
 	defer res.Body.Close()
+	if res.StatusCode == http.StatusGone || res.StatusCode == http.StatusForbidden {
+		return "", &ProviderError{Message: "source access is expired or denied"}
+	}
 	if res.StatusCode != http.StatusOK {
 		return "", errors.New("subscription server returned an unsuccessful response")
 	}

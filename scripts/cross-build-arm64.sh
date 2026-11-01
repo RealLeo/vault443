@@ -29,11 +29,9 @@ docker run --rm --network=none --user "$(id -u):$(id -g)" \
   '
 
 cd "$project_dir"
-GOOS=linux GOARCH=arm64 CGO_ENABLED=0 GOPROXY=off \
-  GOMODCACHE="${GOMODCACHE:-$project_dir/.cache/go-mod}" \
-  GOCACHE="${GOCACHE:-$project_dir/.cache/go-build}" \
-  go build -buildvcs=false -trimpath -ldflags='-s -w' -o "$output_dir/vault443d" ./cmd/vault443d
+python3 scripts/build-service.py arm64 "$output_dir"
 readelf -h "$output_dir/vault443d" | grep -q 'Machine:.*AArch64'
 file "$output_dir/vault443" "$output_dir/vault443d"
 python3 scripts/build-amneziawg.py arm64 --offline
+python3 scripts/build-outline.py arm64 --offline
 sha256sum "$output_dir/vault443" "$output_dir/vault443d"

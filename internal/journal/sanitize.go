@@ -11,7 +11,7 @@ import (
 
 var (
 	ansi         = regexp.MustCompile(`\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)?)`)
-	uri          = regexp.MustCompile(`(?i)(?:vless|vmess|trojan|ss|vpn|https?)://[^\s<>"']+`)
+	uri          = regexp.MustCompile(`(?i)(?:vless|vmess|trojan|ssconf|ss|vpn|wss?|https?)://[^\s<>"']+`)
 	uuid         = regexp.MustCompile(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b`)
 	namedSecret  = regexp.MustCompile(`(?i)(["']?(?:uuid|password|passwd|token|authorization|private[_-]?key|public[_-]?key|preshared[_-]?key|header[_-]?protection[_-]?key|client_priv_key|shortid|sid|pbk|psk|secret|spiderx)["']?\s*[:=]\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,;}"']+)`)
 	bearer       = regexp.MustCompile(`(?i)\b(?:bearer|basic)\s+[a-z0-9+/=_-]+`)
@@ -38,7 +38,8 @@ func secretVariants(secrets []string) []string {
 
 // Sanitize is applied both before writing and before delivering a record. Known
 // session credentials are additionally removed by Session.Log, before enqueue.
-func Sanitize(s string) string { return sanitize(s, nil) }
+func Sanitize(s string) string                           { return sanitize(s, nil) }
+func SanitizeSecrets(s string, secrets ...string) string { return sanitize(s, secretVariants(secrets)) }
 func sanitize(s string, secrets []string) string {
 	// Cap work before running regexes on an untrusted core line. The pipe reader
 	// separately drains overlong lines without allocating their remainder.
