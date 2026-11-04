@@ -2,18 +2,22 @@
   <img src="assets/profile-icons/vault-door.png" width="96" height="96" alt="Vault 443 vault door emblem">
 </p>
 <h1 align="center">Vault 443</h1>
-<p align="center"><strong>A retro terminal for modern VPN connections.</strong></p>
+<p align="center"><strong>A Linux VPN client with a Fallout-inspired retro interface.</strong></p>
+<p align="center"><strong>English</strong> · <a href="README.ru.md">Русский</a></p>
 <p align="center">
-  A native Linux VPN client with worn brass, green phosphor, and one-click connections.<br>
-  Qt Quick on the desktop. Go behind the scenes. VLESS, Trojan, Shadowsocks/Outline and your work VPNs in one place.
+  Import your profiles, connect with a click, and manage your internet and work VPNs in one compact native desktop app.<br>
+  VLESS, Trojan, Shadowsocks/Outline, OpenVPN, WireGuard and AmneziaWG.<br>
+  Bring your own server or subscription. No Vault 443 account required.
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Ubuntu-24.04%20%7C%2026.04-E95420?style=flat-square" alt="Ubuntu 24.04 and 26.04">
   <img src="https://img.shields.io/badge/version-1.3.4-b6a166?style=flat-square" alt="Version 1.3.4">
   <img src="https://img.shields.io/badge/Qt-6%20Quick-41CD52?style=flat-square" alt="Qt 6 Quick">
-  <img src="https://img.shields.io/badge/Go-1.27.3-00ADD8?style=flat-square" alt="Go 1.27.3">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT license"></a>
 </p>
 <p align="center">
+  <a href="https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443_1.3.4-1ubuntu24.04_amd64.deb"><strong>Download for Ubuntu</strong></a> ·
+  <a href="#download">Other distributions</a> ·
   <a href="#install">Install</a> ·
   <a href="#first-connection">Get started</a> ·
   <a href="#working-alongside-other-vpns">Other VPNs</a> ·
@@ -27,17 +31,91 @@
 
 ## Your connections, in one place
 
-- **Connect with one click.** After an administrator grants access once, everyday connections need no password prompt. Watch connection stages, cancel a pending attempt, or disconnect from the tray.
-- **Bring your own profiles.** Import mixed VLESS, Trojan and Shadowsocks links, text files, Base64 lists, or HTTPS subscriptions. Dynamic Outline keys refresh safely before connecting. Review entries and choose from 23 emblems before saving. Subscription updates retain your choices.
-- **Connect your work VPNs.** Import self-contained `.ovpn` and WireGuard/AmneziaWG `.conf` files, or paste an autonomous Amnezia `vpn://` export. Run several connections alongside the main Internet connection and choose how overlapping work and Docker networks are routed. Each profile has its own status, cancel button, and journal.
-- **Arrange profiles your way.** Drag the three vertical brass dots to the left of an emblem to mix any profile types in your preferred order. The order is saved per user. A slim, always-visible scrollbar stays in the main frame.
-- **Keep control when the tunnel fails.** The network guard blocks direct Internet traffic during recovery, including forwarded Docker bridge traffic. Explicitly disconnect to restore ordinary routing.
-- **Keep local networks reachable.** Attached LANs and verified work VPN routes retain their paths. IPv4 and IPv6 are checked separately; unavailable tunnel IPv6 fails quickly so applications can fall back to IPv4.
-- **Start the way you want.** Launch the interface at login, connect a selected system profile at boot, or use both. Closing the window leaves the VPN running.
-- **Track your session.** One line shows session time, download/upload speed, and accumulated transfer totals. Counters live in the service, survive closing the GUI and automatic reconnection, and reset for a new manual connection or service restart.
-- **See what happened.** Per-profile connection logs retain up to seven days of history, with optional detailed logging. English and Russian interfaces switch instantly without reconnecting.
+- **Bring your own profiles.** Import links, files or HTTPS subscriptions for VLESS, Trojan and Shadowsocks/Outline. Review profiles before saving; subscription updates keep your choices.
+- **Manage internet and work VPNs.** Add supported OpenVPN, WireGuard or AmneziaWG profiles and choose how overlapping work and Docker networks are routed. Split work routes can run alongside your main internet connection; a full-tunnel work VPN pauses it.
+- **Know what is happening.** See connection progress, live traffic and per-profile logs. The network guard blocks direct internet traffic during an unexpected outage; an explicit **Disconnect** restores ordinary routing.
 
-A valid VLESS, Trojan, Shadowsocks/Outline, OpenVPN, WireGuard or AmneziaWG client profile is required. Vault 443 does not provide a VPN service or require its own account. Supported transports and import limits are documented in [service and profile behavior](docs/backend.md#supported-imports) and [work VPN details](docs/work-vpn.md).
+A valid server configuration or subscription is required. Vault 443 is a client, not a VPN service. [Supported profiles](docs/backend.md#supported-imports) · [Work VPN limits](docs/work-vpn.md).
+
+## Download
+
+**Vault 443 1.3.4 · Linux x86-64 (amd64).** Choose the package for your distribution; Ubuntu and Debian packages are separate builds.
+
+| Distribution | Installer | Checksum |
+| --- | --- | --- |
+| Ubuntu 24.04 / 26.04 | [Download .deb](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443_1.3.4-1ubuntu24.04_amd64.deb) | [SHA-256](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443_1.3.4-1ubuntu24.04_amd64.deb.sha256) |
+| Debian 13 | [Download .deb](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443_1.3.4-1debian13_amd64.deb) | [SHA-256](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443_1.3.4-1debian13_amd64.deb.sha256) |
+| Fedora 44 · initial port | [Download .rpm](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443-1.3.4-1.fc44.x86_64.rpm) | [SHA-256](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443-1.3.4-1.fc44.x86_64.rpm.sha256) |
+| Arch Linux · initial port | [Download .pkg.tar.zst](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443-1.3.4-1-x86_64.pkg.tar.zst) | [SHA-256](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443-1.3.4-1-x86_64.pkg.tar.zst.sha256) |
+
+[All release files and build manifests](https://github.com/RealLeo/vault443/releases/tag/1.3.4) · [SHA256SUMS](https://github.com/RealLeo/vault443/releases/download/1.3.4/SHA256SUMS) · [What's new](docs/RELEASE-1.3.4.md).
+
+Ubuntu is the established desktop target. Fedora/Arch are initial ports; physical desktop, boot/suspend and Fedora enforcing SELinux/firewalld acceptance remain pending. These are unsigned project packages, not official distribution repository packages. See [requirements and validation limits](docs/linux-packages.md).
+
+## Install
+
+1. Download the installer and its matching `.sha256` file from the table above. Open a terminal in the folder containing both files, as your **normal desktop user**.
+2. Verify the package before installing. For Ubuntu:
+
+   ```sh
+   sha256sum -c vault443_1.3.4-1ubuntu24.04_amd64.deb.sha256
+   ```
+
+   It must report `OK`. For another distribution, use that installer's `.sha256` filename. Alternatively, download [SHA256SUMS](https://github.com/RealLeo/vault443/releases/download/1.3.4/SHA256SUMS) into the same folder and run `sha256sum --ignore-missing -c SHA256SUMS`; check that your package reports `OK`.
+3. Use the command for your distribution:
+
+   ```sh
+   # Ubuntu 24.04 / 26.04
+   sudo apt install ./vault443_1.3.4-1ubuntu24.04_amd64.deb
+
+   # Debian 13
+   sudo apt install ./vault443_1.3.4-1debian13_amd64.deb
+
+   # Fedora 44
+   sudo dnf install ./vault443-1.3.4-1.fc44.x86_64.rpm
+
+   # Arch Linux: perform a full system upgrade first
+   sudo pacman -Syu
+   sudo pacman -U ./vault443-1.3.4-1-x86_64.pkg.tar.zst
+   ```
+
+4. Before the first connection, ensure your system uses **systemd-resolved**: `systemctl is-active systemd-resolved` must report `active`, and `resolvectl status` must show your network configuration. The supported stack is systemd, D-Bus/logind and systemd-resolved with NetworkManager or systemd-networkd. Kernel WireGuard and `/dev/net/tun` must be available. The installer does not migrate your DNS configuration; follow the [distribution prerequisites](docs/linux-packages.md#dns-and-desktop-prerequisites) if needed.
+5. On a fresh **Fedora or Arch** install, enable the services after preparing DNS:
+
+   ```sh
+   sudo systemctl enable --now vault443-guard.service vault443.service
+   ```
+
+6. Grant your desktop user access once, then open **Vault 443** from the application launcher:
+
+   ```sh
+   sudo vault443-access "$USER"
+   ```
+
+The GUI runs as your regular user. An active local desktop session is required; do not launch the GUI with `sudo`. Existing users keep their access permissions. GNOME's tray icon needs StatusNotifier/AppIndicator support; the launcher can reopen the window without a tray host.
+
+### First connection
+
+1. Open **Import**, paste one or more `vless://`, `trojan://`, `ss://` or `ssconf://` links or choose a text file, then review the profiles and select their emblems. Add an HTTPS subscription from **Settings → Subscriptions**.
+2. Click **Connect**. The line below the profile name shows progress, recovery attempts, or a specific error. Click it to open diagnostics.
+For an ordinary HTTPS dynamic Outline URL, select **Outline · HTTPS / ssconf://** in the import dialog. Use **Update configuration** in profile properties to refresh manually; an active connection keeps its current configuration.
+
+Click the profile emblem to rename it, choose another emblem, or open **Logs**. Detailed logging takes effect on the next connection.
+
+In **Settings → General**, choose **System default**, **English**, or **Русский**. System default uses the first supported language in your system preferences and falls back to English. The choice is saved per user and applies immediately, including the tray.
+
+| Startup option | What it does |
+| --- | --- |
+| Launch the interface at login | Opens the GUI when this user signs in. It does not select a boot VPN profile. |
+| Connect VPN at system boot | Starts the selected system profile before desktop login. Requires an authorized administrator. |
+
+One owner controls the active set of connections: one main Internet session (VLESS, Trojan or Shadowsocks/Outline) and up to 16 work sessions shared by OpenVPN, WireGuard and AmneziaWG. Each user has a private profile library and journal. Operator access requires an active local desktop session. Boot autoconnect applies to the selected main Internet profile; work profiles start manually. Boot-profile and manual VPN binding changes additionally require membership in `sudo`, `admin` or `wheel`.
+
+## Daily use
+
+Arrange mixed profile types by dragging the brass dots beside each emblem. The order is saved per user. Closing the window leaves connections running; reopen it from the launcher or use the tray. Session time, speeds and transfer totals persist while the GUI is closed and during automatic recovery.
+
+Attached LANs and verified work routes retain their paths. IPv4 and IPv6 are checked separately; unavailable tunnel IPv6 fails quickly so applications can fall back to IPv4. Each user has a private profile library and journal. Journals retain up to seven days; detailed logging can be enabled per profile.
 
 ## A closer look
 
@@ -69,45 +147,6 @@ All screenshots use the application's demo mode and contain fictional profiles.
     <td align="center"><a href="docs/images/readme/peers.png"><img src="docs/images/readme/peers.png" width="236" alt="Peer endpoints, last handshakes and allowed networks"></a><br><strong>Understand every peer</strong></td>
   </tr>
 </table>
-
-## Install
-
-Native x86-64 packages are also available for **Debian 13, Fedora 44 and Arch Linux**.
-See the [Linux package guide](docs/linux-packages.md) for artifact names, commands,
-DNS prerequisites and validation limits. Fedora/Arch are initial distribution
-ports; Ubuntu remains the established desktop target.
-
-Install a locally built `.deb` from `dist/`. Run these commands in your **normal desktop user's terminal**:
-
-```sh
-sudo apt install ./dist/linux/ubuntu24/vault443_1.3.4-1ubuntu24.04_amd64.deb
-sudo vault443-access "$USER"
-```
-
-Version 1.3.4 packages target x86-64; see [Linux packages](docs/linux-packages.md) for Debian, Fedora and Arch. The access command is a one-time setup per local user; an existing Vault 443 account keeps its permissions. Open **Vault 443** from the application launcher afterward. The GUI runs as your regular user, and the service checks current group membership on each request.
-
-**Updating Vault 443:** use the same APT command. Updates from **1.3.0** preserve profiles, subscriptions, logs, group membership and startup settings. The service may briefly restart and resumes the requested connection under the traffic guard. Earlier VLESS Terminal installations must first complete their transition using the **1.0.0 release tools**; this source tree no longer includes that migration.
-
-**Release status:** 1.3.4 places a compact, borderless drag handle to the left of each emblem and removes keyboard reordering. The OpenVPN NetworkManager integration from 1.3.2 is retained. NetworkManager checks the actual tunnel; checks remain enabled and direct traffic stays protected. Packages target Ubuntu 24.04/26.04, Debian 13, Fedora 44 and Arch on x86-64. Distribution containers share the host kernel; Fedora enforcing SELinux and physical desktop acceptance remain pending. The bundled [Xray 26.9.30](https://github.com/XTLS/Xray-core/releases/tag/v26.9.30) is an upstream **prerelease**, pinned with [archive checksums](packaging/xray-lock.json). AmneziaWG is built separately from [locked upstream sources](packaging/amneziawg-lock.json). See the [validation record](docs/VALIDATION.md) for tested scenarios and remaining limitations.
-
-See [Trojan, Shadowsocks and Outline](docs/proxy-protocols.md) for supported formats, source caching and rollback. The Outline SDK and dependencies are [pinned separately](packaging/outline-lock.json) and built with the [shared private Go 1.27.3 toolchain](packaging/go-toolchain-lock.json) as the supervisor and AmneziaWG.
-
-### First connection
-
-1. Open **Import**, paste one or more `vless://`, `trojan://`, `ss://` or `ssconf://` links or choose a text file, then review the profiles and select their emblems. Add an HTTPS subscription from **Settings → Subscriptions**.
-2. Click **Connect**. The line below the profile name shows progress, recovery attempts, or a specific error. Click it to open diagnostics.
-For an ordinary HTTPS dynamic Outline URL, select **Outline · HTTPS / ssconf://** in the import dialog. Use **Update configuration** in profile properties to refresh manually; an active connection keeps its current configuration.
-
-Click the profile emblem to rename it, choose another emblem, or open **Logs**. Detailed logging takes effect on the next connection.
-
-In **Settings → General**, choose **System default**, **English**, or **Русский**. System default uses the first supported language in your system preferences and falls back to English. The choice is saved per user and applies immediately, including the tray.
-
-| Startup option | What it does |
-| --- | --- |
-| Launch the interface at login | Opens the GUI when this user signs in. It does not select a boot VPN profile. |
-| Connect VPN at system boot | Starts the selected system profile before desktop login. Requires an authorized administrator. |
-
-One owner controls the active set of connections: one main Internet session (VLESS, Trojan or Shadowsocks/Outline) and up to 16 work sessions shared by OpenVPN, WireGuard and AmneziaWG. Each user has a private profile library and journal. Operator access requires an active local desktop session. Boot autoconnect applies to the selected main Internet profile; work profiles start manually. Boot-profile and manual VPN binding changes additionally require membership in `sudo`, `admin` or `wheel`.
 
 ## Work VPN profiles
 
@@ -210,6 +249,20 @@ bash scripts/test-gui-dbus.sh
 
 GUI tests use demo data; D-Bus tests start a private fixture. Networking tests use explicitly isolated containers. Follow the [E2E runner guide](tests/e2e/README.md) and [frontend test guide](ui/README.md); do not run privileged network fixtures on your host network. The [validation record](docs/VALIDATION.md) distinguishes automated checks from remaining physical-device, desktop, and boot acceptance.
 
+## Updates and removal
+
+Download and verify the new package, then repeat the installation command for your distribution. Updates from 1.3.0 preserve profiles, subscriptions, logs, access permissions and startup settings. The service may briefly restart and resumes the requested connection under the traffic guard. Earlier **VLESS Terminal** installations must first complete the transition using the **1.0.0 release tools**; this source tree no longer includes that migration.
+
+To uninstall, use your package manager:
+
+```sh
+sudo apt remove vault443       # Ubuntu / Debian
+sudo dnf remove vault443       # Fedora
+sudo pacman -R vault443        # Arch
+```
+
+Removal releases Vault 443's network resources and retains private profiles in `/var/lib/vault443`. Use the package manager to keep removal hooks intact. See [update and removal details](docs/linux-packages.md#updates-and-removal).
+
 ## Troubleshooting and recovery
 
 Start with the profile's status line, **Diagnostics**, and **Logs**. If the service is unavailable, inspect:
@@ -248,4 +301,8 @@ This removes only Vault 443's network resources, clears the desired connection a
 - [AmneziaWG-Go](https://github.com/amnezia-vpn/amneziawg-go/tree/v3.1.20260828) is distributed as a separate executable under MIT; its license, linked Go module licenses and exact source/build manifest are included in the package.
 - [Iosevka license](assets/fonts/Iosevka-LICENSE.md), [Roboto Condensed license](assets/fonts/Roboto-LICENSE.txt), and [font provenance](assets/fonts/manifest.json) are included in the repository.
 
-No game assets or Bethesda logos are bundled. The repository does not yet define a project-wide license; third-party component licenses do not grant a license to the whole application.
+## License
+
+Vault 443's own source code, documentation and original artwork are available under the [MIT license](LICENSE), including version 1.3.4. Bundled third-party components and fonts retain their respective licenses; they are not relicensed under MIT. Packages include these notices under `/usr/share/doc/vault443/`.
+
+The retro interface is inspired by Fallout. No game assets or Bethesda logos are bundled.

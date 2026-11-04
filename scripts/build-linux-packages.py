@@ -48,7 +48,8 @@ def build(target, args):
         ctest --test-dir /out/build --output-on-failure
     ''')
     container(target, out, 'pkg-config --modversion Qt6Core > /out/qt-version')
-    run('python3', 'scripts/build-service.py', 'amd64', out / 'build')
+    if not args.repack:
+        run('python3', 'scripts/build-service.py', 'amd64', out / 'build')
     stage = out / 'payload'
     env = dict(os.environ, BUILD_DIR=str(out / 'build'), PACKAGE_STAGE=str(stage))
     run('bash', 'scripts/stage-package.sh', 'amd64', env=env)
@@ -117,7 +118,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('targets', choices=TARGETS, nargs='+')
     parser.add_argument('--skip-image', action='store_true', help='Reuse previously built native Docker images')
-    parser.add_argument('--repack', action='store_true', help='Reuse the tested GUI for packaging/documentation-only changes')
+    parser.add_argument('--repack', action='store_true', help='Reuse the tested GUI, service and engines for packaging/documentation-only changes')
     parser.add_argument('--jobs', type=int, default=4)
     args = parser.parse_args()
     if os.getuid() == 0:

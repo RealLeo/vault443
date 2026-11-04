@@ -7,7 +7,8 @@ Name: vault443
 Version: %{product_version}
 Release: 1%{?dist}
 Summary: Native desktop client for proxy and work VPN connections
-License: LicenseRef-Unknown
+License: MIT
+URL: https://github.com/RealLeo/vault443
 ExclusiveArch: x86_64
 Requires: qt6-qtbase-gui >= 6.4, qt6-qtdeclarative >= 6.4, qt6-qtwayland
 Requires: systemd, systemd-resolved, dbus, ca-certificates
@@ -19,7 +20,7 @@ Requires(preun): /bin/sh, systemd, iproute, nftables
 %description
 A Qt Quick interface and privileged Go supervisor for VLESS, Trojan,
 Shadowsocks/Outline, OpenVPN, WireGuard and AmneziaWG.
-Project licensing is not yet declared; third-party notices are included.
+Vault 443 is licensed under MIT; third-party notices are included.
 
 %install
 mkdir -p %{buildroot}

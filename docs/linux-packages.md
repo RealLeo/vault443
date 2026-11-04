@@ -11,30 +11,42 @@ engine or profile-format changes. The directory name `vless-terminal` does not a
 | Fedora 44 | `fedora44/vault443-1.3.4-1.fc44.x86_64.rpm` | Native Fedora build; desktop/SELinux acceptance pending |
 | Arch Linux | `arch/vault443-1.3.4-1-x86_64.pkg.tar.zst` | Native rolling-release build; perform full system updates |
 
-Each artifact has a `.sha256` file. Native container builds also record their
+Download the installer for your distribution and its `.sha256` file from
+[GitHub Releases](https://github.com/RealLeo/vault443/releases/tag/1.3.4).
+The table above shows local build paths; downloaded installers are installed
+from the folder where you saved them. Each artifact has a `.sha256` file. Native container builds also record their
 image identity, exact package inventory and output checksum in `.build.json`.
-Packages are local, unsigned artifacts; no distribution repository, COPR or AUR
-submission is implied. RPM and Arch use `LicenseRef-Unknown` because this project
-does not yet declare its own license. Bundled third-party license notices remain
-included. The existing ARM64 Ubuntu build is separate from this x86-64 matrix.
+Packages are unsigned project artifacts; no distribution repository, COPR or AUR
+submission is implied. Vault 443's own code, documentation and original artwork
+are under [MIT](../LICENSE). RPM and Arch declare MIT; bundled third-party
+components and fonts retain their own licenses and notices. Both README
+languages and the project license are installed under `/usr/share/doc/vault443/`. The existing ARM64 Ubuntu build is separate from this x86-64 matrix.
 
 ## Install
 
-Use the command for your distribution, from the repository root:
+Open a terminal in the folder containing your downloaded installer and matching
+`.sha256` file. Verify it before installing; for example, on Ubuntu:
+
+```sh
+sha256sum -c vault443_1.3.4-1ubuntu24.04_amd64.deb.sha256
+```
+
+The result must report `OK`. Use the matching `.sha256` filename for another
+distribution. Then run the command for your distribution:
 
 ```sh
 # Ubuntu 24.04 or 26.04
-sudo apt install ./dist/linux/ubuntu24/vault443_1.3.4-1ubuntu24.04_amd64.deb
+sudo apt install ./vault443_1.3.4-1ubuntu24.04_amd64.deb
 
 # Debian 13
-sudo apt install ./dist/linux/debian13/vault443_1.3.4-1debian13_amd64.deb
+sudo apt install ./vault443_1.3.4-1debian13_amd64.deb
 
 # Fedora 44
-sudo dnf install ./dist/linux/fedora44/vault443-1.3.4-1.fc44.x86_64.rpm
+sudo dnf install ./vault443-1.3.4-1.fc44.x86_64.rpm
 
 # Arch Linux: full upgrade first, not a partial Qt upgrade
 sudo pacman -Syu
-sudo pacman -U ./dist/linux/arch/vault443-1.3.4-1-x86_64.pkg.tar.zst
+sudo pacman -U ./vault443-1.3.4-1-x86_64.pkg.tar.zst
 ```
 
 Check the checksum in the directory containing the downloaded package:
@@ -135,7 +147,10 @@ Dockerfiles pin official base-image digests; distribution repository updates are
 resolved at build time, and the resulting inventory is recorded. This is not a
 claim of byte-identical rebuilds from moving package repositories. Keep the build
 image by its recorded ID to reproduce its exact native Qt environment. GUI builds
-run without network, as the host's unprivileged UID. The shared staging gate
+run without network, as the host's unprivileged UID. For documentation/license
+changes, `python3 scripts/build-linux-packages.py --skip-image --repack debian13
+fedora44 arch` reuses the existing GUI, supervisor and engines; the shared stage
+gate still verifies their compiler, pin and binary manifests. The shared staging gate
 checks all Go build manifests, compiler versions, architecture, runtime RPATH
 and a fresh vulnerability report before any package format is produced.
 
