@@ -14,7 +14,7 @@ html[lang="ru"] .vault-scene{--scene-atlas:url("scene/desktop-ru.webp")}
 .scene-language a{flex:1;color:#ddc79a;background:none;border:0}
 .scene-language [aria-current]{flex:1;color:#79df53}
 .scene-language>span[aria-hidden]{color:#ddc79a}
-html[lang="en"] .scene-caption,html[lang="en"] .scene-language>*{color:transparent;text-shadow:none}
+html[lang="en"] .scene-caption{color:transparent;text-shadow:none}
 .vault-scene .scene-lead{font:400 2.42cqw/1.1 var(--body);white-space:nowrap}
 .vault-scene .scene-body{font:400 1.6cqw/1.15 var(--body);text-align:center}
 .scene-download>span{position:absolute;left:21%;right:4%;top:0;bottom:0;display:flex;align-items:center;justify-content:center;font:900 2.48cqw/1 var(--display);text-transform:uppercase;white-space:nowrap}

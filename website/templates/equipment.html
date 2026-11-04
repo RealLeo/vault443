@@ -6,10 +6,10 @@
         <fieldset class="equipment-scenarios" data-js-only hidden><legend class="e-slot er-legend">{{demo.legend}}</legend>{{scenario_choices}}</fieldset>
         <div class="route-diagram relay-diagram" role="img" aria-label="{{demo.scenarios.0.description}}">
           <svg class="relay-wires" viewBox="0 0 1536 1024" preserveAspectRatio="none" aria-hidden="true">
-            <path class="route-wire" data-route="entry" pathLength="100" d="M228 500H342"/>
-            <path class="route-wire" data-route="internet" pathLength="100" d="M704 384H827M1084 384H1156"/>
-            <path class="route-wire" data-route="work" pathLength="100" d="M704 538H827M1084 538H1156"/>
-            <path class="route-wire" data-route="docker" pathLength="100" d="M704 694H827M1084 694H1156"/>
+            <path class="route-wire" data-route="entry" pathLength="100" d="M271 447H304Q307 447 310 444L322 435Q325 433 329 433H338"/>
+            <path class="route-wire" data-route="internet" pathLength="100" d="M715 384H808M1090 371H1154"/>
+            <path class="route-wire" data-route="work" pathLength="100" d="M715 541H808M1090 537H1154"/>
+            <path class="route-wire" data-route="docker" pathLength="100" d="M715 697H808M1090 698H1154"/>
           </svg>
           <div class="e-slot er-device relay-node device-node"><img class="mobile-part" data-mobile-src="{{assets}}equipment/device.webp" width="180" height="292" alt=""><span>{{demo.nodes.device}}</span></div>
           <div class="e-slot er-client relay-node client-node"><img class="mobile-part" data-mobile-src="{{assets}}equipment/client.webp" width="310" height="405" alt=""><span>{{demo.nodes.vault}}</span><strong>{{equipment.demo}}</strong><div class="client-indicators" aria-hidden="true"><i data-channel-led="internet" data-active="true"></i><i data-channel-led="work"></i><i data-channel-led="docker"></i></div></div>

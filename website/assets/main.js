@@ -29,7 +29,7 @@
   let demoTimeline = null;
   let currentScenario = 0;
   let audioContext = null;
-  let soundEnabled = false;
+  let soundEnabled = true;
   const oscillators = new Set();
   let galleryIndex = 0;
   let galleryTimeline = null;
@@ -38,6 +38,7 @@
   document.querySelectorAll("[data-js-only]").forEach(element => { element.hidden = false; });
   root.dataset.enhanced = "true";
   if (gsap && scrollTrigger) gsap.registerPlugin(scrollTrigger);
+  const refreshScroll = () => { if (scrollTrigger && scrollTrigger.getAll().length) scrollTrigger.refresh(); };
 
   // Decoration is fetched only near the viewport. Native text/downloads exist already.
   const equipmentSections = [...document.querySelectorAll("[data-equipment]")];
@@ -89,27 +90,41 @@
     for (const oscillator of oscillators) { try { oscillator.stop(); } catch {} }
     oscillators.clear();
   }
-  soundButton.addEventListener("click", async () => {
-    if (soundEnabled) {
-      soundEnabled = false;
-      silence();
-      if (audioContext) await audioContext.suspend();
-    } else {
-      const Context = window.AudioContext || window.webkitAudioContext;
-      if (!Context) { soundButton.disabled = true; return; }
-      try {
-        if (!audioContext) audioContext = new Context();
-        await audioContext.resume();
-        soundEnabled = true;
-        tone(790, 0.065);
-      } catch { soundEnabled = false; }
-    }
+  function updateSoundButton() {
     soundButton.setAttribute("aria-pressed", String(soundEnabled));
     soundButton.title = soundEnabled ? data.controls.soundOn : data.controls.soundOff;
+  }
+  async function unlockAudio() {
+    if (!soundEnabled) return false;
+    const Context = window.AudioContext || window.webkitAudioContext;
+    if (!Context) { soundEnabled = false; soundButton.disabled = true; updateSoundButton(); return false; }
+    try {
+      if (!audioContext) audioContext = new Context();
+      if (audioContext.state !== "running") await audioContext.resume();
+      return soundEnabled && audioContext.state === "running";
+    } catch { return false; }
+  }
+  // Enabled by default; a trusted gesture unlocks audio under autoplay policies.
+  const unlockOnGesture = event => {
+    if (!event.isTrusted || event.target.closest(".sound-button")) return;
+    unlockAudio();
+  };
+  document.addEventListener("pointerdown", unlockOnGesture, { capture: true });
+  document.addEventListener("keydown", unlockOnGesture, { capture: true });
+  soundButton.addEventListener("click", async () => {
+    soundEnabled = !soundEnabled;
+    updateSoundButton();
+    if (!soundEnabled) {
+      silence();
+      if (audioContext) await audioContext.suspend();
+    } else if (await unlockAudio()) tone(790, 0.065);
   });
-  document.querySelectorAll("button, .metal-button, .gallery-choice, .scenario-choice").forEach(element => {
-    element.addEventListener("pointerdown", () => tone(490, 0.035));
+  document.querySelectorAll("button, .metal-button, .gallery-choice, .scenario-choice, .equipment-key, .scene-key").forEach(element => {
+    element.addEventListener("pointerdown", async event => {
+      if (!event.target.closest(".sound-button") && await unlockAudio()) tone(490, 0.035);
+    });
   });
+  updateSoundButton();
 
   const assembly = document.querySelector(".vault-assembly");
   const shutters = document.querySelector(".vault-shutters");
@@ -170,7 +185,7 @@
       const active = names.includes(wire.dataset.route);
       wire.dataset.active = String(active);
       wire.style.stroke = active ? "#a8c871" : "#49513b";
-      wire.style.opacity = active ? "1" : "0.4";
+      wire.style.opacity = active ? "0.85" : "0";
       wire.style.strokeDasharray = "none";
       wire.style.strokeDashoffset = "0";
     }
@@ -213,7 +228,7 @@
     playButton.querySelector(".power-caption").textContent = data.demo.playing;
     for (const wire of wires) {
       wire.dataset.active = "false";
-      gsap.set(wire, { stroke: "#49513b", opacity: 0.4, strokeDasharray: wireLengths.get(wire), strokeDashoffset: 0 });
+      gsap.set(wire, { stroke: "#49513b", opacity: 0, strokeDasharray: wireLengths.get(wire), strokeDashoffset: 0 });
     }
     demoTimeline = gsap.timeline({ defaults: { duration: 0.6, ease: "power1.inOut" }, onComplete: () => finishDemo(scenario) });
     scenario.steps.forEach((step, index) => {
@@ -227,7 +242,7 @@
         demoTimeline.to(channel.querySelectorAll(".relay-arm"), { rotation: 0, duration: .18 }, "stage" + index);
       }
       if (matchingWires.length) demoTimeline.call(() => matchingWires.forEach(wire => { wire.dataset.active = "true"; }), [], "stage" + index);
-      if (matchingWires.length) demoTimeline.fromTo(matchingWires, { stroke: "#a8c871", opacity: 1, strokeDashoffset: 100 }, { strokeDashoffset: 0, immediateRender: false }, "stage" + index);
+      if (matchingWires.length) demoTimeline.fromTo(matchingWires, { stroke: "#a8c871", opacity: .85, strokeDashoffset: 100 }, { strokeDashoffset: 0, immediateRender: false }, "stage" + index);
       else demoTimeline.to({}, { duration: 0.4 }, "stage" + index);
     });
   });
@@ -262,7 +277,7 @@
         choice.classList.toggle("is-active", current === next);
         if (current === next) choice.setAttribute("aria-current", "true"); else choice.removeAttribute("aria-current");
       });
-      if (scrollTrigger) scrollTrigger.refresh();
+      refreshScroll();
     };
     if (animate && canAnimate()) {
       galleryTimeline = gsap.timeline({ defaults: { duration: 0.09, ease: "power1.inOut" } });
@@ -336,8 +351,8 @@
       if (gsap) gsap.ticker.sleep();
     } else if (gsap) gsap.ticker.wake();
   });
-  galleryImage.addEventListener("load", () => { if (scrollTrigger) scrollTrigger.refresh(); });
-  if (document.fonts) document.fonts.ready.then(() => { if (scrollTrigger) scrollTrigger.refresh(); });
+  galleryImage.addEventListener("load", () => { refreshScroll(); });
+  if (document.fonts) document.fonts.ready.then(() => { refreshScroll(); });
   window.addEventListener("pagehide", event => {
     silence();
     door.finish();
@@ -347,5 +362,5 @@
     cancelDemo();
     if (galleryTimeline) galleryTimeline.kill();
   });
-  window.addEventListener("pageshow", event => { if (event.persisted) { soundEnabled = false; silence(); soundButton.setAttribute("aria-pressed", "false"); soundButton.title = data.controls.soundOff; if (audioContext) audioContext.suspend().catch(() => {}); if (gsap) gsap.ticker.wake(); startMotion(); door.restore(); } });
+  window.addEventListener("pageshow", event => { if (event.persisted) { soundEnabled = true; silence(); updateSoundButton(); if (audioContext) audioContext.suspend().catch(() => {}); if (gsap) gsap.ticker.wake(); startMotion(); door.restore(); } });
 })();

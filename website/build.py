@@ -3,6 +3,7 @@
 import argparse
 import fnmatch
 import gzip
+import hashlib
 import html
 import json
 from pathlib import Path
@@ -134,7 +135,7 @@ def equipment_values(data, release, assets, gallery):
         number = f'{package["size"] / 1048576:.1f}'
         if data["lang"] == "ru": number = number.replace(".", ",")
         activation = '<p class="activation-note">' + t("downloads.activation") + '</p>' if target in ("fedora", "arch") else ''
-        rows.append('<article class="e-package"><div class="distro-emblem">' + image("distro-" + str(i)) + '</div><h3 class="e-slot ed-name-' + str(i) + '">' + escape(package["name"]) + '</h3><span class="e-slot package-format ed-format-' + str(i) + '">' + escape(package["format"]) + '</span><span class="e-slot package-size ed-size-' + str(i) + '"><span>' + number + '</span><small>' + ('МБ' if data["lang"] == "ru" else 'MB') + '</small></span><p class="e-slot e-package-status ed-status-' + str(i) + (' established-status' if i < 2 else '') + '">' + escape(status) + '</p><a class="e-slot equipment-key package-download ed-download-' + str(i) + '" href="' + escape(package["url"]) + '"><span>' + t("downloads.download") + '</span></a><a class="e-slot equipment-key checksum-link ed-sum-' + str(i) + '" href="' + escape(package["checksum"]) + '">' + t("downloads.checksum") + '<span class="e-key-hit" aria-hidden="true"></span></a><details class="install-details e-install"><summary class="e-slot equipment-key ed-install-' + str(i) + '">' + t("downloads.install") + '<span class="e-key-hit" aria-hidden="true"></span></summary><div class="install-content"><p class="installation-title">' + escape(package["name"]) + '</p>' + activation + '<div class="command-box"><pre><code id="commands-' + target + '">' + escape(install_commands(package)) + '</code></pre><button class="copy-button" type="button" data-copy="commands-' + target + '" data-js-only hidden>' + t("downloads.copy") + '</button></div></div></details></article>')
+        rows.append('<article class="e-package"><div class="distro-emblem">' + image("distro-" + str(i)) + '</div><h3 class="e-slot ed-name-' + str(i) + '">' + escape(package["name"]) + '</h3><span class="e-slot package-format ed-format-' + str(i) + '">' + escape(package["format"]) + '</span><span class="e-slot package-size ed-size-' + str(i) + '"><span>' + number + '</span><small>' + ('МБ' if data["lang"] == "ru" else 'MB') + '</small></span><p class="e-slot e-package-status ed-status-' + str(i) + (' established-status' if i < 2 else '') + '">' + escape(status) + '</p><a class="e-slot equipment-key package-download ed-download-' + str(i) + '" href="' + escape(package["url"]) + '"><span>' + t("downloads.download") + '</span></a><a class="e-slot equipment-key checksum-link ed-sum-' + str(i) + '" href="' + escape(package["checksum"]) + '">' + t("downloads.checksum") + '<span class="e-key-hit" aria-hidden="true"></span></a><details class="install-details e-install"><summary class="e-slot equipment-key ed-install-' + str(i) + '">' + t("downloads.install") + '<span class="e-key-hit" aria-hidden="true"></span></summary><div class="install-content"><p class="installation-title">' + escape(package["name"]) + '</p>' + activation + '<div class="command-box"><pre tabindex="0"><code id="commands-' + target + '">' + escape(install_commands(package)) + '</code></pre><button class="copy-button" type="button" data-copy="commands-' + target + '" data-js-only hidden>' + t("downloads.copy") + '</button></div></div></details></article>')
     values["download_rows"] = Markup("".join(rows))
     values["support_summary"] = "; ".join(support) + "."
     values["equipment_steps"] = Markup("".join('<li class="e-slot ed-step-' + str(i) + '"><span class="step-number" aria-hidden="true">' + str(i+1) + '</span><div><strong>' + escape(item["title"]) + '</strong><p>' + escape(item["body"]) + '</p></div></li>' for i, item in enumerate(data["equipment"]["steps"])))
@@ -182,7 +183,15 @@ def render_page(translations, release, base):
         value = values[key] if key in values else lookup(data, key)
         return value if isinstance(value, Markup) else escape(value)
     template = (ROOT / "templates/index.html").read_text().replace("{{hero_panel}}", (ROOT / "templates/hero.html").read_text()).replace("{{equipment_panels}}", (ROOT / "templates/equipment.html").read_text())
-    return re.sub(r"\{\{\s*([\w.]+)\s*\}\}", substitute, template)
+    page = re.sub(r"\{\{\s*([\w.]+)\s*\}\}", substitute, template)
+    # Cache-safe replacements for CSS/JS and revised measured atlases.
+    versioned = ["style.css", "vault.css", "scene.css", "scene-layout.css", "equipment.css", "equipment-layout.css", "polish.css", "main.js"]
+    versioned += [f"scene/{mode}-{code}.webp" for mode in ("desktop", "mobile") for code in ("en", "ru")]
+    versioned += [f"equipment/{name}.webp" for name in ("routing-relays", "gallery-archive", "downloads-counter")]
+    for name in versioned:
+        digest = hashlib.sha256((ROOT / "assets" / name).read_bytes()).hexdigest()[:12]
+        page = page.replace(assets + name, assets + name + "?v=" + digest)
+    return page
 
 
 def build(base="/vault443/", offline=False):
@@ -214,7 +223,7 @@ def build(base="/vault443/", offline=False):
         shutil.copytree(stage, output)
     # Count hero layers, HTML, scripts, styles, fonts and the shared material.
     # Lower equipment atlases/parts and gallery screens load only near the viewport.
-    initial = ["style.css", "vault.css", "scene.css", "scene-layout.css", "equipment.css", "equipment-layout.css", "main.js", "vendor/gsap.min.js", "vendor/ScrollTrigger.min.js", "fonts/vault-terminal.woff2", "fonts/vault-condensed.woff2", "fonts/vault-display.woff2", "emblem.webp", "vault/hatch-shutters.webp", "equipment/steel-seamless.webp"]
+    initial = ["style.css", "vault.css", "scene.css", "scene-layout.css", "equipment.css", "equipment-layout.css", "polish.css", "main.js", "vendor/gsap.min.js", "vendor/ScrollTrigger.min.js", "fonts/vault-terminal.woff2", "fonts/vault-condensed.woff2", "fonts/vault-display.woff2", "emblem.webp", "vault/hatch-shutters.webp", "equipment/steel-seamless.webp"]
     shared = sum((ROOT / "assets" / name).stat().st_size for name in initial)
     totals = {lang: {mode: shared + (ROOT / "assets/scene" / f"{mode}-{lang}.webp").stat().st_size + (ROOT / "assets/screens" / lang / "main.webp").stat().st_size + (output / ("index.html" if lang == "en" else "ru/index.html")).stat().st_size for mode in ("desktop", "mobile")} for lang in locales}
     total = max(value for modes in totals.values() for value in modes.values())

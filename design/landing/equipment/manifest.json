@@ -13,10 +13,10 @@
       "cleanSha256": "9358a221b2c00de2b6921adaf404021b48e5f81774078513bb50372c17246168",
       "repairs": [
         [
-          282,
-          18,
-          985,
-          92
+          247,
+          25,
+          1055,
+          126
         ],
         [
           411,
@@ -176,10 +176,10 @@
         ]
       ],
       "master": "design/landing/equipment/routing-relays-master.png",
-      "masterSha256": "c57bf0db777632014fc805753e684d5fe5a03d2ab0225f4136dce462dd54d775",
+      "masterSha256": "9667a7d2b4e90d71523018a3fa7ad41634b52512e7a40179f33428d3f081c25b",
       "production": "website/assets/equipment/routing-relays.webp",
-      "productionSha256": "8e59c4fe0e70c6d01aec840a8210b7ea24e5cca4fcd6a11e5e07f0b87a3a89a7",
-      "bytes": 725090
+      "productionSha256": "c3c49aa078101bd6552bd57f8dfad2048876606154f7eff6d2ae0729381494ad",
+      "bytes": 723198
     },
     {
       "name": "gallery-archive",
@@ -284,10 +284,10 @@
         ]
       ],
       "master": "design/landing/equipment/gallery-archive-master.png",
-      "masterSha256": "061a9a890eaca0bb5c760bd12bda4c47c3c7760fd10de3ad04bc17307c1e1866",
+      "masterSha256": "f26d73ed25ffbc6a62858fe246049faaabf2c1db01886775be691d96bbb91582",
       "production": "website/assets/equipment/gallery-archive.webp",
-      "productionSha256": "c7b455b15817bb58caaa0229b21014ac9c2df855b354f1662c69c16304c210a8",
-      "bytes": 518996
+      "productionSha256": "53ab93dc62d5dc10882996196a2857a50e2ec7e9dbba5bf6be9c7ac291d0518a",
+      "bytes": 519112
     },
     {
       "name": "downloads-counter",
@@ -458,10 +458,10 @@
         ]
       ],
       "master": "design/landing/equipment/downloads-counter-master.png",
-      "masterSha256": "65bd20473e5caf4df0ade260499bf7a686563d6fd62ba1b46bddca4cf61b4f0b",
+      "masterSha256": "0582a5a479c2ae71b9fe50b7684f3227e657d68cdfac3bbc7836f79ecc60f4a2",
       "production": "website/assets/equipment/downloads-counter.webp",
-      "productionSha256": "53f6954dc314446ea66dd140748af57242ab486b634de1f783f4d822fa2e2eaf",
-      "bytes": 618988
+      "productionSha256": "c5e0b59b9176786dcdc4dd526cfa9722df6f8aad442aae76e011cbc48081c420",
+      "bytes": 618380
     }
   ],
   "parts": [

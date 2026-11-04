@@ -81,7 +81,7 @@ class WebsiteTests(unittest.TestCase):
                     if url.startswith("#"):
                         self.assertIn(url[1:], ids)
                     if url.startswith("/vault443/assets/") and not url.endswith("social.png"):
-                        self.assertTrue((ROOT / "assets" / url.removeprefix("/vault443/assets/")).is_file(), url)
+                        self.assertTrue((ROOT / "assets" / url.removeprefix("/vault443/assets/").split("?",1)[0]).is_file(), url)
             downloads = [attrs for tag, attrs in parser.elements if tag == "a" and "package-download" in attrs.get("class", "")]
             self.assertEqual(len(downloads), 4, "Static HTML must contain the real download links")
             self.assertIn('lang="' + locale["lang"] + '"', page)
@@ -150,12 +150,22 @@ class WebsiteTests(unittest.TestCase):
             for tag, attrs in parser.elements:
                 for key in ("data-art-src", "data-part-src", "data-mobile-src"):
                     if key in attrs:
-                        self.assertTrue((ROOT / "assets" / attrs[key].split("/assets/")[1]).is_file())
+                        self.assertTrue((ROOT / "assets" / attrs[key].split("/assets/")[1].split("?",1)[0]).is_file())
             summaries = [attrs for tag, attrs in parser.elements if tag == "summary" and "ed-install-" in attrs.get("class", "")]
             self.assertEqual(len(summaries), 4)
             choices = [attrs for tag, attrs in parser.elements if tag == "a" and "gallery-choice" in attrs.get("class", "").split()]
             self.assertEqual(len(choices), 6)
             self.assertTrue(all(attrs["href"].endswith(".webp") for attrs in choices))
+
+    def test_sound_default_and_cache_safe_references(self):
+        data = json.loads((ROOT / "data/en.json").read_text())
+        page = builder.render_page(data, builder.select_release(self.release), "/vault443/")
+        parser = Links(); parser.feed(page)
+        button = next(attrs for tag,attrs in parser.elements if "sound-button" in attrs.get("class", ""))
+        self.assertEqual(button["aria-pressed"], "true")
+        for name in ("main.js", "polish.css", "equipment/routing-relays.webp"):
+            digest = hashlib.sha256((ROOT / "assets" / name).read_bytes()).hexdigest()[:12]
+            self.assertIn("/vault443/assets/" + name + "?v=" + digest, page)
 
     def test_equipment_artwork_and_coordinate_integrity(self):
         art = ROOT.parent / "design/landing/equipment"

@@ -42,9 +42,11 @@ Gallery transitions change only screenshot opacity. Route demos move the actual
 contact arm sprites and light selected routes in sequence, retaining the final
 state. Demo replay remains available.
 
-Sound starts disabled on every document and BFCache restoration; an explicit
-button opts in. Disabling it silences current oscillators immediately. There are
-no perpetual background animations or client-side GitHub API requests.
+Sound starts enabled at the user's follow-up request. A trusted click/key gesture
+unlocks Web Audio under browser autoplay policy. The sound button immediately
+silences current oscillators when muted; new documents and BFCache restoration
+restore the enabled default. There are no perpetual background animations or
+client-side GitHub API requests. See POLISH.md for the review corrections.
 
 Lower atlases and device parts have deferred source attributes. IntersectionObserver
 loads the relevant desktop/mobile art near the viewport. Core text, image links,

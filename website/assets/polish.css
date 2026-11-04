@@ -1,0 +1,51 @@
+/* Review corrections: one physical scale for every bay and its native content. */
+html{scroll-behavior:auto}
+body{background:#080c0a}
+.machine-shell{width:100vw;max-width:1600px;zoom:.75;background-image:linear-gradient(#0009,#0009),url("equipment/steel-seamless.webp")}
+.vault-scene,.equipment-section{position:relative;isolation:isolate}
+.vault-scene:after,.equipment-section:after{content:"";position:absolute;inset:0;z-index:6;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 48%,#0006 100%);box-shadow:inset 0 24px 36px -24px #000c,inset 0 -24px 36px -24px #000c}
+.equipment-notes,.equipment-strip{position:relative;width:100%;padding:32px clamp(24px,5vw,80px);border:0;background:radial-gradient(ellipse at 50% 50%,transparent 35%,#0007 100%);box-shadow:inset 30px 0 42px -24px #000b,inset -30px 0 42px -24px #000b,inset 0 22px 30px -20px #000c,inset 0 -22px 30px -20px #000c}
+.equipment-notes .positioning-note{padding-top:18px}
+.equipment-features{margin-top:22px}
+.equipment-strip .demo-notice{margin-top:12px}
+
+/* Language captions fit inside the inset black plate, including its rim. */
+.vault-scene .scene-language{display:grid;grid-template-columns:1fr .4em 1fr;gap:.22em;font-size:1.8cqw;line-height:1}
+.scene-language a,.scene-language>span{height:100%;width:100%;min-height:0;min-width:0;padding:0;line-height:1}
+.scene-language a:before{content:"";position:absolute;inset:-12px -4px;min-height:59px}
+.scene-language a{position:relative}
+
+/* Keep all light in the exposed copper/steel pipe runs, not on fittings. */
+html[data-enhanced="true"] .relay-wires .route-wire{stroke-width:5;mix-blend-mode:screen}
+html[data-enhanced="true"] .relay-wires .route-wire[data-active="true"]{filter:drop-shadow(0 0 2px #a8c871)}
+
+@media(min-width:1024px){
+ html[data-enhanced="true"] .equipment-bay .package-download>span{left:34%;right:8%;font-size:1.7cqw;line-height:1;white-space:nowrap;text-align:center}
+ html[data-enhanced="true"] .install-content{left:68.62%;top:27.54%;width:25.52%;height:45.12%;padding:1.5cqw 1.65cqw;background:radial-gradient(ellipse at 50% 20%,#11271999,transparent 75%),repeating-linear-gradient(0deg,#0000 0 2px,#0002 2px 3px),#061209;border:0;border-radius:2.65cqw;display:flex;flex-direction:column;gap:.7cqw;overflow:hidden;box-shadow:inset 0 0 1.5cqw #000}
+ html[data-enhanced="true"] .install-content .installation-title{margin:0;font-size:1.55cqw;line-height:1.1;flex:none}
+ html[data-enhanced="true"] .install-content .activation-note{margin:0;font-size:1.03cqw;line-height:1.25;flex:none}
+ html[data-enhanced="true"] .install-content .command-box{display:flex;flex-direction:column;gap:.8cqw;flex:1;min-height:0;padding:0;border:0;background:none}
+ html[data-enhanced="true"] .install-content pre{margin:0;min-height:0;flex:1;overflow:auto;white-space:pre;word-break:normal;overflow-wrap:normal;font-size:.95cqw;line-height:1.7;scrollbar-color:#8b8159 #07130b;scrollbar-width:thin;padding:.4cqw .2cqw}
+ html[data-enhanced="true"] .install-content .copy-button{margin:0;min-height:59px;align-self:flex-start;font-size:1.05cqw;padding:.5cqw 1cqw;flex:none}
+}
+@media(max-width:1023px){
+ .vault-scene .scene-language{font-size:3.7cqw}
+ .equipment-bay .scenario-choice>.e-label,.equipment-bay .gallery-choice,.equipment-bay .equipment-key,.equipment-bay .gallery-key{min-height:59px}
+ .equipment-toolbar .icon-button{min-height:59px;min-width:59px}
+ .equipment-bay .gallery-tools{grid-template-columns:1fr 1fr 1fr;gap:7px}
+ .equipment-ready .gallery-key{font-size:12px;border-width:10px}
+ .equipment-bay{padding-inline:10px}
+ .equipment-notes,.equipment-strip{padding-inline:24px}
+ .e-package h3{font-size:24px}
+ .gallery-choice .e-label{overflow-wrap:anywhere}
+}
+
+.install-content pre:focus-visible{outline:2px solid var(--phosphor);outline-offset:2px}
+
+@media(min-width:1024px){
+ .equipment-bay:after{content:"";position:absolute;inset:0;z-index:6;pointer-events:none;background:linear-gradient(#050a0877,transparent 4% 94%,#050a08);box-shadow:inset 16px 0 24px -16px #000,inset -16px 0 24px -16px #000}
+}
+
+.equipment-toolbar .icon-button{min-height:59px;min-width:59px}
+.e-key-hit{top:50%;bottom:auto;min-height:59px;transform:translateY(-50%)}
+.scene-language a:before{min-width:59px}

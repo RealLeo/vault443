@@ -7,7 +7,7 @@ are immutable; this mechanical mask/compression step never redraws hardware.
 import hashlib
 import json
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[2]
 ART = ROOT / "design/landing/vault-door/atlas"
@@ -41,7 +41,8 @@ def repair_mask(size, rectangles):
         patch = Image.new("L", (width, height))
         ImageDraw.Draw(patch).rectangle((4, 4, width-5, height-5), fill=255)
         patch = patch.filter(ImageFilter.GaussianBlur(1.2))
-        mask.paste(patch, (x, y))
+        layer = Image.new("L", size); layer.paste(patch, (x, y))
+        mask = ImageChops.lighter(mask, layer)
     return mask
 
 
@@ -56,7 +57,7 @@ def main():
         repaired = Image.open(clean).convert("RGB")
         assert source.size == repaired.size
         for lang in ("en", "ru"):
-            names = list(regions) if lang == "ru" else [name for name in ("brand", "statusCaption") if name in regions]
+            names = list(regions) if lang == "ru" else [name for name in ("brand", "statusCaption", "language") if name in regions]
             rectangles = [regions[name] for name in names]
             mask = repair_mask(source.size, rectangles)
             atlas = Image.composite(repaired, source, mask)

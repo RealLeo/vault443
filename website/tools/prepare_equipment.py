@@ -5,7 +5,7 @@ Production build stays stdlib-only. Pillow is used for mechanical masks/crops.
 import hashlib
 import json
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFilter, ImageOps
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
 
 ROOT = Path(__file__).resolve().parents[2]
 ART = ROOT / "design/landing/equipment"
@@ -13,7 +13,7 @@ OUT = ROOT / "website/assets/equipment"
 SIZE = (1536, 1024)
 REGIONS = {
  "routing-relays": [
- [282,18,985,92],[411,99,754,47],[90,201,311,54],
+ [247,25,1055,126],[411,99,754,47],[90,201,311,54],
  [438,184,323,90],[816,207,279,45],[1180,207,275,45],
  [66,537,157,105],[408,402,209,50],[410,560,189,44],
  [1290,337,192,82],[1284,487,197,113],[1286,640,195,104],
@@ -46,7 +46,8 @@ def mask(size, regions):
  result = Image.new("L", size)
  for x,y,w,h in regions:
   patch=Image.new("L",(w,h));ImageDraw.Draw(patch).rectangle((3,3,w-4,h-4),fill=255)
-  result.paste(patch.filter(ImageFilter.GaussianBlur(.8)),(x,y))
+  layer=Image.new("L",size);layer.paste(patch.filter(ImageFilter.GaussianBlur(.8)),(x,y))
+  result=ImageChops.lighter(result,layer)
  return result
 
 def main():
