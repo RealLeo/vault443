@@ -136,6 +136,48 @@ class WebsiteTests(unittest.TestCase):
             self.assertNotIn('stencil-443.svg', page)
             self.assertNotIn('<strong>Vault 443</strong>', page)
 
+    def test_equipment_controls_and_deferred_decoration(self):
+        selected = builder.select_release(self.release)
+        for lang in ("en", "ru"):
+            data = json.loads((ROOT / "data" / (lang + ".json")).read_text())
+            page = builder.render_page(data, selected, "/vault443/")
+            parser = Links(); parser.feed(page)
+            for removed in ("motion-button", "door-replay", "gallery-shutter"):
+                self.assertNotIn(removed, page)
+            atlases = [attrs for tag, attrs in parser.elements if "data-art-src" in attrs]
+            self.assertEqual(len(atlases), 3)
+            self.assertTrue(all("src" not in attrs for attrs in atlases))
+            for tag, attrs in parser.elements:
+                for key in ("data-art-src", "data-part-src", "data-mobile-src"):
+                    if key in attrs:
+                        self.assertTrue((ROOT / "assets" / attrs[key].split("/assets/")[1]).is_file())
+            summaries = [attrs for tag, attrs in parser.elements if tag == "summary" and "ed-install-" in attrs.get("class", "")]
+            self.assertEqual(len(summaries), 4)
+            choices = [attrs for tag, attrs in parser.elements if tag == "a" and "gallery-choice" in attrs.get("class", "").split()]
+            self.assertEqual(len(choices), 6)
+            self.assertTrue(all(attrs["href"].endswith(".webp") for attrs in choices))
+
+    def test_equipment_artwork_and_coordinate_integrity(self):
+        art = ROOT.parent / "design/landing/equipment"
+        concepts = json.loads((art / "concepts.json").read_text())["concepts"]
+        self.assertEqual(len(concepts), 9)
+        self.assertEqual(sum(item["selected"] for item in concepts), 3)
+        for item in concepts:
+            self.assertTrue(item["prompt"])
+            self.assertEqual(hashlib.sha256((ROOT.parent / item["original"]).read_bytes()).hexdigest(), item["sha256"])
+        manifest = json.loads((art / "manifest.json").read_text())
+        for asset in manifest["assets"]:
+            for key, digest in (("reference", "referenceSha256"), ("clean", "cleanSha256"), ("master", "masterSha256"), ("production", "productionSha256")):
+                self.assertEqual(hashlib.sha256((ROOT.parent / asset[key]).read_bytes()).hexdigest(), asset[digest])
+        for part in manifest["parts"] + [manifest["texture"]]:
+            self.assertEqual(hashlib.sha256((ROOT.parent / part["production"]).read_bytes()).hexdigest(), part["sha256"])
+        layout = json.loads((ROOT / "data/equipment-layout.json").read_text())
+        for scene in layout.values():
+            self.assertEqual(scene["size"], [1536, 1024])
+            for name, (x, y, w, h) in scene["slots"].items():
+                self.assertTrue(0 <= x < x+w <= 1536, name)
+                self.assertTrue(0 <= y < y+h <= 1024, name)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,778 @@
+{
+  "tool": "built-in image_gen; deterministic masking/cropping and WebP encoding",
+  "assets": [
+    {
+      "name": "routing-relays",
+      "size": [
+        1536,
+        1024
+      ],
+      "reference": "design/landing/equipment/concepts/routing-relays.png",
+      "referenceSha256": "42e6459a1677080d4e32fb48e00ccbca9f13bbe44fc21b94cf7ceed4c228ee4c",
+      "clean": "design/landing/equipment/routing-relays-clean.png",
+      "cleanSha256": "9358a221b2c00de2b6921adaf404021b48e5f81774078513bb50372c17246168",
+      "repairs": [
+        [
+          282,
+          18,
+          985,
+          92
+        ],
+        [
+          411,
+          99,
+          754,
+          47
+        ],
+        [
+          90,
+          201,
+          311,
+          54
+        ],
+        [
+          438,
+          184,
+          323,
+          90
+        ],
+        [
+          816,
+          207,
+          279,
+          45
+        ],
+        [
+          1180,
+          207,
+          275,
+          45
+        ],
+        [
+          66,
+          537,
+          157,
+          105
+        ],
+        [
+          408,
+          402,
+          209,
+          50
+        ],
+        [
+          410,
+          560,
+          189,
+          44
+        ],
+        [
+          1290,
+          337,
+          192,
+          82
+        ],
+        [
+          1284,
+          487,
+          197,
+          113
+        ],
+        [
+          1286,
+          640,
+          195,
+          104
+        ],
+        [
+          325,
+          855,
+          379,
+          77
+        ],
+        [
+          1021,
+          882,
+          296,
+          49
+        ],
+        [
+          438,
+          675,
+          120,
+          38
+        ],
+        [
+          698,
+          356,
+          138,
+          57
+        ],
+        [
+          1080,
+          356,
+          79,
+          57
+        ],
+        [
+          1034,
+          357,
+          43,
+          48
+        ],
+        [
+          698,
+          510,
+          138,
+          57
+        ],
+        [
+          1080,
+          510,
+          79,
+          57
+        ],
+        [
+          1034,
+          511,
+          43,
+          48
+        ],
+        [
+          698,
+          666,
+          138,
+          57
+        ],
+        [
+          1080,
+          666,
+          79,
+          57
+        ],
+        [
+          1034,
+          667,
+          43,
+          48
+        ],
+        [
+          943,
+          343,
+          51,
+          52
+        ],
+        [
+          943,
+          503,
+          51,
+          52
+        ],
+        [
+          943,
+          663,
+          51,
+          52
+        ]
+      ],
+      "master": "design/landing/equipment/routing-relays-master.png",
+      "masterSha256": "c57bf0db777632014fc805753e684d5fe5a03d2ab0225f4136dce462dd54d775",
+      "production": "website/assets/equipment/routing-relays.webp",
+      "productionSha256": "8e59c4fe0e70c6d01aec840a8210b7ea24e5cca4fcd6a11e5e07f0b87a3a89a7",
+      "bytes": 725090
+    },
+    {
+      "name": "gallery-archive",
+      "size": [
+        1536,
+        1024
+      ],
+      "reference": "design/landing/equipment/concepts/gallery-archive.png",
+      "referenceSha256": "515653a0fca858886b70a48ca3ed54dc39f47604f4b26dcd547acc10f59876d8",
+      "clean": "design/landing/equipment/gallery-archive-clean.png",
+      "cleanSha256": "c7c700a04693ab313ee35f9241b4a5a171e9ed011494ef653d9e53e86569629b",
+      "repairs": [
+        [
+          449,
+          8,
+          725,
+          57
+        ],
+        [
+          467,
+          67,
+          782,
+          34
+        ],
+        [
+          895,
+          141,
+          218,
+          43
+        ],
+        [
+          526,
+          212,
+          871,
+          568
+        ],
+        [
+          373,
+          234,
+          32,
+          33
+        ],
+        [
+          635,
+          810,
+          693,
+          45
+        ],
+        [
+          542,
+          898,
+          194,
+          65
+        ],
+        [
+          876,
+          903,
+          223,
+          55
+        ],
+        [
+          1180,
+          896,
+          210,
+          65
+        ],
+        [
+          196,
+          224,
+          180,
+          57
+        ],
+        [
+          196,
+          330,
+          180,
+          57
+        ],
+        [
+          196,
+          436,
+          180,
+          57
+        ],
+        [
+          196,
+          542,
+          180,
+          57
+        ],
+        [
+          196,
+          648,
+          180,
+          57
+        ],
+        [
+          196,
+          754,
+          180,
+          57
+        ]
+      ],
+      "master": "design/landing/equipment/gallery-archive-master.png",
+      "masterSha256": "061a9a890eaca0bb5c760bd12bda4c47c3c7760fd10de3ad04bc17307c1e1866",
+      "production": "website/assets/equipment/gallery-archive.webp",
+      "productionSha256": "c7b455b15817bb58caaa0229b21014ac9c2df855b354f1662c69c16304c210a8",
+      "bytes": 518996
+    },
+    {
+      "name": "downloads-counter",
+      "size": [
+        1536,
+        1024
+      ],
+      "reference": "design/landing/equipment/concepts/downloads-counter.png",
+      "referenceSha256": "bd45d32ae7a5180e71956c9333d5c64f017b7215647db28e71ac0e9a5879091d",
+      "clean": "design/landing/equipment/downloads-counter-clean.png",
+      "cleanSha256": "a4d997d52c1381415649b9a752d8979ad75a0d91bbce8f94b2ae9e7854773f3d",
+      "repairs": [
+        [
+          345,
+          15,
+          865,
+          68
+        ],
+        [
+          549,
+          139,
+          443,
+          36
+        ],
+        [
+          1110,
+          201,
+          294,
+          68
+        ],
+        [
+          250,
+          230,
+          340,
+          75
+        ],
+        [
+          250,
+          389,
+          340,
+          84
+        ],
+        [
+          250,
+          548,
+          340,
+          94
+        ],
+        [
+          250,
+          708,
+          340,
+          95
+        ],
+        [
+          591,
+          230,
+          108,
+          51
+        ],
+        [
+          591,
+          390,
+          108,
+          51
+        ],
+        [
+          591,
+          550,
+          108,
+          51
+        ],
+        [
+          564,
+          710,
+          137,
+          51
+        ],
+        [
+          803,
+          264,
+          159,
+          58
+        ],
+        [
+          803,
+          424,
+          159,
+          58
+        ],
+        [
+          803,
+          584,
+          159,
+          58
+        ],
+        [
+          803,
+          744,
+          159,
+          58
+        ],
+        [
+          314,
+          307,
+          102,
+          46
+        ],
+        [
+          314,
+          467,
+          102,
+          46
+        ],
+        [
+          314,
+          627,
+          102,
+          46
+        ],
+        [
+          314,
+          787,
+          102,
+          46
+        ],
+        [
+          480,
+          306,
+          220,
+          46
+        ],
+        [
+          480,
+          466,
+          220,
+          46
+        ],
+        [
+          480,
+          626,
+          220,
+          46
+        ],
+        [
+          480,
+          786,
+          220,
+          46
+        ],
+        [
+          1060,
+          290,
+          388,
+          450
+        ],
+        [
+          204,
+          890,
+          710,
+          57
+        ],
+        [
+          1050,
+          889,
+          334,
+          60
+        ]
+      ],
+      "master": "design/landing/equipment/downloads-counter-master.png",
+      "masterSha256": "65bd20473e5caf4df0ade260499bf7a686563d6fd62ba1b46bddca4cf61b4f0b",
+      "production": "website/assets/equipment/downloads-counter.webp",
+      "productionSha256": "53f6954dc314446ea66dd140748af57242ab486b634de1f783f4d822fa2e2eaf",
+      "bytes": 618988
+    }
+  ],
+  "parts": [
+    {
+      "name": "plate-frame",
+      "source": "gallery-archive",
+      "box": [
+        87,
+        310,
+        342,
+        96
+      ],
+      "production": "website/assets/equipment/plate-frame.webp",
+      "sha256": "697b2ee21899864580a4f39e51254b03b97c6da2c9333af6d49b906ad3edf4d5",
+      "bytes": 16676
+    },
+    {
+      "name": "relay-body",
+      "source": "routing-relays",
+      "box": [
+        825,
+        310,
+        255,
+        136
+      ],
+      "production": "website/assets/equipment/relay-body.webp",
+      "sha256": "a35601a7ef8fde386d3285e8ee2cefd8192ea6c461544a490d9e5291cc1b8589",
+      "bytes": 16582
+    },
+    {
+      "name": "device",
+      "source": "routing-relays",
+      "box": [
+        46,
+        399,
+        180,
+        292
+      ],
+      "production": "website/assets/equipment/device.webp",
+      "sha256": "b04d992ab5187f0903a4e5f2a08916b4a334fecebc117b40c6e4edd6a006d3dc",
+      "bytes": 23800
+    },
+    {
+      "name": "client",
+      "source": "routing-relays",
+      "box": [
+        345,
+        352,
+        310,
+        405
+      ],
+      "production": "website/assets/equipment/client.webp",
+      "sha256": "69475bc53d68d2e3fca9b40317b705d1ec2b68fa5c2441620565c902460fc2d5",
+      "bytes": 59692
+    },
+    {
+      "name": "destination-0",
+      "source": "routing-relays",
+      "box": [
+        1160,
+        315,
+        332,
+        129
+      ],
+      "production": "website/assets/equipment/destination-0.webp",
+      "sha256": "0c0f3463bc12a368d2b34ebfddc0ce21516e1c5a178aee3d03ffb695d5595f75",
+      "bytes": 19028
+    },
+    {
+      "name": "destination-1",
+      "source": "routing-relays",
+      "box": [
+        1160,
+        475,
+        332,
+        129
+      ],
+      "production": "website/assets/equipment/destination-1.webp",
+      "sha256": "ef093df0b8832f4a72027f687a8e1327be6e7e965458b64d890efa6905757b27",
+      "bytes": 17362
+    },
+    {
+      "name": "destination-2",
+      "source": "routing-relays",
+      "box": [
+        1160,
+        635,
+        332,
+        129
+      ],
+      "production": "website/assets/equipment/destination-2.webp",
+      "sha256": "9343b8879ba5810cc347d4d91dd4a2e2a610af501948aa49ea8ad9b12bfe54e0",
+      "bytes": 17096
+    },
+    {
+      "name": "gallery-key-0",
+      "source": "gallery-archive",
+      "box": [
+        120,
+        218,
+        69,
+        65
+      ],
+      "production": "website/assets/equipment/gallery-key-0.webp",
+      "sha256": "97b35f73cf67b045534ca7cd3bd8767eff69f3ff8de85b7c6a9048f171a31d72",
+      "bytes": 2296
+    },
+    {
+      "name": "gallery-key-1",
+      "source": "gallery-archive",
+      "box": [
+        120,
+        324,
+        69,
+        65
+      ],
+      "production": "website/assets/equipment/gallery-key-1.webp",
+      "sha256": "5f0dd94960a92642797d21707d6b740ceec17b6376a4a1763e19c9ab51d9725c",
+      "bytes": 2430
+    },
+    {
+      "name": "gallery-key-2",
+      "source": "gallery-archive",
+      "box": [
+        120,
+        430,
+        69,
+        65
+      ],
+      "production": "website/assets/equipment/gallery-key-2.webp",
+      "sha256": "3ba63ba49bdfc7436defffde18202f4e1ccd4c47266f6c56d2fca54941eb53ea",
+      "bytes": 2450
+    },
+    {
+      "name": "gallery-key-3",
+      "source": "gallery-archive",
+      "box": [
+        120,
+        536,
+        69,
+        65
+      ],
+      "production": "website/assets/equipment/gallery-key-3.webp",
+      "sha256": "22316921de3a35688fb98211d9542ac637e3d78f8937cf6f41d4d25d16e405e7",
+      "bytes": 2378
+    },
+    {
+      "name": "gallery-key-4",
+      "source": "gallery-archive",
+      "box": [
+        120,
+        642,
+        69,
+        65
+      ],
+      "production": "website/assets/equipment/gallery-key-4.webp",
+      "sha256": "e745b19caa01316c9701bc169bdb7293d19e4e838511628c77fa9aba2e867a71",
+      "bytes": 2198
+    },
+    {
+      "name": "gallery-key-5",
+      "source": "gallery-archive",
+      "box": [
+        120,
+        748,
+        69,
+        65
+      ],
+      "production": "website/assets/equipment/gallery-key-5.webp",
+      "sha256": "5ac78118d494b67e01d79b1be3d1959cffa834c98afa6eeebab73030fefd0cde",
+      "bytes": 2306
+    },
+    {
+      "name": "distro-0",
+      "source": "downloads-counter",
+      "box": [
+        62,
+        220,
+        193,
+        155
+      ],
+      "production": "website/assets/equipment/distro-0.webp",
+      "sha256": "5603f8231ef1d74ea1fc383e4467834e57540454cd9675b9ca89c9bfc8cca31b",
+      "bytes": 16050
+    },
+    {
+      "name": "distro-1",
+      "source": "downloads-counter",
+      "box": [
+        62,
+        380,
+        193,
+        155
+      ],
+      "production": "website/assets/equipment/distro-1.webp",
+      "sha256": "6ca7b8e501ce5794d1b00b29cc8f5347cd233a1f27ce78f2bd585e8aafe646ee",
+      "bytes": 15724
+    },
+    {
+      "name": "distro-2",
+      "source": "downloads-counter",
+      "box": [
+        62,
+        540,
+        193,
+        155
+      ],
+      "production": "website/assets/equipment/distro-2.webp",
+      "sha256": "f56d4f06647d24ace324fb1975a009088b0d6e6521f1d50c79a1391e87d89c8e",
+      "bytes": 15474
+    },
+    {
+      "name": "distro-3",
+      "source": "downloads-counter",
+      "box": [
+        62,
+        700,
+        193,
+        155
+      ],
+      "production": "website/assets/equipment/distro-3.webp",
+      "sha256": "90d9f488492a598f9ac6d7c109d88851b45b74a4636805906980c322e7537dd5",
+      "bytes": 15638
+    },
+    {
+      "name": "brass-key-frame",
+      "source": "gallery-archive",
+      "box": [
+        87,
+        310,
+        342,
+        96
+      ],
+      "production": "website/assets/equipment/brass-key-frame.webp",
+      "sha256": "f4284ba31e6f07ef4ff861ded40784bb3c1517c680db55f2a518386f253c3bef",
+      "bytes": 10174
+    },
+    {
+      "name": "steel-key-frame",
+      "source": "routing-relays",
+      "box": [
+        438,
+        184,
+        323,
+        90
+      ],
+      "production": "website/assets/equipment/steel-key-frame.webp",
+      "sha256": "914818368031b5f7d986d2b9682b702e35be7d0828fa796657eaaaf872f85dd5",
+      "bytes": 7432
+    },
+    {
+      "name": "brass-surface",
+      "source": "gallery-archive",
+      "box": [
+        239,
+        335,
+        80,
+        36
+      ],
+      "production": "website/assets/equipment/brass-surface.webp",
+      "sha256": "25932006e2ed15f53d2f103d75ffc97dd1aaaf8370ce8542c2b080eeb1d7bc3c",
+      "bytes": 1534
+    },
+    {
+      "name": "relay-arm-0",
+      "source": "routing-relays",
+      "box": [
+        825,
+        310,
+        255,
+        136
+      ],
+      "production": "website/assets/equipment/relay-arm-0.webp",
+      "sha256": "e0a39ca97add7ee2e2e1d773cf0a237053a476201c3c176ba2a9d32893e66e8c",
+      "bytes": 2540
+    },
+    {
+      "name": "relay-arm-1",
+      "source": "routing-relays",
+      "box": [
+        825,
+        470,
+        255,
+        136
+      ],
+      "production": "website/assets/equipment/relay-arm-1.webp",
+      "sha256": "cf4d7d7df33ada0ffd62659685734fb1a1d4b4ee30997a1171e20b7db2ca2363",
+      "bytes": 2472
+    },
+    {
+      "name": "relay-arm-2",
+      "source": "routing-relays",
+      "box": [
+        825,
+        630,
+        255,
+        136
+      ],
+      "production": "website/assets/equipment/relay-arm-2.webp",
+      "sha256": "ad1176e6b608c529c4203c5cc90f821cee68a9a278c254ee280f3af3e995c963",
+      "bytes": 2478
+    }
+  ],
+  "texture": {
+    "production": "website/assets/equipment/steel-seamless.webp",
+    "sha256": "d331d47b4c18661d34f06ae024bae5cc7e1d8e0381978657f07d00959cb6cd73",
+    "bytes": 22174,
+    "size": [
+      256,
+      256
+    ],
+    "edgeMatching": "Opposite decoded RGB edge columns/rows are identical"
+  }
+}

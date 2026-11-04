@@ -11,13 +11,8 @@
   },
   "controls": {
     "sound": "Sound effects",
-    "motion": "Animations",
     "soundOff": "Sound effects off",
-    "soundOn": "Sound effects on",
-    "motionOff": "Animations off",
-    "motionOn": "Animations on",
-    "motionSystem": "Animations off (system preference)",
-    "replay": "Replay door startup"
+    "soundOn": "Sound effects on"
   },
   "hero": {
     "heading": [
@@ -86,7 +81,8 @@
         "active": [
           "entry",
           "internet"
-        ]
+        ],
+        "short": "Internet"
       },
       {
         "name": "Internet + work",
@@ -100,7 +96,8 @@
           "entry",
           "internet",
           "work"
-        ]
+        ],
+        "short": "Internet + work"
       },
       {
         "name": "Work meets Docker",
@@ -114,7 +111,8 @@
           "entry",
           "work",
           "docker"
-        ]
+        ],
+        "short": "Work and Docker"
       }
     ]
   },
@@ -132,37 +130,43 @@
         "file": "import",
         "name": "Bring your profiles",
         "caption": "Review imported links and choose an emblem before saving.",
-        "alt": "Import preview showing fictional VPN profiles and emblem choices"
+        "alt": "Import preview showing fictional VPN profiles and emblem choices",
+        "short": "Import"
       },
       {
         "file": "settings",
         "name": "Set your starting point",
         "caption": "Choose English or Russian and configure interface and VPN startup separately.",
-        "alt": "General settings with language and startup options"
+        "alt": "General settings with language and startup options",
+        "short": "Settings"
       },
       {
         "file": "work-vpns",
         "name": "Connect to work",
         "caption": "Manage independent work connections alongside the main internet profile.",
-        "alt": "Main internet connection and two independent work VPN profiles"
+        "alt": "Main internet connection and two independent work VPN profiles",
+        "short": "Work VPNs"
       },
       {
         "file": "work-routes",
         "name": "Choose the right route",
         "caption": "Inspect work and Docker network overlaps and choose their destination.",
-        "alt": "Settings for overlapping work and Docker networks"
+        "alt": "Settings for overlapping work and Docker networks",
+        "short": "Routes"
       },
       {
         "file": "logs",
         "name": "Follow the connection",
         "caption": "Open each profile's journal to see its connection events and diagnostics.",
-        "alt": "Per-profile connection journal with fictional events"
+        "alt": "Per-profile connection journal with fictional events",
+        "short": "Logs"
       },
       {
         "file": "peers",
         "name": "Know your peers",
         "caption": "Inspect WireGuard and AmneziaWG endpoints, handshakes and allowed networks.",
-        "alt": "WireGuard peers with endpoints, handshakes and allowed networks"
+        "alt": "WireGuard peers with endpoints, handshakes and allowed networks",
+        "short": "Peers"
       }
     ]
   },
@@ -245,5 +249,33 @@
     "releases": "Releases",
     "credits": "Third-party notices",
     "note": "An independent project with an interface inspired by Fallout 1 & 2. No game assets are bundled."
+  },
+  "equipment": {
+    "routingSubtitle": "Internet, work and Docker on one machine.",
+    "gallerySubtitle": "Real application screenshots in demo mode.",
+    "demo": "Demonstration",
+    "demoMode": "Demo mode",
+    "previous": "Previous",
+    "next": "Next",
+    "enlarge": "Enlarge",
+    "version": "Release",
+    "startHeading": "Getting started",
+    "verify": "Verify the checksum first.",
+    "steps": [
+      {
+        "title": "Verify SHA-256",
+        "body": "Download the matching checksum file and verify the package before installing."
+      },
+      {
+        "title": "Install the package",
+        "body": "Use the installation command for your distribution."
+      },
+      {
+        "title": "Grant access",
+        "body": "Run this once in your regular desktop user’s terminal:"
+      }
+    ],
+    "previousMobile": "Previous",
+    "nextMobile": "Next"
   }
 }

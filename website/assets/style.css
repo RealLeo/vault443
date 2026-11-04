@@ -136,7 +136,6 @@ html[data-enhanced="true"] .scenario-static{display:none}
 .gallery-preview{margin:0;padding:28px 27px 20px;max-width:560px;width:100%;justify-self:end}
 .gallery-screen{height:420px;display:flex;align-items:center;justify-content:center;border-radius:5px;border:1px solid #10190d}
 .gallery-screen img{max-height:100%;width:auto;max-width:100%;object-fit:contain}
-.gallery-shutter{position:absolute;inset:0;z-index:6;background:#101a0c;transform:scaleY(0);transform-origin:center}
 .gallery-preview figcaption{font-size:17px;line-height:1.4;min-height:66px;color:#c2c3ab;margin-top:19px}
 .gallery-tools{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #5f6447;padding-top:15px;gap:10px}
 .text-button{font:500 12px var(--mono);padding:10px 3px;background:none;border:0;color:var(--brass)}

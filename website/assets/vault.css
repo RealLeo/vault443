@@ -98,7 +98,6 @@ h3{font-weight:400}
 .gallery-choice.is-active{background:url("vault/steel-plaque.webp") center/100% 100% no-repeat;border:0;box-shadow:none;color:var(--phosphor)}
 .gallery-preview{max-width:650px;padding:23px 23px 17px}.gallery-screen{height:435px}
 .gallery-preview figcaption{color:#d1c5a7}
-.gallery-shutter{background:url("vault/hatch-shutters.webp") center/100% 100%}
 .download-section{background:linear-gradient(#11181980,#11181980),url("vault/chassis-skin.webp");border-block:8px ridge #6e6652;box-shadow:inset 0 5px 9px #0008}
 .package-console{position:relative;border:7px ridge #76684d;border-radius:0;background:#202729}
 .package-row{background:linear-gradient(#2e3535aa,#151b1b88),url("vault/chassis-skin.webp");border-color:#76684d;padding:24px 24px}

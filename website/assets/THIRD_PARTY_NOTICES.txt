@@ -31,3 +31,9 @@ Vault-door artwork: the approved desktop/mobile concept images are reused
 directly as measured atlases. Built-in imagegen only repaired text surfaces;
 originals, repair masks, prompts and hashes are in design/landing/vault-door/atlas/.
 Painted 443 and all hardware come directly from the approved reference artwork.
+
+Equipment bays: original generated M3/G1/D2 concepts are reused as measured
+atlases with localized text/state repairs. All nine concept originals, full
+prompts, repair records and hashes: design/landing/equipment/. Contact arms,
+mobile device parts and button rims are extracted from the selected concepts.
+The generated seamless steel and equipment artwork retain the project MIT license.

@@ -1,0 +1,33 @@
+{
+  "tool": "built-in image_gen",
+  "repairs": [
+    {
+      "slug": "routing-relays",
+      "prompt": "Use case: precise-object-edit. Edit target: this exact approved relay-cabinet web mockup. Produce a technical blank-interface plate at EXACTLY 1536×1024, same composition and every piece of machinery unchanged. Remove ALL written letters and digits from the main heading, subtitle, scenario legend and 3 keys, local device plate, VPN client plaque, DEMONSTRATION wording, 3 destination plates, bottom run key and status strip. Restore corresponding bare metal/glass underneath; keep pictograms, hazard stripes and physical frames. Also make all three horizontal green routing pipes and the 3 green relay lamps UNLIT, restoring dark metallic pipes and dark lens glass; leave decorative caged lamps and the central lock pictogram alone. Make the selected first scenario key neutral dark like the other two, including its lens. Remove ONLY the slender diagonal brass contact arm in each of the three clear relay boxes, restoring the dark contact backing underneath; leave copper coils, screws and all relay cases intact. The arm area is around x940–989, y347–390, and the same lever at y518–558 and y678–719. Do not add any objects or alter hardware geometry, palette, lighting, reflections or framing elsewhere. This is surgical text/state cleanup, not a new design.",
+      "generated": "/var/www/projects/codex/generated_images/01a1a5e6-5410-7d10-a1de-b7a9fb58e583/exec-b2d8f6b7-e34c-4515-88af-5209321df86f.png",
+      "saved": "design/landing/equipment/routing-relays-clean.png",
+      "sha256": "9358a221b2c00de2b6921adaf404021b48e5f81774078513bb50372c17246168"
+    },
+    {
+      "slug": "gallery-archive",
+      "prompt": "Use case: precise-object-edit. Edit target: this exact approved archive-terminal web mockup. Output EXACTLY 1536×1024 with original composition and hardware untouched. Remove all heading/subtitle lettering, DEMO wording, the six category labels inside the gold keys (keep category pictograms), bottom image caption, and previous/enlarge/next lettering (keep arrow and magnifying-glass icons). Turn the one selected green lens on the first category key OFF, dark glass matching the other five lenses. Remove the entire software screenshot ONLY from inside the large right-hand rectangular monitor glass; restore an empty dark matte green CRT surface in that viewport, leaving the complete thick monitor frame and caged lamp untouched. Keep all other pixels as close as possible to the original. No doors, shutters, gates or new objects. Restore bare brass, black plate or glass underneath the removed text exactly as appropriate.",
+      "generated": "/var/www/projects/codex/generated_images/01a1a5e6-5410-7d10-a1de-b7a9fb58e583/exec-2d4fb193-d905-4a78-a23e-a99d34d9305b.png",
+      "saved": "design/landing/equipment/gallery-archive-clean.png",
+      "sha256": "c7c700a04693ab313ee35f9241b4a5a171e9ed011494ef653d9e53e86569629b"
+    },
+    {
+      "slug": "downloads-counter",
+      "prompt": "Use case: precise-object-edit. Edit target: this exact approved installer-counter web mockup. Output EXACTLY 1536×1024 and preserve every physical plate, all four distro emblems, bolts, pipes, lamps, frames and lighting. Remove ALL written labels, numbers and command text: main heading, version strip, each distro name, package format, initial-port note, download lettering, SHA labels, installation labels, START heading on right CRT, all text/step numbers/command in that CRT, bottom checksum sentence and release link. Keep download arrows, link/terminal icons, decorative stripes, green row indicators, outline hexagons for steps and layout dividers. Restore bare brass/metal/green CRT glass matching neighboring material. Do not redraw the machinery or change positions. This is a surgical text cleanup to place native HTML over the original art.",
+      "generated": "/var/www/projects/codex/generated_images/01a1a5e6-5410-7d10-a1de-b7a9fb58e583/exec-1fedd151-71dc-41ab-98e9-8ed8a9787464.png",
+      "saved": "design/landing/equipment/downloads-counter-clean.png",
+      "sha256": "a4d997d52c1381415649b9a752d8979ad75a0d91bbce8f94b2ae9e7854773f3d"
+    },
+    {
+      "slug": "texture",
+      "prompt": "Use case: product-mockup. Asset type: seamless tileable MATERIAL texture for the FAQ background of a worn steel retro industrial website. Create one perfectly square flat orthographic macro swatch of dark charcoal graphite steel, subtle irregular microscopic scratches and restrained oxidized brass-brown dust. Absolutely uniform neutral lighting across the entire swatch, no vignette, no brighter corners or directional gradients. The top/bottom and left/right edges must tile seamlessly. No panels, borders, bolts, joins, text, emblems, large distinctive stains, objects or raised details. Muted dark gray approximately #252a29, material detail visible but low contrast so ivory text remains readable. Fine believable hand-worn 1990s industrial console steel.",
+      "generated": "/var/www/projects/codex/generated_images/01a1a5e6-5410-7d10-a1de-b7a9fb58e583/exec-6061e494-c53e-4d51-aadc-8edb16e678a1.png",
+      "saved": "design/landing/equipment/texture-original.png",
+      "sha256": "f2f1fc69bd3866065a51ba1637c78b2c5868360d0db48018eea01920d14154c7"
+    }
+  ]
+}

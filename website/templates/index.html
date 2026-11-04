@@ -30,6 +30,8 @@
   <link rel="stylesheet" href="{{assets}}vault.css">
   <link rel="stylesheet" href="{{assets}}scene.css">
   <link rel="stylesheet" href="{{assets}}scene-layout.css">
+  <link rel="stylesheet" href="{{assets}}equipment.css">
+  <link rel="stylesheet" href="{{assets}}equipment-layout.css">
   <script src="{{assets}}vendor/gsap.min.js" defer></script>
   <script src="{{assets}}vendor/ScrollTrigger.min.js" defer></script>
   <script src="{{assets}}main.js" defer></script>
@@ -40,58 +42,7 @@
   <main id="main">
     {{hero_panel}}
 
-    <section class="section container" id="routes" aria-labelledby="routes-heading">
-      <div class="section-heading"><h2 id="routes-heading">{{demo.heading}}</h2><p>{{demo.intro}}</p></div>
-      <div class="routing-console panel">
-        <div class="routing-controls">
-          <fieldset class="scenario-choices" data-js-only hidden><legend>{{demo.legend}}</legend>{{scenario_choices}}</fieldset>
-          <p class="scenario-description" id="scenario-description">{{demo.scenarios.0.description}}</p>
-          <button class="power-button" id="demo-play" type="button" data-js-only hidden>
-            <span class="switch-assembly"><img src="{{assets}}generated/switch.webp" width="160" height="160" loading="lazy" alt=""><span class="switch-glint" aria-hidden="true"></span></span>
-            <span class="power-caption">{{demo.play}}</span>
-          </button>
-          <div class="scenario-static">{{static_scenarios}}</div>
-        </div>
-        <div class="routing-display">
-          <div class="display-heading"><span class="led small" aria-hidden="true"></span><span>{{demo.label}}</span><span aria-hidden="true">↗</span></div>
-          <div class="route-diagram crt-screen" role="img" aria-label="{{demo.scenarios.0.description}}">
-            <svg class="route-lines" viewBox="0 0 800 360" preserveAspectRatio="none" aria-hidden="true">
-              <path class="route-wire" data-route="entry" d="M100 180H400"/><path class="route-wire" data-route="internet" d="M400 180H485V75H690"/><path class="route-wire" data-route="work" d="M400 180H690"/><path class="route-wire" data-route="docker" d="M400 180H485V285H690"/>
-              <circle cx="485" cy="180" r="4" class="route-junction"/>
-            </svg>
-            <div class="route-node device-node"><span class="node-symbol" aria-hidden="true">▣</span><span>{{demo.nodes.device}}</span></div>
-            <div class="route-node vault-node"><img src="{{assets}}emblem.webp" width="42" height="42" loading="lazy" alt=""><span>{{demo.nodes.vault}}</span></div>
-            <div class="route-node internet-node"><span class="node-symbol" aria-hidden="true">◎</span><span>{{demo.nodes.internet}}</span></div>
-            <div class="route-node work-node"><span class="node-symbol" aria-hidden="true">⌑</span><span>{{demo.nodes.work}}</span></div>
-            <div class="route-node docker-node"><span class="node-symbol" aria-hidden="true">▤</span><span>{{demo.nodes.docker}}</span></div>
-          </div>
-          <div class="terminal-readout"><span class="terminal-caret" aria-hidden="true">&gt;</span><span id="demo-status" role="status" aria-live="polite">{{demo.ready}}</span></div>
-          <p class="demo-notice">{{demo.notice}}</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="section container" id="screenshots" aria-labelledby="screens-heading">
-      <div class="section-heading"><h2 id="screens-heading">{{gallery.heading}}</h2><p>{{gallery.intro}}</p></div>
-      <div class="gallery-console">
-        <div class="gallery-index" aria-label="{{gallery.legend}}">{{gallery_links}}</div>
-        <figure class="gallery-preview panel">
-          <div class="gallery-screen crt-screen"><img id="gallery-image" src="{{gallery_first_image}}" width="472" height="480" loading="lazy" alt="{{gallery.screens.0.alt}}"><div class="gallery-shutter" aria-hidden="true"></div></div>
-          <figcaption id="gallery-caption">{{gallery.screens.0.caption}}</figcaption>
-          <div class="gallery-tools" data-js-only hidden><button type="button" class="icon-button" id="gallery-prev" aria-label="{{gallery.previous}}">←</button><button class="text-button" type="button" id="gallery-enlarge">{{gallery.enlarge}}<span aria-hidden="true"> ⤢</span></button><button type="button" class="icon-button" id="gallery-next" aria-label="{{gallery.next}}">→</button></div>
-        </figure>
-      </div>
-    </section>
-
-    <section class="section download-section" id="download" aria-labelledby="download-heading">
-      <div class="container">
-        <div class="section-heading"><div><h2 id="download-heading">{{downloads.heading}}</h2><span class="release-label"><span class="led small" aria-hidden="true"></span>{{downloads.version}} {{release_version}} · x86-64</span></div><p>{{downloads.intro}}</p></div>
-        <p class="verification-note">{{downloads.verify}}</p>
-        <div class="package-console">{{download_rows}}</div>
-        <div class="download-footnotes"><p>{{downloads.requirements}}</p><p>{{downloads.portNote}}</p></div>
-        <div class="download-links"><a class="text-link" href="{{release_url}}">{{downloads.all}}</a><a class="text-link" href="{{sums_url}}">{{downloads.sums}}</a><a class="text-link" href="https://github.com/RealLeo/vault443/blob/main/docs/linux-packages.md">{{downloads.docs}}</a></div>
-      </div>
-    </section>
+    {{equipment_panels}}
 
     <section class="section container setup-faq" id="start" aria-labelledby="setup-heading">
       <div class="setup"><h2 id="setup-heading">{{setup.heading}}</h2><ol class="setup-steps">{{setup_steps}}</ol><a class="text-link" href="{{readme_url}}#{{start_anchor}}">{{setup.guide}}</a></div>
