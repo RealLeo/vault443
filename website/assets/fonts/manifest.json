@@ -1,0 +1,34 @@
+[
+  {
+    "file": "vault-terminal.woff2",
+    "source": "IosevkaTerm-Medium.ttf",
+    "sourceSha256": "b8c9d88801eb5e87a432d7cb2094f0bbe83fe61abcd33e3bd9e9e1369f9aee84",
+    "sha256": "a2f76960b91096ee2c85e1a3f7c37f9826f900e5c6af7e8032a7992dd69b4f50",
+    "bytes": 49016,
+    "unicodeRanges": [
+      "0020-00FF",
+      "0400-052F",
+      "2000-206F",
+      "2190-21FF",
+      "20AC",
+      "25CF",
+      "2713"
+    ]
+  },
+  {
+    "file": "vault-condensed.woff2",
+    "source": "RobotoCondensed-Regular.ttf",
+    "sourceSha256": "a9603db0f52e244064de480253ab7f48e6c21c22e24528207cab06d39abc7bb7",
+    "sha256": "20c1df19a1f76a50761cef668ad2ce0daae11c5b52e6f048fb6094858d172212",
+    "bytes": 35380,
+    "unicodeRanges": [
+      "0020-00FF",
+      "0400-052F",
+      "2000-206F",
+      "2190-21FF",
+      "20AC",
+      "25CF",
+      "2713"
+    ]
+  }
+]

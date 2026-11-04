@@ -1,0 +1,195 @@
+#!/usr/bin/env python3
+"""Build the bilingual GitHub Pages site using only the Python standard library."""
+import argparse
+import fnmatch
+import gzip
+import html
+import json
+from pathlib import Path
+import re
+import shutil
+import tempfile
+import urllib.error
+import urllib.parse
+import urllib.request
+
+ROOT = Path(__file__).resolve().parent
+REPOSITORY = "https://github.com/RealLeo/vault443"
+SITE = "https://realleo.github.io"
+TARGETS = {
+    "ubuntu": {"name": "Ubuntu 24.04 / 26.04", "pattern": "vault443_{version}-*ubuntu24.04_amd64.deb", "format": ".deb"},
+    "debian": {"name": "Debian 13", "pattern": "vault443_{version}-*debian13_amd64.deb", "format": ".deb"},
+    "fedora": {"name": "Fedora 44", "pattern": "vault443-{version}-*.fc44.x86_64.rpm", "format": ".rpm"},
+    "arch": {"name": "Arch Linux", "pattern": "vault443-{version}-*-x86_64.pkg.tar.zst", "format": ".pkg.tar.zst"},
+}
+
+
+class Markup(str):
+    """HTML produced by this renderer, never supplied by a translation or API."""
+
+
+def escape(value):
+    return html.escape(str(value), quote=True)
+
+
+def select_release(release):
+    if release.get("draft") or release.get("prerelease"):
+        raise ValueError("Only public stable releases may supply downloads")
+    tag = release["tag_name"]
+    version = tag.removeprefix("v")
+    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+        raise ValueError("Unsupported release version")
+    prefix = REPOSITORY + "/releases/download/" + urllib.parse.quote(tag, safe="") + "/"
+    assets = {item["name"]: item for item in release["assets"] if item.get("state", "uploaded") == "uploaded" and item.get("size", 0) > 0}
+
+    def url(name):
+        value = assets[name]["browser_download_url"]
+        if value != prefix + urllib.parse.quote(name, safe="._-"):
+            raise ValueError("Unexpected release asset URL")
+        return value
+
+    packages = []
+    for target, info in TARGETS.items():
+        matches = [name for name in assets if fnmatch.fnmatchcase(name, info["pattern"].format(version=version))]
+        if len(matches) != 1:
+            raise ValueError(f"Expected exactly one {target} installer")
+        name = matches[0]
+        if not re.fullmatch(r"[A-Za-z0-9._+-]+", name):
+            raise ValueError("Unsafe installer filename")
+        packages.append(dict(target=target, name=info["name"], filename=name,
+                             format=info["format"], url=url(name), checksum=url(name + ".sha256"),
+                             size=assets[name]["size"]))
+    return dict(version=version, tag=tag, url=REPOSITORY + "/releases/tag/" + urllib.parse.quote(tag, safe=""),
+                sums=url("SHA256SUMS"), packages=packages)
+
+
+def load_release(offline=False):
+    if not offline:
+        try:
+            request = urllib.request.Request("https://api.github.com/repos/RealLeo/vault443/releases/latest",
+                                             headers={"User-Agent": "Vault443-Pages-builder", "Accept": "application/vnd.github+json"})
+            with urllib.request.urlopen(request, timeout=15) as response:
+                selected = select_release(json.load(response))
+            print("Release API:", selected["version"])
+            return selected
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            print("Release API unavailable or incomplete; using verified snapshot:", type(error).__name__)
+    selected = select_release(json.loads((ROOT / "data/release.json").read_text()))
+    print("Verified snapshot:", selected["version"])
+    return selected
+
+
+def lookup(data, key):
+    value = data
+    for part in key.split("."):
+        value = value[int(part)] if isinstance(value, list) else value[part]
+    return value
+
+
+def translation_keys(value, prefix=""):
+    if isinstance(value, dict):
+        return {key for name, child in value.items() for key in translation_keys(child, prefix + "." + name)}
+    if isinstance(value, list):
+        return {key for index, child in enumerate(value) for key in translation_keys(child, prefix + "." + str(index))}
+    return {prefix}
+
+
+def install_commands(package):
+    name = package["filename"]
+    lines = ["sha256sum -c " + name + ".sha256"]
+    target = package["target"]
+    if target in ("ubuntu", "debian"):
+        lines.append("sudo apt install ./" + name)
+    elif target == "fedora":
+        lines.append("sudo dnf install ./" + name)
+    else:
+        lines.extend(["sudo pacman -Syu", "sudo pacman -U ./" + name])
+    if target in ("fedora", "arch"):
+        lines.append("sudo systemctl enable --now vault443-guard.service vault443.service")
+    lines.append('sudo vault443-access "$USER"')
+    return "\n".join(lines)
+
+
+def render_page(translations, release, base):
+    data = translations
+    lang = data["lang"]
+    assets = base + "assets/"
+    t = lambda key: escape(lookup(data, key))
+    screen_url = lambda name: assets + "screens/" + lang + "/" + name + ".webp"
+    other = base + "ru/" if lang == "en" else base
+    values = dict(data)
+    values.update(assets=assets, canonical=SITE + (base if lang == "en" else base + "ru/"),
+                  english_url=SITE + base, russian_url=SITE + base + "ru/", og_locale="en_US" if lang == "en" else "ru_RU",
+                  social_image=SITE + assets + "social.png", hero_image=screen_url("main"),
+                  release_version=release["version"], release_url=release["url"], sums_url=release["sums"],
+                  readme_url=REPOSITORY + "/blob/main/" + ("README.md" if lang == "en" else "README.ru.md"),
+                  start_anchor="first-connection", recovery_url=REPOSITORY + "/blob/main/" + ("README.md#troubleshooting-and-recovery" if lang == "en" else "README.ru.md#" + urllib.parse.quote("диагностика-и-восстановление-сети")))
+    values["language_links"] = Markup('<span lang="' + lang + '" aria-current="page">' + lang.upper() + '</span><a class="language-link" href="' + other + '" lang="' + ("ru" if lang == "en" else "en") + '" hreflang="' + ("ru" if lang == "en" else "en") + '">' + ("RU" if lang == "en" else "EN") + '</a>')
+    values["hero_heading"] = Markup("<br>".join(escape(line) for line in data["hero"]["heading"]))
+    values["feature_rows"] = Markup("".join('<article class="feature"><span class="feature-symbol" aria-hidden="true">' + escape(item["symbol"]) + '</span><div><h2>' + escape(item["title"]) + '</h2><p>' + escape(item["body"]) + '</p></div></article>' for item in data["features"]))
+    values["scenario_choices"] = Markup("".join('<label class="scenario-choice"><input type="radio" name="scenario" value="' + str(index) + '"' + (' checked' if index == 0 else '') + '><span>' + escape(item["name"]) + '</span></label>' for index, item in enumerate(data["demo"]["scenarios"])))
+    values["static_scenarios"] = Markup("".join('<details><summary>' + escape(item["name"]) + '</summary><p>' + escape(item["description"]) + '</p></details>' for item in data["demo"]["scenarios"]))
+    gallery = [dict(item, src=screen_url(item["file"])) for item in data["gallery"]["screens"]]
+    values["gallery_first_image"] = gallery[0]["src"]
+    values["gallery_links"] = Markup("".join('<a class="gallery-choice' + (' is-active' if index == 0 else '') + '" href="' + item["src"] + '" data-gallery-index="' + str(index) + '"' + (' aria-current="true"' if index == 0 else '') + '><span class="led small" aria-hidden="true"></span><span>' + escape(item["name"]) + '</span><span aria-hidden="true">↗</span></a>' for index, item in enumerate(gallery)))
+    packages = []
+    for package in release["packages"]:
+        target = package["target"]
+        status = data["downloads"]["established" if target == "ubuntu" else "port" if target in ("fedora", "arch") else "native"]
+        activation = '<p class="activation-note">' + t("downloads.activation") + '</p>' if target in ("fedora", "arch") else ''
+        packages.append('<article class="package-row"><div class="package-identity"><span class="distro-stamp" aria-hidden="true">' + {"ubuntu": "U", "debian": "D", "fedora": "f", "arch": "A"}[target] + '</span><div><h3>' + escape(package["name"]) + '</h3><p>' + escape(status) + '</p></div></div><div class="package-actions"><span class="package-size">' + (f'{package["size"] / 1048576:.1f} MB' if lang == 'en' else f'{package["size"] / 1048576:.1f}'.replace('.', ',') + ' МБ') + '</span><a class="metal-button package-download" href="' + escape(package["url"]) + '">' + t("downloads.download") + ' <span>' + escape(package["format"]) + '</span></a><a class="checksum-link" href="' + escape(package["checksum"]) + '">' + t("downloads.checksum") + '</a></div><details class="install-details"><summary>' + t("downloads.install") + '</summary>' + activation + '<div class="command-box"><pre><code id="commands-' + target + '">' + escape(install_commands(package)) + '</code></pre><button class="copy-button" type="button" data-copy="commands-' + target + '" data-js-only hidden>' + t("downloads.copy") + '</button></div></details></article>')
+    values["download_rows"] = Markup("".join(packages))
+    values["setup_steps"] = Markup("".join('<li><h3>' + escape(item["title"]) + '</h3><p>' + escape(item["body"]) + '</p></li>' for item in data["setup"]["steps"]))
+    values["faq_items"] = Markup("".join('<details><summary>' + escape(item["question"]) + '</summary><p>' + escape(item["answer"]) + '</p></details>' for item in data["faq"]["items"]))
+    values["page_data"] = Markup(json.dumps(dict(controls=data["controls"], demo=data["demo"], gallery=gallery,
+                                                 downloads={key: data["downloads"][key] for key in ("copy", "copied", "copyFailed")}), ensure_ascii=False).replace("<", "\\u003c"))
+
+    def substitute(match):
+        key = match.group(1)
+        value = values[key] if key in values else lookup(data, key)
+        return value if isinstance(value, Markup) else escape(value)
+    return re.sub(r"\{\{\s*([\w.]+)\s*\}\}", substitute, (ROOT / "templates/index.html").read_text())
+
+
+def build(base="/vault443/", offline=False):
+    if not re.fullmatch(r"/(?:[A-Za-z0-9_-]+/)*", base):
+        raise ValueError("Base must be a slash-delimited path")
+    locales = {lang: json.loads((ROOT / "data" / (lang + ".json")).read_text()) for lang in ("en", "ru")}
+    if translation_keys(locales["en"]) != translation_keys(locales["ru"]):
+        raise ValueError("English and Russian translation structures differ")
+    release = load_release(offline)
+    with tempfile.TemporaryDirectory(prefix="vault443-site-") as folder:
+        stage = Path(folder)
+        shutil.copytree(ROOT / "assets", stage / "assets")
+        shutil.copy2(ROOT.parent / "docs/images/readme/main.png", stage / "assets/social.png")
+        for lang, content in locales.items():
+            destination = stage if lang == "en" else stage / "ru"
+            destination.mkdir(exist_ok=True)
+            (destination / "index.html").write_text(render_page(content, release, base))
+        (stage / ".nojekyll").write_text("")
+        (stage / "release.json").write_text(json.dumps(release, ensure_ascii=False, indent=2) + "\n")
+        (stage / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>' + SITE + base + '</loc></url><url><loc>' + SITE + base + 'ru/</loc></url></urlset>\n')
+        (stage / "robots.txt").write_text("User-agent: *\nAllow: /\nSitemap: " + SITE + base + "sitemap.xml\n")
+        (stage / "404.html").write_text('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Page not found — Vault 443</title><link rel="stylesheet" href="' + base + 'assets/style.css"><main class="container section"><h1>Page not found / Страница не найдена</h1><p><a class="metal-button" href="' + base + '">English</a> <a class="metal-button" href="' + base + 'ru/">Русский</a></p></main></html>')
+        for page in (stage / "index.html", stage / "ru/index.html"):
+            if "{{" in page.read_text():
+                raise ValueError("Unresolved template variable")
+        output = ROOT / "dist"
+        if output.exists():
+            shutil.rmtree(output)
+        shutil.copytree(stage, output)
+    initial = ["style.css", "main.js", "vendor/gsap.min.js", "vendor/ScrollTrigger.min.js", "fonts/vault-terminal.woff2", "fonts/vault-condensed.woff2", "generated/steel.webp", "generated/crt-frame.webp", "emblem.webp", "screens/en/main.webp"]
+    total = sum((ROOT / "assets" / name).stat().st_size for name in initial) + (output / "index.html").stat().st_size
+    js_gzip = sum(len(gzip.compress((ROOT / "assets" / name).read_bytes(), mtime=0)) for name in ["main.js", "vendor/gsap.min.js", "vendor/ScrollTrigger.min.js"])
+    if total > 1_500_000 or js_gzip > 100_000:
+        raise ValueError(f"Initial load budget exceeded: {total} bytes, JS gzip {js_gzip}")
+    print(f"Built EN/RU for {base}; initial assets {total:,} bytes; JavaScript gzip {js_gzip:,} bytes")
+    return output
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--offline", action="store_true", help="Use the checked-in verified release snapshot")
+    parser.add_argument("--base", default="/vault443/")
+    args = parser.parse_args()
+    build(args.base, args.offline)

@@ -1,0 +1,92 @@
+import copy
+from html.parser import HTMLParser
+import importlib.util
+import json
+from pathlib import Path
+import unittest
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location("site_builder", ROOT / "build.py")
+builder = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(builder)
+
+
+class Links(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.elements = []
+
+    def handle_starttag(self, tag, attrs):
+        self.elements.append((tag, dict(attrs)))
+
+
+class WebsiteTests(unittest.TestCase):
+    def setUp(self):
+        self.release = json.loads((ROOT / "data/release.json").read_text())
+
+    def test_complete_snapshot_and_distribution_commands(self):
+        selected = builder.select_release(self.release)
+        self.assertEqual(selected["version"], "1.3.4")
+        self.assertEqual(len(selected["packages"]), 4)
+        for package, manager in zip(selected["packages"], ("apt", "apt", "dnf", "pacman")):
+            command = builder.install_commands(package)
+            self.assertTrue(command.startswith("sha256sum -c "))
+            self.assertIn("sudo " + manager, command)
+            self.assertIn(package["filename"], command)
+            self.assertTrue(command.endswith('sudo vault443-access "$USER"'))
+
+    def test_incomplete_release_rejected(self):
+        for asset in self.release["assets"]:
+            if asset["name"].endswith(".sha256") or asset["name"] == "SHA256SUMS":
+                incomplete = copy.deepcopy(self.release)
+                incomplete["assets"] = [item for item in incomplete["assets"] if item["name"] != asset["name"]]
+                with self.subTest(asset=asset["name"]), self.assertRaises((ValueError, KeyError)):
+                    builder.select_release(incomplete)
+
+    def test_prerelease_and_untrusted_url_rejected(self):
+        bad = copy.deepcopy(self.release)
+        bad["prerelease"] = True
+        with self.assertRaises(ValueError):
+            builder.select_release(bad)
+        bad = copy.deepcopy(self.release)
+        for asset in bad["assets"]:
+            asset["browser_download_url"] = "https://example.org/installer"
+        with self.assertRaises(ValueError):
+            builder.select_release(bad)
+
+    def test_network_failure_and_incomplete_latest_fall_back(self):
+        with patch.object(builder.urllib.request, "urlopen", side_effect=OSError("offline")):
+            self.assertEqual(builder.load_release()["version"], "1.3.4")
+        with patch.object(builder, "select_release", side_effect=[ValueError("missing asset"), {"version": "1.3.4"}]):
+            with patch.object(builder.urllib.request, "urlopen") as response:
+                response.return_value.__enter__.return_value.read.return_value = b'{}'
+                self.assertEqual(builder.load_release()["version"], "1.3.4")
+
+    def test_static_links_localization_and_assets(self):
+        selected = builder.select_release(self.release)
+        en = json.loads((ROOT / "data/en.json").read_text())
+        ru = json.loads((ROOT / "data/ru.json").read_text())
+        self.assertEqual(builder.translation_keys(en), builder.translation_keys(ru))
+        for locale in (en, ru):
+            page = builder.render_page(locale, selected, "/vault443/")
+            parser = Links()
+            parser.feed(page)
+            self.assertNotIn("{{", page)
+            ids = {attrs["id"] for tag, attrs in parser.elements if "id" in attrs}
+            for tag, attrs in parser.elements:
+                for key in ("href", "src"):
+                    url = attrs.get(key, "")
+                    if url.startswith("#"):
+                        self.assertIn(url[1:], ids)
+                    if url.startswith("/vault443/assets/") and not url.endswith("social.png"):
+                        self.assertTrue((ROOT / "assets" / url.removeprefix("/vault443/assets/")).is_file(), url)
+            downloads = [attrs for tag, attrs in parser.elements if tag == "a" and "package-download" in attrs.get("class", "")]
+            self.assertEqual(len(downloads), 4, "Static HTML must contain the real download links")
+            self.assertIn('lang="' + locale["lang"] + '"', page)
+            self.assertIn('hreflang="x-default"', page)
+            self.assertTrue(all(attrs.get("alt") is not None for tag, attrs in parser.elements if tag == "img"))
+
+
+if __name__ == "__main__":
+    unittest.main()

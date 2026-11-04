@@ -1,0 +1,11 @@
+{
+  "package": "gsap",
+  "version": "3.15.1",
+  "license": "Standard 'no charge' license: https://gsap.com/standard-license.",
+  "tarball": "https://registry.npmjs.org/gsap/-/gsap-3.15.1.tgz",
+  "sha512": "63yjWRFWj3QRP1UOuD8kcidCcy3nxb1mMRpwHr/xJRvPfm9GtWOXFAYUiL0ro1fgPq2nY53LR+98pAgy9BumBg==",
+  "files": {
+    "gsap.min.js": "3d1bea374ab1b703cc5c4105358eec63c4465efdc573931dc116e34a0a190c1b",
+    "ScrollTrigger.min.js": "b5bb360661f478f0ff6ffa11500d8ce5e2b6aaf6f7288237cdca3aac9548035a"
+  }
+}

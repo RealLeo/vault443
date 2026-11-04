@@ -1,0 +1,47 @@
+[
+  {
+    "name": "frontend-design",
+    "repo": "anthropics/skills",
+    "commit": "ca45fc496a3436251f191354091d557da31c15b5",
+    "files": {
+      "LICENSE.txt": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "SKILL.md": "d91970639e9f5c37682ac7ab60094d35f1c7c1f38d731bd56396563aee10c1d3"
+    }
+  },
+  {
+    "name": "gsap-core",
+    "repo": "greensock/gsap-skills",
+    "commit": "aed9cfd3277740755f6bfc1155c7aa645403b760",
+    "files": {
+      "LICENSE": "51b04b06556662dd817e8f4aa6d06bc7139dc73739e1319a7233cfde3e147b90",
+      "SKILL.md": "3887b47e050ab5afbe2a9a820f23d39fa02ab785e06a343be44c6f91d84d12b3"
+    }
+  },
+  {
+    "name": "gsap-performance",
+    "repo": "greensock/gsap-skills",
+    "commit": "aed9cfd3277740755f6bfc1155c7aa645403b760",
+    "files": {
+      "LICENSE": "51b04b06556662dd817e8f4aa6d06bc7139dc73739e1319a7233cfde3e147b90",
+      "SKILL.md": "cb5408d6fba707aabcbfe3320317a14c1f8fca6070074e5261047930f50d441e"
+    }
+  },
+  {
+    "name": "gsap-scrolltrigger",
+    "repo": "greensock/gsap-skills",
+    "commit": "aed9cfd3277740755f6bfc1155c7aa645403b760",
+    "files": {
+      "LICENSE": "51b04b06556662dd817e8f4aa6d06bc7139dc73739e1319a7233cfde3e147b90",
+      "SKILL.md": "9351b6666a4749c0740406ea363aaccb99a087ff45cc5e8b99a0f367facf3ef4"
+    }
+  },
+  {
+    "name": "gsap-timeline",
+    "repo": "greensock/gsap-skills",
+    "commit": "aed9cfd3277740755f6bfc1155c7aa645403b760",
+    "files": {
+      "LICENSE": "51b04b06556662dd817e8f4aa6d06bc7139dc73739e1319a7233cfde3e147b90",
+      "SKILL.md": "1a8b0f39cc4be3ed3d834b89672e4ae2f151b901dc3450bebf10bbc45379fe02"
+    }
+  }
+]

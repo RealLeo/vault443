@@ -1,0 +1,243 @@
+{
+  "lang": "en",
+  "title": "Vault 443 — a Fallout-inspired Linux VPN client",
+  "description": "Your VPNs, one control panel. A native Linux client for VLESS, Trojan, Outline, OpenVPN, WireGuard and AmneziaWG, with a Fallout-inspired retro interface.",
+  "skip": "Skip to content",
+  "nav": {
+    "console": "Console",
+    "routes": "Routes",
+    "screens": "Screenshots",
+    "download": "Download"
+  },
+  "controls": {
+    "sound": "Sound effects",
+    "motion": "Animations",
+    "soundOff": "Sound effects off",
+    "soundOn": "Sound effects on",
+    "motionOff": "Animations off",
+    "motionOn": "Animations on",
+    "motionSystem": "Animations off (system preference)"
+  },
+  "hero": {
+    "heading": [
+      "Your VPNs.",
+      "One control panel."
+    ],
+    "lead": "A Linux VPN client with a Fallout-inspired retro interface.",
+    "body": "Bring your profiles. Keep internet and work connections in reach. A compact native desktop app, built with the feel of an old-world control room.",
+    "download": "Download for Linux",
+    "explore": "Explore the console",
+    "note": "Linux x86-64 · Your own server or subscription required",
+    "monitor": "Native desktop client",
+    "monitorStatus": "Console ready",
+    "caption": "Real application · demo profiles",
+    "alt": "Vault 443 desktop application with three fictional VPN profiles and an active connection"
+  },
+  "features": [
+    {
+      "symbol": "↳",
+      "title": "Bring your own profiles",
+      "body": "Links, files and HTTPS subscriptions. VLESS, Trojan and Shadowsocks/Outline, in one place."
+    },
+    {
+      "symbol": "⇄",
+      "title": "Make room for work",
+      "body": "Add supported OpenVPN, WireGuard and AmneziaWG profiles. Choose the path through overlapping networks."
+    },
+    {
+      "symbol": "◉",
+      "title": "See the whole connection",
+      "body": "Connection stages, traffic and per-profile journals. An internet guard stays active during unexpected recovery."
+    }
+  ],
+  "demo": {
+    "heading": "Every connection has its place.",
+    "intro": "Internet, work and Docker can share a machine. Explore how Vault 443 keeps their routes in view.",
+    "label": "Interactive routing demo",
+    "notice": "Simulation only. This page does not connect a VPN or change your network.",
+    "legend": "Choose a scenario",
+    "play": "Run the demo",
+    "replay": "Replay the demo",
+    "playing": "Running demo…",
+    "ready": "Ready to explore",
+    "complete": "Route established · demo",
+    "nodes": {
+      "device": "Your device",
+      "vault": "Vault 443",
+      "internet": "Internet",
+      "work": "Work network",
+      "docker": "Docker network"
+    },
+    "scenarios": [
+      {
+        "name": "Internet connection",
+        "description": "Your main profile carries internet traffic. Attached local networks retain their paths.",
+        "steps": [
+          "Read the selected profile",
+          "Establish the main tunnel",
+          "Send internet traffic through the tunnel"
+        ],
+        "active": [
+          "entry",
+          "internet"
+        ]
+      },
+      {
+        "name": "Internet + work",
+        "description": "A work VPN carries specific work networks while your main connection continues to carry internet traffic. A full-tunnel work VPN pauses the main connection.",
+        "steps": [
+          "Keep the main connection active",
+          "Establish the work tunnel",
+          "Route work destinations to their own VPN"
+        ],
+        "active": [
+          "entry",
+          "internet",
+          "work"
+        ]
+      },
+      {
+        "name": "Work meets Docker",
+        "description": "Work routes take priority over overlapping Docker networks. You can explicitly preserve selected local or Docker destinations in the Routes settings.",
+        "steps": [
+          "Find the overlapping destination",
+          "Keep the selected work route",
+          "Preserve explicitly selected local access"
+        ],
+        "active": [
+          "entry",
+          "work",
+          "docker"
+        ]
+      }
+    ]
+  },
+  "gallery": {
+    "heading": "Look inside the console.",
+    "intro": "Real controls, real status, a little more character. These screenshots use fictional profiles from the application's demo mode.",
+    "legend": "Choose a screenshot",
+    "enlarge": "Enlarge screenshot",
+    "previous": "Previous screenshot",
+    "next": "Next screenshot",
+    "close": "Close screenshot",
+    "dialog": "Application screenshot",
+    "screens": [
+      {
+        "file": "import",
+        "name": "Bring your profiles",
+        "caption": "Review imported links and choose an emblem before saving.",
+        "alt": "Import preview showing fictional VPN profiles and emblem choices"
+      },
+      {
+        "file": "settings",
+        "name": "Set your starting point",
+        "caption": "Choose English or Russian and configure interface and VPN startup separately.",
+        "alt": "General settings with language and startup options"
+      },
+      {
+        "file": "work-vpns",
+        "name": "Connect to work",
+        "caption": "Manage independent work connections alongside the main internet profile.",
+        "alt": "Main internet connection and two independent work VPN profiles"
+      },
+      {
+        "file": "work-routes",
+        "name": "Choose the right route",
+        "caption": "Inspect work and Docker network overlaps and choose their destination.",
+        "alt": "Settings for overlapping work and Docker networks"
+      },
+      {
+        "file": "logs",
+        "name": "Follow the connection",
+        "caption": "Open each profile's journal to see its connection events and diagnostics.",
+        "alt": "Per-profile connection journal with fictional events"
+      },
+      {
+        "file": "peers",
+        "name": "Know your peers",
+        "caption": "Inspect WireGuard and AmneziaWG endpoints, handshakes and allowed networks.",
+        "alt": "WireGuard peers with endpoints, handshakes and allowed networks"
+      }
+    ]
+  },
+  "downloads": {
+    "heading": "Choose your system. Take the controls.",
+    "intro": "Native packages for Linux x86-64. Choose your distribution: Ubuntu and Debian use different builds.",
+    "version": "Release",
+    "established": "Main desktop target",
+    "port": "Initial distribution port",
+    "native": "Native package",
+    "download": "Download",
+    "checksum": "SHA-256",
+    "install": "Installation command",
+    "copy": "Copy commands",
+    "copied": "Copied",
+    "copyFailed": "Select and copy the commands below",
+    "all": "All release files",
+    "sums": "All checksums",
+    "choose": "Choose an installer",
+    "verify": "Download the matching .sha256 file and run the checksum command first. Continue only when it reports OK.",
+    "requirements": "Requires systemd, D-Bus/logind, systemd-resolved with NetworkManager or systemd-networkd, /dev/net/tun and kernel WireGuard. Packages are unsigned project builds.",
+    "portNote": "Fedora and Arch are initial ports. Physical desktop, boot/suspend and Fedora enforcing SELinux/firewalld acceptance remain pending.",
+    "docs": "Distribution requirements and checks",
+    "activation": "On a fresh Fedora or Arch install, prepare systemd-resolved before enabling the services."
+  },
+  "setup": {
+    "heading": "From download to connected.",
+    "steps": [
+      {
+        "title": "Install and grant access",
+        "body": "Verify the package, install it with your package manager, then run sudo vault443-access \"$USER\" once from your normal desktop user's terminal."
+      },
+      {
+        "title": "Bring a profile",
+        "body": "Open Vault 443 from the application launcher. Import a supported link or file, or add an HTTPS subscription. Your server or subscription comes from you."
+      },
+      {
+        "title": "Connect and stay informed",
+        "body": "Click Connect. Follow the status line or open the profile's journal. Closing the window leaves the connection running."
+      }
+    ],
+    "guide": "Read the getting-started guide"
+  },
+  "faq": {
+    "heading": "A few things before you connect.",
+    "items": [
+      {
+        "question": "Does Vault 443 provide VPN servers?",
+        "answer": "Vault 443 is a client for your own server configurations or subscriptions. It does not provide a VPN service or require a Vault 443 account."
+      },
+      {
+        "question": "Which profiles can I import?",
+        "answer": "Supported VLESS, Trojan and Shadowsocks/Outline links, files and subscriptions; self-contained certificate-based OpenVPN TUN profiles; WireGuard and AmneziaWG client configurations; autonomous Amnezia vpn:// exports. OpenVPN passwords, MFA/SSO, encrypted private keys, TAP and user scripts/plugins are unsupported."
+      },
+      {
+        "question": "Does the interface need root?",
+        "answer": "The interface runs as your regular user in an active local desktop session. An administrator grants access once with vault443-access. A separate system service handles networking. Do not launch the GUI with sudo."
+      },
+      {
+        "question": "Can work VPNs run alongside my internet connection?",
+        "answer": "Work VPNs with specific work routes can run alongside the main connection. A verified full-tunnel work VPN pauses the main connection until its routes are released. Work profiles start manually after reboot."
+      },
+      {
+        "question": "How do I update or uninstall?",
+        "answer": "Verify the new package and repeat your distribution's install command. Use apt remove vault443, dnf remove vault443 or pacman -R vault443 to uninstall. Normal removal releases Vault 443's network resources and retains private profiles in /var/lib/vault443."
+      },
+      {
+        "question": "What happens when the tunnel fails?",
+        "answer": "The network guard blocks direct internet traffic while the connection recovers, including forwarded Docker bridge traffic. An explicit Disconnect releases protection. If the service cannot recover, the documentation explains how to release the network safely."
+      }
+    ],
+    "help": "Troubleshooting and recovery"
+  },
+  "footer": {
+    "tagline": "Modern connections. Old-world controls.",
+    "source": "Source code",
+    "license": "MIT license",
+    "docs": "Documentation",
+    "issues": "Report an issue",
+    "releases": "Releases",
+    "credits": "Third-party notices",
+    "note": "An independent project with an interface inspired by Fallout 1 & 2. No game assets are bundled."
+  }
+}

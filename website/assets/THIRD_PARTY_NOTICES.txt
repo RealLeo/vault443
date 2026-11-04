@@ -1,0 +1,24 @@
+Vault 443 landing page
+======================
+Original website code, Vault 443 emblem and generated artwork: MIT.
+Copyright (c) 2026 Vault 443 contributors. See LICENSE in this directory.
+Original imagegen inputs and provenance: design/landing/ in the source repository.
+The project is independent and does not bundle Fallout game assets.
+
+GSAP and ScrollTrigger 3.15.1
+Copyright (c) 2026 GSAP. All rights reserved.
+Licensed under the GSAP Standard "No Charge" License, not MIT:
+https://gsap.com/standard-license/
+https://gsap.com/community/standard-license/
+Upstream copyright/license banners are retained in vendor/*.js.
+Exact NPM archive integrity and file hashes: vendor/source.json.
+
+Vault Terminal font: subset of Iosevka Term Medium, renamed for redistribution.
+SIL Open Font License 1.1. See fonts/Iosevka-LICENSE.md.
+Roboto Condensed: Apache License 2.0. See fonts/Roboto-LICENSE.txt.
+Original and subset file hashes: fonts/manifest.json.
+
+Development skills are not shipped as browser code. Their licenses remain in
+.agents/skills/ in the source repository: Anthropic frontend-design (Apache 2.0)
+and GreenSock gsap-core, gsap-timeline, gsap-scrolltrigger, gsap-performance (MIT).
+Those MIT licenses apply to the skills, separately from the GSAP runtime license.

@@ -1,0 +1,20 @@
+{
+  "tool": "built-in image_gen",
+  "assets": [
+    {
+      "key": "steel",
+      "transparent_background": false,
+      "prompt": "Use case: stylized-concept. Asset type: seamless tileable steel texture for the Vault 443 website. Generate a square 1024x1024 orthographic material texture only. Fallout 1 and Fallout 2 inspired late-1990s pre-rendered industrial computer interface material: worn dark gunmetal steel, muted olive-grey oxidation, fine pitting, hairline scratches, subtle rubbed graphite patches. Palette charcoal #1B1E1A and weathered steel #42483F. Uniform diffuse frontal lighting, deliberately very low contrast, evenly distributed very fine detail, edges matching seamlessly for tiling. Flat surface filling the entire image. No objects, no bolts, no rivets, no panels, no seams, no lettering, no logos, no icons, no vignette, no perspective, no embossed border. This is an original material for a readable website background, not a screenshot."
+    },
+    {
+      "key": "crt-frame",
+      "transparent_background": true,
+      "prompt": "Use case: stylized-concept. Asset type: transparent reusable CRT monitor bezel for the Vault 443 website. Generate one square 1024x1024 frontal orthographic industrial metal frame with a very large completely transparent square center opening. Original art inspired by the pre-rendered computer interfaces of Fallout 1 and Fallout 2. Dark worn steel outer plate, chamfered aged brass inner bevel, four visible recessed flat-head screws at the corners, tiny symmetric vent details confined to the outer border. Muted graphite #1B1E1A, steel #42483F, rubbed brass #B59A61, faint reflected phosphor #A8C871 only at the inner edge. Border approximately 12 percent of image width, center opening approximately 76 percent, square unbroken straight edge spans suitable for CSS nine-slice scaling. Square image, centered frame, keep all outer edges fully inside canvas. Center opening and area outside the frame MUST be genuinely transparent alpha. No glass over the hole, no screen, no black center, no background. No text, no numbers, no logos, no symbols, no cables. Highly tactile restrained 1997 industrial game UI rendering, not modern neon."
+    },
+    {
+      "key": "switch",
+      "transparent_background": true,
+      "prompt": "Use case: stylized-concept. Asset type: transparent decorative mechanical power-switch assembly for the Vault 443 interactive website. Create a square 1024x1024 isolated frontal orthographic view of a single compact heavy industrial switch module, original art inspired by Fallout 1 and Fallout 2 pre-rendered interface materials. A roughly square weathered gunmetal mounting plate with four recessed corner screws, a chunky aged brass pivot lever centered in a dark recessed circular socket, a small amber glass pilot lamp above the lever, fine symmetric venting beneath. Lever points upward, assembly centered and fully visible, fills 80 percent of canvas. Material palette dark graphite #1B1E1A, oxidized steel #42483F, brass #B59A61, muted amber, realistic tiny scratches and patina, broad soft frontal lighting, subtle shallow relief shadows. Transparent alpha around the isolated module. No text, no lettering, no labels, no numbers, no emblems, no franchise logos, no environment, no additional objects. Cohesive tactile retro computer control, not cyberpunk."
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 /build*/
 /build-*.test
 /dist/
+/website/dist/
 /.cache/
 /vendor/
 /test-results/

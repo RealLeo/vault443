@@ -1,0 +1,32 @@
+{
+  "tool": "built-in image_gen",
+  "assets": [
+    {
+      "name": "steel",
+      "original": "design/landing/steel.png",
+      "sourceSha256": "b69beb899094c374de0d8f9d7720b739974fc6ae1628cc65294eff965b9d3629",
+      "production": "website/assets/generated/steel.webp",
+      "productionSha256": "31bb1ec3a3d02c23682b84f2b9c21c5e47994a88f353d9ccdc546d0f8f58a15b",
+      "bytes": 8410,
+      "alpha": false
+    },
+    {
+      "name": "crt-frame",
+      "original": "design/landing/crt-frame.png",
+      "sourceSha256": "855b4800cd7cb585f71c1e07b4958f67558469d478113385abf4754aac8464cd",
+      "production": "website/assets/generated/crt-frame.webp",
+      "productionSha256": "b479ec90dc179aa74113c9113f17f1c2acad396abfecf48c31c9b16eb0a24d2a",
+      "bytes": 100932,
+      "alpha": true
+    },
+    {
+      "name": "switch",
+      "original": "design/landing/switch.png",
+      "sourceSha256": "307fb2f8f56a42eb7d7429edeb50bc43ab162a41929de26d766e1ab1373df1ee",
+      "production": "website/assets/generated/switch.webp",
+      "productionSha256": "4c6bcc92731c6c4e20b0603013418bf7a21209b467070586f80ca581a1f9c047",
+      "bytes": 43026,
+      "alpha": true
+    }
+  ]
+}
