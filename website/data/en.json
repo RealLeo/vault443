@@ -38,22 +38,22 @@
     {
       "symbol": "↳",
       "title": "Your profiles",
-      "body": "Links, files and HTTPS subscriptions. VLESS, Trojan and Shadowsocks/Outline, in one place."
+      "body": "Add your profiles from a link, file or subscription. Keep the connection you need within reach."
     },
     {
       "symbol": "⇄",
       "title": "Work networks",
-      "body": "Add supported OpenVPN, WireGuard and AmneziaWG profiles. Choose the path through overlapping networks."
+      "body": "Keep your internet VPN and work networks in one console. Choose routes when networks overlap."
     },
     {
       "symbol": "◉",
       "title": "Diagnostics",
-      "body": "Connection stages, traffic and per-profile journals. An internet guard stays active during unexpected recovery."
+      "body": "Check each profile’s status, traffic and log. See where a connection stopped."
     }
   ],
   "demo": {
     "heading": "Every connection has its place.",
-    "intro": "Internet, work and Docker can share a machine. Explore how Vault 443 keeps their routes in view.",
+    "intro": "Work and everyday browsing on one computer. Choose a scenario and see how the console routes traffic to the right network.",
     "label": "Interactive routing demo",
     "notice": "Simulation only. This page does not connect a VPN or change your network.",
     "legend": "Choose a scenario",
@@ -118,7 +118,7 @@
   },
   "gallery": {
     "heading": "Look inside the console.",
-    "intro": "Real controls, real status, a little more character. These screenshots use fictional profiles from the application's demo mode.",
+    "intro": "Take control of your connections. Import profiles, access work networks and diagnose problems from one console.",
     "legend": "Choose a screenshot",
     "enlarge": "Enlarge screenshot",
     "previous": "Previous screenshot",
@@ -172,7 +172,7 @@
   },
   "downloads": {
     "heading": "Choose your system. Take the controls.",
-    "intro": "Native packages for Linux x86-64. Choose your distribution: Ubuntu and Debian use different builds.",
+    "intro": "Your console is ready. Choose the package for your Linux distribution, add a profile and connect.",
     "version": "Release",
     "established": "Main desktop target",
     "port": "Initial distribution port",
@@ -252,7 +252,7 @@
   },
   "equipment": {
     "routingSubtitle": "Internet, work and Docker on one machine.",
-    "gallerySubtitle": "Real application screenshots in demo mode.",
+    "gallerySubtitle": "Profiles, routes and diagnostics within reach.",
     "demo": "Demonstration",
     "demoMode": "Demo mode",
     "previous": "Previous",
@@ -276,6 +276,8 @@
       }
     ],
     "previousMobile": "Previous",
-    "nextMobile": "Next"
+    "nextMobile": "Next",
+    "galleryNote": "Application screenshots with demo profiles.",
+    "packageNote": "Ubuntu and Debian need different packages."
   }
 }

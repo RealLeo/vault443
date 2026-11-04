@@ -1,9 +1,9 @@
     <section class="equipment-section equipment-routing" id="routes" aria-labelledby="routes-heading" data-equipment>
       <div class="equipment-bay">
         <img class="equipment-art" data-art-src="{{assets}}equipment/routing-relays.webp" width="1536" height="1024" alt="">
-        <h2 class="e-slot er-title" id="routes-heading">{{demo.heading}}</h2>
-        <p class="e-slot er-subtitle e-subtitle">{{equipment.routingSubtitle}}</p>
-        <fieldset class="equipment-scenarios" data-js-only hidden><legend class="e-slot er-legend">{{demo.legend}}</legend>{{scenario_choices}}</fieldset>
+        <h2 class="e-slot er-title" id="routes-heading"><span class="caption-zone"><span class="caption-ink" data-caption-text>{{demo.heading}}</span></span></h2>
+        <p class="e-slot er-subtitle e-subtitle"><span class="caption-zone"><span class="caption-ink" data-caption-text>{{equipment.routingSubtitle}}</span></span></p>
+        <fieldset class="equipment-scenarios" data-js-only hidden><legend class="e-slot er-legend"><span class="caption-zone"><span class="caption-ink" data-caption-text>{{demo.legend}}</span></span></legend>{{scenario_choices}}</fieldset>
         <div class="route-diagram relay-diagram" role="img" aria-label="{{demo.scenarios.0.description}}">
           <svg class="relay-wires" viewBox="0 0 1536 1024" preserveAspectRatio="none" aria-hidden="true">
             <path class="route-wire" data-route="entry" pathLength="100" d="M271 447H304Q307 447 310 444L322 435Q325 433 329 433H338"/>
@@ -11,11 +11,11 @@
             <path class="route-wire" data-route="work" pathLength="100" d="M715 541H808M1090 537H1154"/>
             <path class="route-wire" data-route="docker" pathLength="100" d="M715 697H808M1090 698H1154"/>
           </svg>
-          <div class="e-slot er-device relay-node device-node"><img class="mobile-part" data-mobile-src="{{assets}}equipment/device.webp" width="180" height="292" alt=""><span>{{demo.nodes.device}}</span></div>
-          <div class="e-slot er-client relay-node client-node"><img class="mobile-part" data-mobile-src="{{assets}}equipment/client.webp" width="310" height="405" alt=""><span>{{demo.nodes.vault}}</span><strong>{{equipment.demo}}</strong><div class="client-indicators" aria-hidden="true"><i data-channel-led="internet" data-active="true"></i><i data-channel-led="work"></i><i data-channel-led="docker"></i></div></div>
+          <div class="e-slot er-device relay-node device-node"><img class="mobile-part" data-mobile-src="{{assets}}equipment/device.webp" width="180" height="292" alt=""><span class="caption-zone node-title"><span class="caption-ink" data-caption-text>{{demo.nodes.device}}</span></span></div>
+          <div class="e-slot er-client relay-node client-node"><img class="mobile-part" data-mobile-src="{{assets}}equipment/client.webp" width="310" height="405" alt=""><span class="caption-zone node-title"><span class="caption-ink" data-caption-text>{{demo.nodes.vault}}</span></span><strong class="caption-zone node-demo"><span class="caption-ink" data-caption-text>{{equipment.demo}}</span></strong><div class="client-indicators" aria-hidden="true"><i data-channel-led="internet" data-active="true"></i><i data-channel-led="work"></i><i data-channel-led="docker"></i></div></div>
           {{relay_channels}}
         </div>
-        <button class="e-slot er-run equipment-run" id="demo-play" type="button" data-js-only hidden><span class="power-caption">{{demo.play}}</span></button>
+        <button class="e-slot er-run equipment-run" id="demo-play" type="button" data-js-only hidden><span class="caption-zone"><span class="power-caption caption-ink" data-caption-text>{{demo.play}}</span></span></button>
         <p class="e-slot er-status terminal-status" id="demo-status" role="status" aria-live="polite">{{demo.ready}}</p>
       </div>
       <div class="equipment-strip"><p>{{demo.intro}}</p><p class="scenario-description" id="scenario-description">{{demo.scenarios.0.description}}</p><p class="demo-notice">{{demo.notice}}</p><div class="scenario-static">{{static_scenarios}}</div></div>
@@ -24,27 +24,27 @@
     <section class="equipment-section equipment-gallery" id="screenshots" aria-labelledby="screens-heading" data-equipment>
       <div class="equipment-bay">
         <img class="equipment-art" data-art-src="{{assets}}equipment/gallery-archive.webp" width="1536" height="1024" alt="">
-        <h2 class="e-slot eg-title" id="screens-heading">{{gallery.heading}}</h2>
-        <p class="e-slot eg-subtitle e-subtitle">{{equipment.gallerySubtitle}}</p>
-        <p class="e-slot eg-demo terminal-status">{{equipment.demoMode}}</p>
+        <h2 class="e-slot eg-title" id="screens-heading"><span class="caption-zone"><span class="caption-ink" data-caption-text>{{gallery.heading}}</span></span></h2>
+        <p class="e-slot eg-subtitle e-subtitle"><span class="caption-zone"><span class="caption-ink" data-caption-text>{{equipment.gallerySubtitle}}</span></span></p>
+        <p class="e-slot eg-demo terminal-status"><span class="caption-zone"><span class="caption-ink" data-caption-text>{{equipment.demoMode}}</span></span></p>
         <div class="gallery-index" aria-label="{{gallery.legend}}">{{gallery_links}}</div>
         <figure class="archive-preview">
           <div class="e-slot eg-screen gallery-screen"><img id="gallery-image" src="{{gallery_first_image}}" width="472" height="480" loading="lazy" alt="{{gallery.screens.0.alt}}"></div>
           <figcaption class="e-slot eg-caption" id="gallery-caption">{{gallery.screens.0.caption}}</figcaption>
         </figure>
-        <div class="gallery-tools" data-js-only hidden><button class="e-slot eg-prev gallery-key" type="button" id="gallery-prev" aria-label="{{gallery.previous}}"><span class="desktop-label">{{equipment.previous}}</span><span class="phone-label" aria-hidden="true">{{equipment.previousMobile}}</span></button><button class="e-slot eg-enlarge gallery-key" type="button" id="gallery-enlarge">{{equipment.enlarge}}</button><button class="e-slot eg-next gallery-key" type="button" id="gallery-next" aria-label="{{gallery.next}}"><span class="desktop-label">{{equipment.next}}</span><span class="phone-label" aria-hidden="true">{{equipment.nextMobile}}</span></button></div>
+        <div class="gallery-tools" data-js-only hidden><button class="e-slot eg-prev gallery-key" type="button" id="gallery-prev" aria-label="{{gallery.previous}}"><span class="caption-zone"><span class="desktop-label caption-ink" data-caption-text>{{equipment.previous}}</span><span class="phone-label caption-ink" data-caption-text aria-hidden="true">{{equipment.previousMobile}}</span></span></button><button class="e-slot eg-enlarge gallery-key" type="button" id="gallery-enlarge"><span class="caption-zone"><span class="caption-ink" data-caption-text>{{equipment.enlarge}}</span></span></button><button class="e-slot eg-next gallery-key" type="button" id="gallery-next" aria-label="{{gallery.next}}"><span class="caption-zone"><span class="desktop-label caption-ink" data-caption-text>{{equipment.next}}</span><span class="phone-label caption-ink" data-caption-text aria-hidden="true">{{equipment.nextMobile}}</span></span></button></div>
       </div>
-      <div class="equipment-strip"><p>{{gallery.intro}}</p></div>
+      <div class="equipment-strip"><p>{{gallery.intro}}</p><p class="demo-notice">{{equipment.galleryNote}}</p></div>
     </section>
 
     <section class="equipment-section equipment-downloads" id="download" aria-labelledby="download-heading" data-equipment>
       <div class="equipment-bay">
         <img class="equipment-art" data-art-src="{{assets}}equipment/downloads-counter.webp" width="1536" height="1024" alt="">
-        <h2 class="e-slot ed-title" id="download-heading">{{downloads.heading}}</h2>
-        <p class="e-slot ed-version">{{equipment.version}} {{release_version}} · Linux x86-64</p>
+        <h2 class="e-slot ed-title" id="download-heading"><span class="caption-zone"><span class="caption-ink" data-caption-text>{{downloads.heading}}</span></span></h2>
+        <p class="e-slot ed-version"><span class="caption-zone"><span class="caption-ink" data-caption-text>{{equipment.version}} {{release_version}} · Linux x86-64</span></span></p>
         {{download_rows}}
         <aside class="equipment-start" aria-label="{{equipment.startHeading}}">
-          <h3 class="e-slot ed-start">{{equipment.startHeading}}</h3>
+          <h3 class="e-slot ed-start"><span class="caption-zone"><span class="caption-ink" data-caption-text>{{equipment.startHeading}}</span></span></h3>
           <ol class="e-start-steps">{{equipment_steps}}</ol>
           <code class="e-slot ed-access">sudo vault443-access "$USER"</code>
         </aside>
@@ -52,7 +52,7 @@
         <a class="e-slot ed-release" href="{{release_url}}">{{downloads.all}}</a>
       </div>
       <div class="equipment-strip download-footnotes">
-        <p>{{downloads.intro}}</p><p>{{downloads.verify}}</p><p>{{support_summary}}</p><p>{{downloads.requirements}}</p><p>{{downloads.portNote}}</p>
+        <p>{{downloads.intro}}</p><p>{{equipment.packageNote}}</p><p>{{downloads.verify}}</p><p>{{support_summary}}</p><p>{{downloads.requirements}}</p><p>{{downloads.portNote}}</p>
         <div class="download-links"><a class="text-link" href="{{sums_url}}">{{downloads.sums}}</a><a class="text-link" href="https://github.com/RealLeo/vault443/blob/main/docs/linux-packages.md">{{downloads.docs}}</a></div>
       </div>
     </section>

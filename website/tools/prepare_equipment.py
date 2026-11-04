@@ -20,7 +20,7 @@ REGIONS = {
  [325,855,379,77],[1021,882,296,49],[438,675,120,38],
  ],
  "gallery-archive": [
- [449,8,725,57],[467,67,782,34],[895,141,218,43],
+ [443,8,654,104],[895,141,218,43],
  [526,212,871,568],[373,234,32,33],
  [635,810,693,45],[542,898,194,65],[876,903,223,55],[1180,896,210,65],
  ],
@@ -103,7 +103,18 @@ def main():
  for kind,scene in layout.items():
   for name,(x,y,w,h) in scene["slots"].items():
    css+=f'html[data-enhanced="true"] .equipment-{kind} .{name}'+f'{{left:{x/1536*100:.8f}%;top:{y/1024*100:.8f}%;width:{w/1536*100:.8f}%;height:{h/1024*100:.8f}%;--e-x:{-x/1536*100:.8f}cqw;--e-y:{-y/1536*100:.8f}cqw}}\n'
+  for name,(x,y,w,h) in scene.get("captions",{}).items():
+   px,py,pw,ph=scene["slots"][name]
+   css+=f'html[data-enhanced="true"] .equipment-{kind} .{name}>.caption-zone'+f'{{left:{(x-px)/pw*100:.8f}%;top:{(y-py)/ph*100:.8f}%;width:{w/pw*100:.8f}%;height:{h/ph*100:.8f}%;}}\n'
+  for name,lamp in scene.get("lamps",{}).items():
+   px,py,pw,ph=scene["slots"][name];cx,cy=lamp["center"];radius=lamp["radius"]
+   css+=f'html[data-enhanced="true"] .equipment-{kind} .{name}>.choice-lamp'+f'{{left:{(cx-px)/pw*100:.8f}%;top:{(cy-py)/ph*100:.8f}%;width:{radius*2/pw*100:.8f}%;height:{radius*2/ph*100:.8f}%;}}\n'
  css+="}\n"
+ for kind,scene in layout.items():
+  for parent,labels in scene.get("nodeCaptions",{}).items():
+   px,py,pw,ph=scene["slots"][parent]
+   for name,(x,y,w,h) in labels.items():
+    css+=f'html[data-enhanced="true"] .equipment-{kind}.equipment-ready .{parent}>.{name}'+f'{{left:{(x-px)/pw*100:.8f}%;top:{(y-py)/ph*100:.8f}%;width:{w/pw*100:.8f}%;height:{h/ph*100:.8f}%;right:auto;bottom:auto}}\n'
  (ROOT/"website/assets/equipment-layout.css").write_text(css)
  print(json.dumps({"atlases":{i["name"]:i["bytes"] for i in manifest["assets"]},"partsBytes":sum(i["bytes"] for i in manifest["parts"]),"textureBytes":manifest["texture"]["bytes"]},indent=2))
 

@@ -193,16 +193,10 @@
       "cleanSha256": "c7c700a04693ab313ee35f9241b4a5a171e9ed011494ef653d9e53e86569629b",
       "repairs": [
         [
-          449,
+          443,
           8,
-          725,
-          57
-        ],
-        [
-          467,
-          67,
-          782,
-          34
+          654,
+          104
         ],
         [
           895,
@@ -284,10 +278,10 @@
         ]
       ],
       "master": "design/landing/equipment/gallery-archive-master.png",
-      "masterSha256": "f26d73ed25ffbc6a62858fe246049faaabf2c1db01886775be691d96bbb91582",
+      "masterSha256": "ee682c6728713993e7dc339bec30ff00b3e4dcf7df5c51ab9229fc79e02bfc1f",
       "production": "website/assets/equipment/gallery-archive.webp",
-      "productionSha256": "53ab93dc62d5dc10882996196a2857a50e2ec7e9dbba5bf6be9c7ac291d0518a",
-      "bytes": 519112
+      "productionSha256": "09275bc52dac4e27a3a3fe5a56f79a9e52becb7db44363aa055437aaefac2f3c",
+      "bytes": 519938
     },
     {
       "name": "downloads-counter",

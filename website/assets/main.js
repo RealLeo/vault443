@@ -67,6 +67,75 @@
   equipmentSections.forEach(section => equipmentObserver.observe(section));
   desktopEquipment.addEventListener("change", () => visitedEquipment.forEach(loadEquipment));
 
+  // Center the painted glyph bounds, not just the font's line box.
+  const captionTexts = [...document.querySelectorAll("[data-caption-text]")];
+  const captionContext = document.createElement("canvas").getContext("2d");
+  let captionFrame = 0;
+  function layoutCaptions() {
+    captionFrame = 0;
+    if (!captionContext) return;
+    const updates = [];
+    for (const ink of captionTexts) {
+      if (!ink.getClientRects().length) continue;
+      const zone = ink.parentElement;
+      const style = getComputedStyle(zone);
+      const size = parseFloat(style.fontSize);
+      const width = zone.clientWidth;
+      const text = value => style.textTransform === "uppercase" ? value.toUpperCase() : value;
+      let fitted = size;
+      captionContext.font = `${style.fontStyle} ${style.fontWeight} ${size}px ${style.fontFamily}`;
+      const candidates = ink.classList.contains("power-caption") ? [data.demo.play, data.demo.playing, data.demo.replay] : [ink.textContent.trim()];
+      const widest = Math.max(...candidates.map(value => captionContext.measureText(text(value)).width));
+      // Mobile headings may wrap; desktop plates and single-line keys fit once.
+      const mayWrap = Boolean(ink.closest(".node-title")) || (!desktopEquipment.matches && Boolean(ink.closest("h2,.e-subtitle")));
+      if (!mayWrap && widest > width - 2) fitted = Math.min(size, size * Math.max(1,width - 2) / widest);
+      captionContext.font = `${style.fontStyle} ${style.fontWeight} ${fitted}px ${style.fontFamily}`;
+      const metrics = captionContext.measureText(text(ink.textContent.trim()));
+      const asc = metrics.fontBoundingBoxAscent ?? fitted * .928;
+      const desc = metrics.fontBoundingBoxDescent ?? fitted * .244;
+      const multi = mayWrap && metrics.width > width;
+      let lines = [text(ink.textContent.trim())];
+      if (multi) {
+        lines = []; let current = "";
+        for (const word of text(ink.textContent.trim()).split(/\s+/)) {
+          const next = current ? current + " " + word : word;
+          if (current && captionContext.measureText(next).width > width) { lines.push(current); current = word; }
+          else current = next;
+        }
+        if (current) lines.push(current);
+      }
+      const measured = lines.map(value => captionContext.measureText(value));
+      const spanWidth = multi ? width : metrics.width;
+      const left = Math.min(...measured.map(m => (spanWidth-m.width)/2-m.actualBoundingBoxLeft));
+      const right = Math.max(...measured.map(m => (spanWidth-m.width)/2+m.actualBoundingBoxRight));
+      const dx = (spanWidth-left-right)/2;
+      const dy = (measured[0].actualBoundingBoxAscent-measured[measured.length-1].actualBoundingBoxDescent-asc+desc)/2;
+      const lineMetrics = measured.map(m => [m.width,m.actualBoundingBoxLeft,m.actualBoundingBoxRight,m.actualBoundingBoxAscent,m.actualBoundingBoxDescent]);
+      updates.push({ink,fitted,dx,dy,metrics,asc,desc,multi,lineMetrics});
+    }
+    for (const item of updates) {
+      const {ink,fitted,dx,dy,metrics,asc,desc,multi,lineMetrics} = item;
+      ink.style.fontSize = fitted + "px";
+      ink.style.setProperty("--ink-x", dx + "px"); ink.style.setProperty("--ink-y", dy + "px");
+      ink.dataset.inkMetrics = JSON.stringify([metrics.width,metrics.actualBoundingBoxLeft,metrics.actualBoundingBoxRight,metrics.actualBoundingBoxAscent,metrics.actualBoundingBoxDescent,asc,desc]);
+      ink.dataset.inkMultiline = String(multi);
+      ink.dataset.inkLines = JSON.stringify(lineMetrics);
+      ink.dataset.inkText = ink.textContent.trim();
+    }
+    root.dataset.captionViewport = innerWidth + "x" + innerHeight;
+    root.dataset.captionFonts = document.fonts ? document.fonts.status : "loaded";
+  }
+  function queueCaptions() { if (!captionFrame) captionFrame = requestAnimationFrame(layoutCaptions); }
+  const captionObserver = new ResizeObserver(queueCaptions);
+  new Set(captionTexts.map(ink => ink.parentElement)).forEach(zone => captionObserver.observe(zone));
+  const captionMutations = new MutationObserver(queueCaptions);
+  captionTexts.forEach(ink => captionMutations.observe(ink, {childList:true,characterData:true,subtree:true}));
+  if (document.fonts) {
+    document.fonts.ready.then(queueCaptions);
+    document.fonts.addEventListener("loadingdone", queueCaptions);
+  } else queueCaptions();
+  window.addEventListener("resize", queueCaptions);
+
   const canAnimate = () => Boolean(gsap) && allowsMotion(media.matches);
   function tone(frequency = 580, duration = 0.055) {
     if (!soundEnabled || !audioContext || audioContext.state !== "running" || document.hidden) return;
@@ -359,6 +428,8 @@
     if (event.persisted) return;
     demoObserver.disconnect();
     equipmentObserver.disconnect();
+    captionObserver.disconnect(); captionMutations.disconnect();
+    if (captionFrame) cancelAnimationFrame(captionFrame);
     cancelDemo();
     if (galleryTimeline) galleryTimeline.kill();
   });

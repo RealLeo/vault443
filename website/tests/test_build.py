@@ -188,6 +188,28 @@ class WebsiteTests(unittest.TestCase):
                 self.assertTrue(0 <= x < x+w <= 1536, name)
                 self.assertTrue(0 <= y < y+h <= 1024, name)
 
+    def test_caption_clearances_and_individual_lenses(self):
+        layout = json.loads((ROOT / "data/equipment-layout.json").read_text())
+        self.assertEqual(len(layout["gallery"]["lamps"]), 6)
+        for scene in layout.values():
+            for name, (x,y,w,h) in scene.get("captions", {}).items():
+                px,py,pw,ph = scene["slots"][name]
+                self.assertTrue(px <= x < x+w <= px+pw, name)
+                self.assertTrue(py <= y < y+h <= py+ph, name)
+                for obstacle in scene.get("captionObstacles", {}).get(name, []):
+                    ox,oy,ow,oh = obstacle["rect"]
+                    gap = x-(ox+ow) if obstacle["side"] == "left" else ox-(x+w)
+                    self.assertGreaterEqual(gap, 12, name)
+            for name, lamp in scene.get("lamps", {}).items():
+                x,y,w,h = scene["slots"][name];cx,cy=lamp["center"];r=lamp["radius"]
+                self.assertTrue(x < cx-r < cx+r < x+w)
+                self.assertTrue(y < cy-r < cy+r < y+h)
+        data = json.loads((ROOT / "data/ru.json").read_text())
+        page = builder.render_page(data,builder.select_release(self.release),"/vault443/")
+        self.assertIn(data["equipment"]["galleryNote"],page)
+        self.assertIn(data["equipment"]["packageNote"],page)
+        self.assertNotIn("Настоящие элементы управления",page)
+
 
 if __name__ == "__main__":
     unittest.main()
