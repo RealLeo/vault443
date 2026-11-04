@@ -35,6 +35,29 @@ The build enforces a 1.5 MB initial uncompressed asset budget and 100 KB compres
 JavaScript budget. Gallery screens are lazy loaded. Preserve progressive
 enhancement, keyboard access, static reduced-motion states and audio opt-in.
 
+The vault-door redesign uses `templates/hero.html` and a final `assets/vault.css`
+hardware layer over the existing section layout. Its approved desktop/mobile
+references, six imagegen source PNGs, exact prompts, optimized hashes and font
+source are under `../design/landing/vault-door/`. Production art is `assets/vault/`.
+Roboto Condensed 900 is pinned to Google Fonts commit
+`69d0549e8fc7ad72e1531734c81237be401ec4fd`, version 3.008, OFL-1.1.
+The pre-existing regular face keeps its separate Apache 2.0 license.
+
+The door starts in the accessible open state. Enhancement adds a 900 ms sequence:
+cams 0–180 ms, shutters 120–720 ms, lamps/glow 300–900 ms. A session flag prevents
+automatic replay when changing language. The status rail offers manual replay,
+motion and sound; stopping motion settles open immediately. There is no autoplay
+audio. `node website/tests/motion.cjs` checks lifecycle interruption and storage
+failure as well as policy and gallery boundaries.
+
+The builder counts all new artwork, both CSS layers, fonts and the larger of
+EN/RU entry documents/screens. It writes `dist/budgets.json`. Local fallback QA:
+
+```sh
+python3 website/tools/serve.py --port 8766 --no-js
+python3 website/tools/serve.py --port 8767 --no-gsap
+```
+
 Publication uses `.github/workflows/pages.yml` and the repository's Pages source
 must be **GitHub Actions**. Actions are pinned by full commit in the workflow and
 recorded in `data/action-pins.json`. The workflow reacts to website changes on main,

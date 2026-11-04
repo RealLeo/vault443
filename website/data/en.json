@@ -16,37 +16,41 @@
     "soundOn": "Sound effects on",
     "motionOff": "Animations off",
     "motionOn": "Animations on",
-    "motionSystem": "Animations off (system preference)"
+    "motionSystem": "Animations off (system preference)",
+    "replay": "Replay door startup"
   },
   "hero": {
     "heading": [
-      "Your VPNs.",
-      "One control panel."
+      "Vault 443"
     ],
-    "lead": "A Linux VPN client with a Fallout-inspired retro interface.",
-    "body": "Bring your profiles. Keep internet and work connections in reach. A compact native desktop app, built with the feel of an old-world control room.",
+    "lead": "A Linux VPN client",
+    "body": "Your profiles. Internet and work.",
     "download": "Download for Linux",
-    "explore": "Explore the console",
+    "explore": "Explore",
     "note": "Linux x86-64 · Your own server or subscription required",
     "monitor": "Native desktop client",
     "monitorStatus": "Console ready",
     "caption": "Real application · demo profiles",
-    "alt": "Vault 443 desktop application with three fictional VPN profiles and an active connection"
+    "alt": "Vault 443 desktop application with three fictional VPN profiles and an active connection",
+    "positioning": "A Linux VPN client with a Fallout-inspired retro interface.",
+    "demo": "Demo preview",
+    "protocols": "Supported protocols",
+    "enlarge": "Enlarge application preview"
   },
   "features": [
     {
       "symbol": "↳",
-      "title": "Bring your own profiles",
+      "title": "Your profiles",
       "body": "Links, files and HTTPS subscriptions. VLESS, Trojan and Shadowsocks/Outline, in one place."
     },
     {
       "symbol": "⇄",
-      "title": "Make room for work",
+      "title": "Work networks",
       "body": "Add supported OpenVPN, WireGuard and AmneziaWG profiles. Choose the path through overlapping networks."
     },
     {
       "symbol": "◉",
-      "title": "See the whole connection",
+      "title": "Diagnostics",
       "body": "Connection stages, traffic and per-profile journals. An internet guard stays active during unexpected recovery."
     }
   ],

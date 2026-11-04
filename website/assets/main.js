@@ -3,8 +3,27 @@
   "use strict";
   const allowsMotion = (preference, reduced) => preference !== "off" && !reduced;
   const wrapIndex = (index, length) => ((index % length) + length) % length;
+  function createDoorController({ enabled, open, animate, remembered, remember }) {
+    let initialized = false;
+    let timeline = null;
+    const finish = () => { if (timeline) timeline.kill(); timeline = null; open(); };
+    const replay = () => {
+      finish();
+      if (!enabled()) return;
+      timeline = animate(() => { timeline = null; open(); });
+    };
+    const init = () => {
+      if (initialized) return;
+      initialized = true;
+      let played = false;
+      try { played = remembered(); } catch {}
+      if (enabled() && !played) { try { remember(); } catch {} replay(); }
+      else finish();
+    };
+    return { init, replay, finish };
+  }
   if (typeof document === "undefined") {
-    if (typeof module !== "undefined") module.exports = { allowsMotion, wrapIndex };
+    if (typeof module !== "undefined") module.exports = { allowsMotion, wrapIndex, createDoorController };
     return;
   }
   const dataElement = document.getElementById("page-data");
@@ -16,6 +35,7 @@
   const media = window.matchMedia("(prefers-reduced-motion: reduce)");
   const motionButton = document.querySelector(".motion-button");
   const soundButton = document.querySelector(".sound-button");
+  const doorReplay = document.querySelector(".door-replay");
   const playButton = document.getElementById("demo-play");
   const status = document.getElementById("demo-status");
   const readPreference = () => { try { return localStorage.getItem("vault443-motion"); } catch { return null; } };
@@ -79,6 +99,56 @@
     element.addEventListener("pointerdown", () => tone(490, 0.035));
   });
 
+  const assembly = document.querySelector(".vault-assembly");
+  const shutters = document.querySelector(".vault-shutters");
+  const leftShutter = document.querySelector(".shutter-left");
+  const rightShutter = document.querySelector(".shutter-right");
+  const cams = [...document.querySelectorAll(".vault-cam img")];
+  const lamps = [...document.querySelectorAll(".cage-bulb, .protocol-led, .rail-led")];
+  const glow = document.querySelector(".vault-glow");
+  function openDoor() {
+    assembly.dataset.doorState = "open";
+    shutters.style.visibility = "hidden";
+    if (gsap) {
+      gsap.set(leftShutter, { x: 0, xPercent: -51 });
+      gsap.set(rightShutter, { x: 0, xPercent: 51 });
+      gsap.set(cams, { rotation: 0 });
+      gsap.set([...lamps, glow], { opacity: 1 });
+    } else {
+      leftShutter.style.transform = "translateX(-51%)";
+      rightShutter.style.transform = "translateX(51%)";
+      cams.forEach(cam => { cam.style.transform = ""; });
+      [...lamps, glow].forEach(lamp => { lamp.style.opacity = "1"; });
+    }
+    doorReplay.disabled = !canAnimate();
+  }
+  const door = createDoorController({
+    enabled: canAnimate,
+    open: openDoor,
+    remembered: () => sessionStorage.getItem("vault443-door-booted") === "1",
+    remember: () => sessionStorage.setItem("vault443-door-booted", "1"),
+    animate: complete => {
+      assembly.dataset.doorState = "opening";
+      doorReplay.disabled = true;
+      const timeline = gsap.timeline({ defaults: { ease: "power2.inOut" }, onComplete: complete });
+      timeline.addLabel("unlock", 0).addLabel("retract", 0.12).addLabel("power", 0.3);
+      timeline.set(shutters, { visibility: "visible" }, "unlock")
+        .set([leftShutter, rightShutter], { x: 0, xPercent: 0 }, "unlock")
+        .set(cams, { rotation: 18 }, "unlock")
+        .set(lamps, { opacity: 0.12 }, "unlock")
+        .set(glow, { opacity: 0 }, "unlock")
+        .call(() => tone(210, 0.05), [], "unlock")
+        .to(cams, { rotation: 0, duration: 0.18, ease: "power1.out" }, "unlock")
+        .to(leftShutter, { xPercent: -51, duration: 0.6 }, "retract")
+        .to(rightShutter, { xPercent: 51, duration: 0.6 }, "retract")
+        .to(lamps, { opacity: 1, duration: 0.22, stagger: { amount: 0.38 } }, "power")
+        .to(glow, { opacity: 1, duration: 0.4 }, 0.5)
+        .call(() => tone(770, 0.04), [], 0.8);
+      return timeline;
+    }
+  });
+  doorReplay.addEventListener("click", () => door.replay());
+
   const wires = [...document.querySelectorAll(".route-wire")];
   const wireLengths = new Map(wires.map(wire => [wire, wire.getTotalLength()]));
   function showRoutes(names) {
@@ -139,6 +209,7 @@
 
   function startMotion() {
     if (motionContext) { motionContext.revert(); motionContext = null; }
+    door.finish();
     const allowed = canAnimate();
     root.dataset.motion = allowed ? "on" : "off";
     motionButton.setAttribute("aria-pressed", String(allowed));
@@ -147,24 +218,27 @@
     if (!allowed) {
       if (demoTimeline && demoTimeline.progress() < 1) { cancelDemo(); finishDemo(data.demo.scenarios[currentScenario]); }
       if (galleryTimeline) { galleryTimeline.progress(1); galleryTimeline.kill(); galleryTimeline = null; }
+      door.init();
       return;
     }
     motionContext = gsap.matchMedia();
     motionContext.add("(prefers-reduced-motion: no-preference)", () => {
-      let hasBooted = false;
-      try { hasBooted = sessionStorage.getItem("vault443-booted") === "1"; sessionStorage.setItem("vault443-booted", "1"); } catch {}
-      if (!hasBooted) {
-        const boot = gsap.timeline({ defaults: { ease: "power1.inOut" } });
-        boot.fromTo(".boot-led", { opacity: 0.35, scale: 0.75 }, { opacity: 1, scale: 1, duration: 0.2, clearProps: "transform,opacity" }, 0);
-        boot.fromTo(".boot-sweep", { yPercent: -100, autoAlpha: 0.8 }, { yPercent: 100, autoAlpha: 0, duration: 0.65, clearProps: "transform,opacity,visibility" }, 0.15);
-      }
       if (scrollTrigger) {
         document.querySelectorAll(".routing-console, .gallery-preview, .package-console").forEach(panel => {
-          gsap.fromTo(panel, { rotationX: 2.5, transformPerspective: 1000 }, { rotationX: 0, duration: 0.7, ease: "power2.out", clearProps: "transform", scrollTrigger: { trigger: panel, start: "top 88%", once: true } });
+          const fasteners = panel.querySelectorAll(".panel-fastener");
+          if (!fasteners.length) {
+            ["left", "right"].forEach(side => {
+              const fastener = document.createElement("span");
+              fastener.className = "panel-fastener fastener-" + side;
+              fastener.setAttribute("aria-hidden", "true");
+              panel.appendChild(fastener);
+            });
+          }
+          gsap.fromTo(panel.querySelectorAll(".panel-fastener"), { rotation: -18 }, { rotation: 0, duration: 0.35, ease: "power1.out", clearProps: "transform", scrollTrigger: { trigger: panel, start: "top 88%", once: true } });
         });
-        gsap.fromTo(".hero-monitor", { y: 0 }, { y: -12, ease: "none", scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: 0.45 }, clearProps: "transform" });
       }
     }, document.body);
+    door.init();
   }
   motionButton.addEventListener("click", () => {
     preference = root.dataset.motion === "on" ? "off" : "on";
@@ -210,15 +284,26 @@
   document.getElementById("gallery-prev").addEventListener("click", () => selectScreenshot(galleryIndex - 1));
   document.getElementById("gallery-next").addEventListener("click", () => selectScreenshot(galleryIndex + 1));
   const dialog = document.getElementById("screenshot-dialog");
-  document.getElementById("gallery-enlarge").addEventListener("click", event => {
-    const item = data.gallery[galleryIndex];
+  function openScreenshot(item, trigger) {
     if (typeof dialog.showModal !== "function") { window.location.href = item.src; return; }
-    returnFocus = event.currentTarget;
+    door.finish();
+    returnFocus = trigger;
     const image = document.getElementById("dialog-image");
     image.src = item.src; image.alt = item.alt;
     document.getElementById("dialog-caption").textContent = item.caption;
     dialog.showModal();
     dialog.querySelector("button").focus();
+  }
+  document.getElementById("gallery-enlarge").addEventListener("click", event => openScreenshot(data.gallery[galleryIndex], event.currentTarget));
+  document.querySelector("[data-hero-preview]").addEventListener("click", event => {
+    event.preventDefault();
+    openScreenshot(data.hero, event.currentTarget);
+  });
+  document.querySelectorAll("[data-feature-screen]").forEach(link => {
+    link.addEventListener("click", () => {
+      const index = data.gallery.findIndex(item => item.file === link.dataset.featureScreen);
+      if (index >= 0) selectScreenshot(index, false);
+    });
   });
   dialog.querySelector(".dialog-close").addEventListener("click", () => dialog.close());
   dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
@@ -248,6 +333,7 @@
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       silence();
+      door.finish();
       if (gsap) gsap.ticker.sleep();
     } else if (gsap) gsap.ticker.wake();
   });
@@ -255,6 +341,7 @@
   if (document.fonts) document.fonts.ready.then(() => { if (scrollTrigger) scrollTrigger.refresh(); });
   window.addEventListener("pagehide", event => {
     silence();
+    door.finish();
     if (event.persisted) return;
     demoObserver.disconnect();
     if (motionContext) motionContext.revert();

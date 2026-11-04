@@ -1,0 +1,88 @@
+{
+  "tool": "built-in image_gen",
+  "optimization": "Pillow WebP method6 quality84; vault-frame86; proportional resizing only",
+  "assets": [
+    {
+      "name": "chassis-skin",
+      "original": "design/landing/vault-door/chassis-skin.png",
+      "sha256": "85d9abd8943021b480b858cbd37e640c0eb4014a29b972581b54687355939e7a",
+      "production": "website/assets/vault/chassis-skin.webp",
+      "productionSha256": "e5717e9aee6daeaf81306433a63f14ef1641cbc6c073e83bad1e6b8ab39968c4",
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 27032,
+      "alpha": false
+    },
+    {
+      "name": "vault-frame",
+      "original": "design/landing/vault-door/vault-frame.png",
+      "sha256": "94fa6fcbd2ebba5e0b9c44f6c0f1275e44e848b9a1c9a9f13c5833e9c2aca213",
+      "production": "website/assets/vault/vault-frame.webp",
+      "productionSha256": "9f70b3e844084e89ab13c4f4c53012c74dc3e7cb623e67beea50e50e5606be1b",
+      "size": [
+        1152,
+        1152
+      ],
+      "bytes": 300752,
+      "alpha": true,
+      "centerAlpha": 0
+    },
+    {
+      "name": "locking-cam",
+      "original": "design/landing/vault-door/locking-cam.png",
+      "sha256": "a5212dce958ac660e9ccd5f35ff5d04c92c91d66f7974edfb3e50ca10960bd7b",
+      "production": "website/assets/vault/locking-cam.webp",
+      "productionSha256": "cd1d4490b28a5c6a3b9ef4640e064cead3a70aa9d6365c7ef0d51e368293ec1a",
+      "size": [
+        160,
+        160
+      ],
+      "bytes": 8066,
+      "alpha": true,
+      "centerAlpha": 252
+    },
+    {
+      "name": "hatch-shutters",
+      "original": "design/landing/vault-door/hatch-shutters.png",
+      "sha256": "8627ae4e4c8b986fceca2eb27f3a10642ce410c7f4bd755b203528d7a179f937",
+      "production": "website/assets/vault/hatch-shutters.webp",
+      "productionSha256": "679ece1838670199ae5e516f8bf632d4109820b9af5fcd5d2d90062b79caac00",
+      "size": [
+        640,
+        640
+      ],
+      "bytes": 85130,
+      "alpha": false
+    },
+    {
+      "name": "steel-plaque",
+      "original": "design/landing/vault-door/steel-plaque.png",
+      "sha256": "7bfa135c8081a7d5dd9c2ce3c9f14f542286aa42cc149b05b32b01a1f6e9f7c3",
+      "production": "website/assets/vault/steel-plaque.webp",
+      "productionSha256": "7b088bffc2cd8b5f878d40b2b5e317c8f5e5571faf2a209c9f16d12ebf424e25",
+      "size": [
+        1024,
+        341
+      ],
+      "bytes": 76718,
+      "alpha": true,
+      "centerAlpha": 253
+    },
+    {
+      "name": "brass-download",
+      "original": "design/landing/vault-door/brass-download.png",
+      "sha256": "6bab665f2f41efa4234d2d656dadb8f0e46086d15fff32d65b134ceb10570986",
+      "production": "website/assets/vault/brass-download.webp",
+      "productionSha256": "c93ad5770e881935ce3b0e0d6d77f8d2c00a043bb43e127548b3e0db7698ca63",
+      "size": [
+        960,
+        320
+      ],
+      "bytes": 91282,
+      "alpha": true,
+      "centerAlpha": 253
+    }
+  ]
+}

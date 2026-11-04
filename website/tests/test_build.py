@@ -2,6 +2,7 @@ import copy
 from html.parser import HTMLParser
 import importlib.util
 import json
+import hashlib
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -86,6 +87,27 @@ class WebsiteTests(unittest.TestCase):
             self.assertIn('lang="' + locale["lang"] + '"', page)
             self.assertIn('hreflang="x-default"', page)
             self.assertTrue(all(attrs.get("alt") is not None for tag, attrs in parser.elements if tag == "img"))
+
+    def test_door_static_state_and_art_provenance(self):
+        selected = builder.select_release(self.release)
+        data = json.loads((ROOT / "data/en.json").read_text())
+        page = builder.render_page(data, selected, "/vault443/")
+        parser = Links()
+        parser.feed(page)
+        assemblies = [attrs for tag, attrs in parser.elements if "vault-assembly" in attrs.get("class", "").split()]
+        self.assertEqual(assemblies[0]["data-door-state"], "open")
+        protocols = [attrs for tag, attrs in parser.elements if tag == "li" and attrs.get("class", "").startswith("protocol-")]
+        self.assertEqual(len(protocols), 6)
+        self.assertIn('href="/vault443/assets/screens/en/main.webp" data-hero-preview', page)
+        self.assertIn('class="system-controls" data-js-only hidden', page)
+        artwork = json.loads((ROOT.parent / "design/landing/vault-door/manifest.json").read_text())
+        for item in artwork["assets"]:
+            with self.subTest(asset=item["name"]):
+                self.assertEqual(hashlib.sha256((ROOT.parent / item["original"]).read_bytes()).hexdigest(), item["sha256"])
+                self.assertEqual(hashlib.sha256((ROOT.parent / item["production"]).read_bytes()).hexdigest(), item["productionSha256"])
+        frame = next(item for item in artwork["assets"] if item["name"] == "vault-frame")
+        self.assertTrue(frame["alpha"])
+        self.assertEqual(frame["centerAlpha"], 0)
 
 
 if __name__ == "__main__":
