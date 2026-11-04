@@ -1,23 +1,39 @@
-# Vault door implementation
+# Vault door reference implementation
 
-Approved references: reference-desktop.png (1487×1058), reference-mobile.png
-(887×1774). Their geometry, dense metal construction and lighting are the target.
+The approved reference-desktop.png (1487×1058) and reference-mobile.png
+(887×1774) are the source artwork, not a style approximation. The hero extends
+from the masthead through the three feature plates. It uses one responsive
+atlas with measured HTML links and a real, proportional EN/RU app screenshot.
+The entire composition scales uniformly, switches at 1024 px, and caps at 1600 px.
 
-Palette: graphite #202527, blue steel #3d4548, aged brass #ba9858,
-ivory #ddc79a, signal green #79df53, dark recess #0a100c.
-Roboto Condensed 900 carries dense engraved headings and controls; existing
-Roboto Condensed 400 handles prose and Vault Terminal handles readouts.
+Painted 443, emblem, hydraulics, door rim, locking blocks, protocol plates,
+lamps, fasteners and all framing retain the original source pixels. Do not
+regenerate these elements or substitute CSS approximations. The sole decorative
+Vault 443 title is in the masthead; the real app title stays in its screenshot.
 
-Desktop: connected chassis, 34% introduction / 66% vault assembly. The central
-window uses real application screenshots. Mobile below 1024px: introduction and
-download first, then the door, then six protocol plaques in two columns.
-Frame, cylinder, cams, shutters and plates are individual imagegen bitmap layers.
-Typography, lamps, interaction targets and pictograms remain native HTML/SVG.
+Built-in imagegen repaired the materials beneath removed/replaced lettering.
+Its full outputs are immutable in atlas/text-clean-*.png. prepare_scene.py limits
+repairs to the recorded rectangles, mechanically composites them over the original,
+and encodes quality95 WebP. Pixels outside these rectangles are unchanged in the
+PNG masters. Sources, prompts, masks and SHA-256 provenance are in atlas/.
 
-The chosen design replaces the previous sparse split hero with a contiguous
-heavy hardware interface. Large generic marketing headings and floating monitor
-parallax are removed. All supporting sections continue the same physical chassis.
+English plate lettering is retained directly in the source artwork for exact
+fidelity; real HTML supplies semantic text and interaction. Russian captions
+use local Roboto Condensed on the repaired surfaces. Forced-colors/print expose
+the native HTML labels. Protocol names remain identical in both locales.
 
-One 900 ms startup: cams 0–180 ms, shutters 120–720 ms, lamps/glow 300–900 ms.
-Default HTML/CSS is already open. Motion disabled or missing GSAP always leaves
-the open state. Downloads never depend on the boot sequence. Audio starts off.
+Coordinates are recorded in website/data/scene-layout.json. Authoring-only
+prepare_scene.py also writes scene-layout.css; the production Python build needs
+only the standard library. Picture media selection and CSS variables load only
+the matching locale/viewport atlas. Do not preload both variants.
+
+Only the real app preview differs inside the measured window; object-fit:contain
+preserves its native proportions. Original atlas locking nuts are clipped as CSS
+sprites during the 900 ms startup, then hidden to reveal the exact source art.
+Lamp darkening masks disappear and screen glow returns to zero at completion.
+Two existing shutters cover only the app aperture while opening. No infinite motion.
+
+The session-wide startup, reduced-motion policy, interruption, replay, opt-in
+sound and static/no-GSAP fallbacks are retained. Motion/sound/replay and feature
+explanations sit below the exact composition. Supporting sections and downloads
+retain their existing content, anchors and release snapshot.

@@ -35,7 +35,9 @@
     "positioning": "A Linux VPN client with a Fallout-inspired retro interface.",
     "demo": "Demo preview",
     "protocols": "Supported protocols",
-    "enlarge": "Enlarge application preview"
+    "enlarge": "Enlarge application preview",
+    "sceneCaption": "Application (demo)",
+    "features": "Explore the client"
   },
   "features": [
     {
@@ -67,7 +69,7 @@
     "complete": "Route established · demo",
     "nodes": {
       "device": "Your device",
-      "vault": "Vault 443",
+      "vault": "VPN client",
       "internet": "Internet",
       "work": "Work network",
       "docker": "Docker network"

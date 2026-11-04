@@ -27,5 +27,7 @@ Roboto Condensed 900 (website display face only): Roboto 3.008, SIL Open Font
 License 1.1. See fonts/RobotoCondensed-900-OFL.txt. The existing regular face
 retains its separate Apache 2.0 notice. Source commit and hashes are recorded
 in design/landing/vault-door/font/source.json in the source repository.
-New vault-door art: built-in imagegen, originals/prompts/hashes under
-design/landing/vault-door/. Native stencil SVG is derived from the display font.
+Vault-door artwork: the approved desktop/mobile concept images are reused
+directly as measured atlases. Built-in imagegen only repaired text surfaces;
+originals, repair masks, prompts and hashes are in design/landing/vault-door/atlas/.
+Painted 443 and all hardware come directly from the approved reference artwork.

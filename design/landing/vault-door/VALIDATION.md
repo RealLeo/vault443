@@ -1,53 +1,61 @@
-# Vault door acceptance — 2026-11-04
+# Exact vault-door acceptance — 2026-11-04
 
-The approved desktop (1487×1058) and mobile (887×1774) references are preserved
-alongside the six imagegen source layers, prompts and production SHA-256 hashes.
-The implementation was compared visually with both: connected chassis, broad
-brass download lever, stencil serial, circular machinery/cylinder, protocol
-plaques, real app window and the three feature keys. Desktop framing was tightened
-after the first comparison so the status rail and feature keys fit the reference
-composition. Phone protocol plaques are rearranged below the mechanism.
+The two approved references are used directly as the production artwork.
+The source/cleaned PNG files, deterministic text-repair rectangles, prompts and
+SHA-256 manifest are in atlas/. Only recorded text surfaces were restored;
+all PNG master pixels outside these rectangles are identical to the reference.
 
-## Verification
+## Visual evidence
 
-- Six Python tests pass, covering release selection/fallback, installer commands,
-  bilingual static links/assets, the default open door and art provenance.
-- Node tests cover motion preference precedence, single session startup,
-  interruption settling open, explicit replay, cross-language session reuse,
-  denied storage and gallery wrapping. JavaScript syntax check passes.
-- Online builder selected the real stable 1.3.4 release. Conservative initial
-  resources: EN 1,079,369 bytes / RU 1,088,159 bytes; JavaScript 51,130 bytes gzip.
-- Original/optimized art hashes match. Frame has a genuinely transparent center.
-  Local Roboto Condensed 900 has the expected weight and Latin/Cyrillic coverage;
-  pinned source, OFL license and existing third-party licenses are retained.
+Four canonical browser captures (EN/RU × 1487×1058 desktop / 887×1774 mobile)
+were compared with matching-quality WebP artwork using 50/50 overlays and
+difference maps. The browser screenshot transport is JPEG, so the expected
+image is encoded with identical JPEG quantization/subsampling before comparison.
+Native app screenshots, translated lettering and the edited status caption
+are explicitly excluded from the texture metric, not from geometry checks.
+Maximum mean absolute channel error was 1.29/255, below the 2.5/255 threshold.
+No texture/geometry substitutions are hidden by a full-scene comparison mask.
 
-## In-app Chromium browser
+Both languages were checked at viewport widths 360, 390, 768, 1023, 1024, 1440
+and 1920. All 14 cases have no horizontal document overflow or failed loaded
+images, and Russian captions fit their intended boxes. Maximum measured slot
+position/size error is 0.023 CSS px (allowed 1 CSS px). On narrow screens,
+invisible hit extensions preserve at least 44 px vertical interaction areas.
 
-Both EN/RU checked at 360, 390, 768, 1440 and 1920 px, plus 1023/1024 breakpoint
-boundaries. No horizontal document overflow or failed loaded images. All four
-installer links remain present and the hero download is in the initial viewport.
-Gallery overflow discovered in the initial phone pass was corrected.
+Screenshots, responsive measurements, overlays, difference maps and JSON reports
+are saved in test-results/website-exact-scene/ (ignored build/QA artifacts).
+Authoring audit: python3 website/tools/audit_scene.py. The browser screenshot
+API hides scrollbars during capture; canonical captures use the exact reference
+viewport dimensions. DOM geometry is measured against actual content width.
 
-Verified actual door replay shows `opening` with visible centered shutters and
-then returns to `open` with shutters hidden and replay enabled. Disabling motion
-mid-sequence settles open immediately. The GSAP pixel offset is explicitly reset
-so repeated shutter animations do not accumulate the initial CSS translation.
-Sound opt-in/off, hero zoom, Escape/focus return, feature-to-journal navigation,
-gallery End key, section-preserving language switch and the animated Docker/work
-scenario were exercised. The route scenario ends with entry/work/Docker active.
-No console warnings/errors on the enhanced local page.
+## Functional checks
 
-Identical EN/RU pages served with `script-src 'none'` retain an open door, hidden
-JS controls, native installation disclosures, screenshots and four downloads.
-With both GSAP scripts deliberately unavailable, EN/RU remain open/static and
-the enhanced gallery works. Expected script-blocking/404 messages belong to those
-deliberate fallback tests. System reduced-motion precedence is covered by the
-policy test and CSS/media setup; browser OS emulation was unavailable.
+- Seven Python tests pass: release selection/fallback, native install commands,
+  static EN/RU links, default open state and original/cleaned/master/WebP hashes.
+- Node motion lifecycle tests and JavaScript syntax check pass. Reduced-motion
+  precedence is covered by the policy tests/CSS. Actual OS emulation is not
+  exposed by the browser tool and was not claimed as an OS-level browser test.
+- Door replay was observed opening with visible shutters; switching motion off
+  immediately hid shutters and settled open. It subsequently completed normally.
+- Sound opt-in/off, screenshot zoom, Escape/focus return, feature-to-logs link,
+  gallery ArrowRight, section-preserving EN/RU switching and browser Back passed.
+- All three routing scenarios reached the intended active routes. Ubuntu install
+  disclosure begins with checksum verification and the correct apt command.
+- With scripts blocked by CSP, the door stays open, controls remain hidden and
+  native download anchors/disclosures work. With GSAP intentionally unavailable,
+  the door stays open and replay is disabled while content/downloads remain usable.
+- Normal enhanced page has no browser console warnings/errors. Expected CSP/404
+  messages belong only to deliberate fallback servers.
+- Nineteen external page/download/checksum/documentation links returned HTTP 200.
 
-Local screenshots/measurements are in `test-results/website-vault-door/` (ignored
-by Git), including final desktop/mobile and routing views. Review used the
-[Web Interface Guidelines](https://vercel.com/design/guidelines) for keyboard,
-focus, hit targets, reduced motion, readable text and progressive enhancement.
+## Build and publication boundaries
 
-App code/packages remain unchanged. Tag 1.3.4 remains
-`64cff2b4216b4378cd5c455532667b134f4f75b9`.
+Online release selection confirms stable 1.3.4. Worst-case calculated first load
+is approximately 1.38 MB; JavaScript is 51,120 bytes gzip. Each viewport/locale
+loads its own approximately 0.65–0.68 MB atlas. Gallery screenshots remain lazy.
+Python production build is still standard-library-only; Pillow is authoring/QA.
+Original art remains MIT; separate font, skill and GSAP licenses are preserved.
+
+Only landing-page implementation and design records change. Application code,
+packages, public service APIs and release tag 1.3.4 are unchanged; the tag remains
+64cff2b4216b4378cd5c455532667b134f4f75b9.

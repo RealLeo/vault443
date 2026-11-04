@@ -124,12 +124,18 @@ def render_page(translations, release, base):
                   release_version=release["version"], release_url=release["url"], sums_url=release["sums"],
                   readme_url=REPOSITORY + "/blob/main/" + ("README.md" if lang == "en" else "README.ru.md"),
                   start_anchor="first-connection", recovery_url=REPOSITORY + "/blob/main/" + ("README.md#troubleshooting-and-recovery" if lang == "en" else "README.ru.md#" + urllib.parse.quote("диагностика-и-восстановление-сети")))
-    values["language_links"] = Markup('<span lang="' + lang + '" aria-current="page">' + lang.upper() + '</span><a class="language-link" href="' + other + '" lang="' + ("ru" if lang == "en" else "en") + '" hreflang="' + ("ru" if lang == "en" else "en") + '">' + ("RU" if lang == "en" else "EN") + '</a>')
-    values["hero_heading"] = Markup("<br>".join(escape(line) for line in data["hero"]["heading"]))
-    icons = ['<path d="M3 7h7l3 3h9v11H3zM3 7V4h7l3 3"/>', '<path d="M9 3h6v5H9zM2 16h6v5H2zm14 0h6v5h-6zM9 16h6v5H9zM12 8v5M5 16v-3h14v3M12 13v3"/>', '<path d="M2 4h20v16H2zM3 12h4l3-6 4 12 3-6h4"/>']
+    language_parts = []
+    for code in ("en", "ru"):
+        if code == lang:
+            language_parts.append('<span lang="' + code + '" aria-current="page">' + code.upper() + '</span>')
+        else:
+            language_parts.append('<a class="language-link" href="' + other + '" lang="' + code + '" hreflang="' + code + '">' + code.upper() + '</a>')
+    values["scene_language_links"] = Markup(language_parts[0] + '<span aria-hidden="true">/</span>' + language_parts[1])
     destinations = ["#screenshots", "#routes", "#screenshots"]
-    values["feature_rows"] = Markup("".join('<article class="benefit"><a class="benefit-key" href="' + destinations[index] + '"' + (' data-feature-screen="logs"' if index == 2 else '') + '><svg viewBox="0 0 24 24" width="48" height="48" aria-hidden="true">' + icons[index] + '</svg><h2>' + escape(item["title"]) + '</h2><span class="hazard-rule" aria-hidden="true"></span></a><p>' + escape(item["body"]) + '</p></article>' for index, item in enumerate(data["features"])))
-    values["vault_cams"] = Markup("".join('<span class="vault-cam cam-' + str(index) + '"><img src="' + assets + 'vault/locking-cam.webp" width="160" height="160" alt=""></span>' for index in range(1, 7)))
+    values["scene_feature_links"] = Markup("".join('<a class="scene-slot scene-feature-' + str(index + 1) + ' scene-key" href="' + destinations[index] + '"' + (' data-feature-screen="logs"' if index == 2 else '') + '><span class="scene-caption">' + escape(item["title"]) + '</span></a>' for index, item in enumerate(data["features"])))
+    values["feature_rows"] = Markup("".join('<article><h2>' + escape(item["title"]) + '</h2><p>' + escape(item["body"]) + '</p></article>' for item in data["features"]))
+    values["scene_cams"] = Markup("".join('<span class="scene-slot vault-cam cam-' + str(index) + '"><span class="cam-sprite"></span></span>' for index in range(1, 7)))
+    values["scene_lamps"] = Markup("".join('<span class="scene-slot lamp-shade lamp-' + str(index) + '" aria-hidden="true"></span>' for index in range(1, 10)))
     values["scenario_choices"] = Markup("".join('<label class="scenario-choice"><input type="radio" name="scenario" value="' + str(index) + '"' + (' checked' if index == 0 else '') + '><span>' + escape(item["name"]) + '</span></label>' for index, item in enumerate(data["demo"]["scenarios"])))
     values["static_scenarios"] = Markup("".join('<details><summary>' + escape(item["name"]) + '</summary><p>' + escape(item["description"]) + '</p></details>' for item in data["demo"]["scenarios"]))
     gallery = [dict(item, src=screen_url(item["file"])) for item in data["gallery"]["screens"]]
@@ -185,16 +191,15 @@ def build(base="/vault443/", offline=False):
         shutil.copytree(stage, output)
     # Count every art layer/CSS/font used by the interface, conservatively including
     # below-the-fold backgrounds. Gallery screens remain excluded until requested.
-    initial = ["style.css", "vault.css", "main.js", "vendor/gsap.min.js", "vendor/ScrollTrigger.min.js", "fonts/vault-terminal.woff2", "fonts/vault-condensed.woff2", "fonts/vault-display.woff2", "generated/steel.webp", "generated/switch.webp", "emblem.webp"]
-    initial += [str(path.relative_to(ROOT / "assets")) for path in sorted((ROOT / "assets/vault").iterdir()) if path.suffix in (".webp", ".svg")]
+    initial = ["style.css", "vault.css", "scene.css", "scene-layout.css", "main.js", "vendor/gsap.min.js", "vendor/ScrollTrigger.min.js", "fonts/vault-terminal.woff2", "fonts/vault-condensed.woff2", "fonts/vault-display.woff2", "generated/steel.webp", "generated/switch.webp", "emblem.webp", "vault/chassis-skin.webp", "vault/steel-plaque.webp", "vault/hatch-shutters.webp", "vault/locking-cam.webp"]
     shared = sum((ROOT / "assets" / name).stat().st_size for name in initial)
-    totals = {lang: shared + (ROOT / "assets/screens" / lang / "main.webp").stat().st_size + (output / ("index.html" if lang == "en" else "ru/index.html")).stat().st_size for lang in locales}
-    total = max(totals.values())
+    totals = {lang: {mode: shared + (ROOT / "assets/scene" / f"{mode}-{lang}.webp").stat().st_size + (ROOT / "assets/screens" / lang / "main.webp").stat().st_size + (output / ("index.html" if lang == "en" else "ru/index.html")).stat().st_size for mode in ("desktop", "mobile")} for lang in locales}
+    total = max(value for modes in totals.values() for value in modes.values())
     js_gzip = sum(len(gzip.compress((ROOT / "assets" / name).read_bytes(), mtime=0)) for name in ["main.js", "vendor/gsap.min.js", "vendor/ScrollTrigger.min.js"])
     if total > 1_500_000 or js_gzip > 100_000:
         raise ValueError(f"Initial load budget exceeded: {total} bytes, JS gzip {js_gzip}")
-    (output / "budgets.json").write_text(json.dumps(dict(initial_bytes=totals, javascript_gzip_bytes=js_gzip), indent=2) + "\n")
-    print(f"Built EN/RU for {base}; initial assets EN {totals['en']:,} / RU {totals['ru']:,} bytes; JavaScript gzip {js_gzip:,} bytes")
+    (output / "budgets.json").write_text(json.dumps(dict(initial_bytes={lang: max(modes.values()) for lang, modes in totals.items()}, initial_bytes_by_viewport=totals, javascript_gzip_bytes=js_gzip), indent=2) + "\n")
+    print(f"Built EN/RU for {base}; initial assets {totals}; JavaScript gzip {js_gzip:,} bytes")
     return output
 
 

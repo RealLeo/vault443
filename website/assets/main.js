@@ -103,8 +103,8 @@
   const shutters = document.querySelector(".vault-shutters");
   const leftShutter = document.querySelector(".shutter-left");
   const rightShutter = document.querySelector(".shutter-right");
-  const cams = [...document.querySelectorAll(".vault-cam img")];
-  const lamps = [...document.querySelectorAll(".cage-bulb, .protocol-led, .rail-led")];
+  const cams = [...document.querySelectorAll(".cam-sprite")];
+  const lamps = [...document.querySelectorAll(".lamp-shade")];
   const glow = document.querySelector(".vault-glow");
   function openDoor() {
     assembly.dataset.doorState = "open";
@@ -113,12 +113,12 @@
       gsap.set(leftShutter, { x: 0, xPercent: -51 });
       gsap.set(rightShutter, { x: 0, xPercent: 51 });
       gsap.set(cams, { rotation: 0 });
-      gsap.set([...lamps, glow], { opacity: 1 });
+      gsap.set([...lamps, glow], { opacity: 0 });
     } else {
       leftShutter.style.transform = "translateX(-51%)";
       rightShutter.style.transform = "translateX(51%)";
       cams.forEach(cam => { cam.style.transform = ""; });
-      [...lamps, glow].forEach(lamp => { lamp.style.opacity = "1"; });
+      [...lamps, glow].forEach(lamp => { lamp.style.opacity = "0"; });
     }
     doorReplay.disabled = !canAnimate();
   }
@@ -135,14 +135,15 @@
       timeline.set(shutters, { visibility: "visible" }, "unlock")
         .set([leftShutter, rightShutter], { x: 0, xPercent: 0 }, "unlock")
         .set(cams, { rotation: 18 }, "unlock")
-        .set(lamps, { opacity: 0.12 }, "unlock")
+        .set(lamps, { opacity: 0.9 }, "unlock")
         .set(glow, { opacity: 0 }, "unlock")
         .call(() => tone(210, 0.05), [], "unlock")
         .to(cams, { rotation: 0, duration: 0.18, ease: "power1.out" }, "unlock")
         .to(leftShutter, { xPercent: -51, duration: 0.6 }, "retract")
         .to(rightShutter, { xPercent: 51, duration: 0.6 }, "retract")
-        .to(lamps, { opacity: 1, duration: 0.22, stagger: { amount: 0.38 } }, "power")
-        .to(glow, { opacity: 1, duration: 0.4 }, 0.5)
+        .to(lamps, { opacity: 0, duration: 0.22, stagger: { amount: 0.38 } }, "power")
+        .to(glow, { opacity: 0.2, duration: 0.15 }, 0.5)
+        .to(glow, { opacity: 0, duration: 0.25 }, 0.65)
         .call(() => tone(770, 0.04), [], 0.8);
       return timeline;
     }

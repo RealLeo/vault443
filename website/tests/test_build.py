@@ -96,8 +96,9 @@ class WebsiteTests(unittest.TestCase):
         parser.feed(page)
         assemblies = [attrs for tag, attrs in parser.elements if "vault-assembly" in attrs.get("class", "").split()]
         self.assertEqual(assemblies[0]["data-door-state"], "open")
-        protocols = [attrs for tag, attrs in parser.elements if tag == "li" and attrs.get("class", "").startswith("protocol-")]
-        self.assertEqual(len(protocols), 6)
+        self.assertIn('class="scene-protocols visually-hidden"', page)
+        for protocol in ("VLESS", "Trojan", "OpenVPN", "Shadowsocks / Outline", "WireGuard", "AmneziaWG"):
+            self.assertIn('<li>' + protocol + '</li>', page)
         self.assertIn('href="/vault443/assets/screens/en/main.webp" data-hero-preview', page)
         self.assertIn('class="system-controls" data-js-only hidden', page)
         artwork = json.loads((ROOT.parent / "design/landing/vault-door/manifest.json").read_text())
@@ -108,6 +109,32 @@ class WebsiteTests(unittest.TestCase):
         frame = next(item for item in artwork["assets"] if item["name"] == "vault-frame")
         self.assertTrue(frame["alpha"])
         self.assertEqual(frame["centerAlpha"], 0)
+
+    def test_exact_scene_geometry_and_provenance(self):
+        layout = json.loads((ROOT / "data/scene-layout.json").read_text())
+        self.assertEqual(layout["desktop"]["size"], [1487, 1058])
+        self.assertEqual(layout["mobile"]["size"], [887, 1774])
+        for mode, scene in layout.items():
+            width, height = scene["size"]
+            for name, (x, y, w, h) in scene["slots"].items():
+                self.assertGreaterEqual(x, 0)
+                self.assertGreaterEqual(y, 0)
+                self.assertLessEqual(x+w, width, name)
+                self.assertLessEqual(y+h, height, name)
+            self.assertEqual(len(scene["cams"]), 6)
+        artwork = json.loads((ROOT.parent / "design/landing/vault-door/atlas/manifest.json").read_text())
+        self.assertEqual(len(artwork["assets"]), 4)
+        for item in artwork["assets"]:
+            for path, digest in (("reference", "referenceSha256"), ("cleaned", "cleanedSha256"), ("master", "masterSha256"), ("production", "productionSha256")):
+                self.assertEqual(hashlib.sha256((ROOT.parent / item[path]).read_bytes()).hexdigest(), item[digest])
+            self.assertEqual(item["size"], layout[item["mode"]]["size"])
+            self.assertIn("brand", item["repairs"])
+        for lang in ("en", "ru"):
+            data = json.loads((ROOT / "data" / (lang + ".json")).read_text())
+            page = builder.render_page(data, builder.select_release(self.release), "/vault443/")
+            self.assertIn('scene/mobile-' + lang + '.webp', page)
+            self.assertNotIn('stencil-443.svg', page)
+            self.assertNotIn('<strong>Vault 443</strong>', page)
 
 
 if __name__ == "__main__":

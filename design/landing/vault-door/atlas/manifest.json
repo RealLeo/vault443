@@ -1,0 +1,261 @@
+{
+  "method": "Original reference + imagegen text repairs clipped by recorded masks; WebP quality95 method6",
+  "assets": [
+    {
+      "mode": "desktop",
+      "lang": "en",
+      "size": [
+        1487,
+        1058
+      ],
+      "reference": "design/landing/vault-door/reference-desktop.png",
+      "repairs": {
+        "brand": [
+          99,
+          361,
+          285,
+          56
+        ],
+        "statusCaption": [
+          710,
+          770,
+          377,
+          33
+        ]
+      },
+      "cleaned": "design/landing/vault-door/atlas/text-clean-desktop.png",
+      "cleanedSha256": "088c62311c9679aaf37a79af68b0996528cdf0a62d177066fe52307ffbec11a3",
+      "master": "design/landing/vault-door/atlas/scene-desktop-en.png",
+      "production": "website/assets/scene/desktop-en.webp",
+      "referenceSha256": "bb1068b371e6703675e7a6396f014c5dc9dc3971c5842c83dd6418c33641354c",
+      "masterSha256": "14f583d84e8e4c307631ef23e90d87bc695dc486bd40f1a3033af8af5cf5c580",
+      "productionSha256": "22d4c3a1155d634423ab05c2611ce231f0e0c15ee93c6f47c565024270a0841a",
+      "bytes": 660132
+    },
+    {
+      "mode": "desktop",
+      "lang": "ru",
+      "size": [
+        1487,
+        1058
+      ],
+      "reference": "design/landing/vault-door/reference-desktop.png",
+      "repairs": {
+        "brand": [
+          99,
+          361,
+          285,
+          56
+        ],
+        "statusCaption": [
+          710,
+          770,
+          377,
+          33
+        ],
+        "console": [
+          628,
+          20,
+          127,
+          36
+        ],
+        "screens": [
+          818,
+          20,
+          179,
+          36
+        ],
+        "downloadNav": [
+          1074,
+          20,
+          144,
+          36
+        ],
+        "language": [
+          1336,
+          20,
+          113,
+          36
+        ],
+        "lead": [
+          103,
+          415,
+          279,
+          42
+        ],
+        "body": [
+          91,
+          463,
+          310,
+          35
+        ],
+        "download": [
+          147,
+          528,
+          303,
+          52
+        ],
+        "explore": [
+          198,
+          678,
+          116,
+          36
+        ],
+        "status": [
+          458,
+          771,
+          163,
+          32
+        ],
+        "profiles": [
+          201,
+          886,
+          248,
+          47
+        ],
+        "work": [
+          671,
+          886,
+          289,
+          47
+        ],
+        "diagnostics": [
+          1132,
+          886,
+          289,
+          47
+        ]
+      },
+      "cleaned": "design/landing/vault-door/atlas/text-clean-desktop.png",
+      "cleanedSha256": "088c62311c9679aaf37a79af68b0996528cdf0a62d177066fe52307ffbec11a3",
+      "master": "design/landing/vault-door/atlas/scene-desktop-ru.png",
+      "production": "website/assets/scene/desktop-ru.webp",
+      "referenceSha256": "bb1068b371e6703675e7a6396f014c5dc9dc3971c5842c83dd6418c33641354c",
+      "masterSha256": "394349be00d3fa59b90adadb1e924f877970ee602878288d6a14a7a2a6dbb68d",
+      "productionSha256": "328ce835bc7de148c52d12acfd451ddf23536ba96d6d9b3832d8bf71c1f0bf5b",
+      "bytes": 651582
+    },
+    {
+      "mode": "mobile",
+      "lang": "en",
+      "size": [
+        887,
+        1774
+      ],
+      "reference": "design/landing/vault-door/reference-mobile.png",
+      "repairs": {
+        "brand": [
+          436,
+          216,
+          370,
+          78
+        ]
+      },
+      "cleaned": "design/landing/vault-door/atlas/text-clean-mobile.png",
+      "cleanedSha256": "d3f179a2623743fc1352c4b926f6a8b3ad1b4e3190b42044d829243003b6f526",
+      "master": "design/landing/vault-door/atlas/scene-mobile-en.png",
+      "production": "website/assets/scene/mobile-en.webp",
+      "referenceSha256": "1462d17dac9d1706580de470b77af07fe947c027c003cade9e461449ced3e25e",
+      "masterSha256": "6c71962d100634a0f36d1311bdd849b7fa7b2b7e2d7be9b5f664d0319c39acf4",
+      "productionSha256": "0fd6d1cb7094f875cb84b63830d7ef2e59f9cd6e1a2b82a0fa53be8e3173c459",
+      "bytes": 677192
+    },
+    {
+      "mode": "mobile",
+      "lang": "ru",
+      "size": [
+        887,
+        1774
+      ],
+      "reference": "design/landing/vault-door/reference-mobile.png",
+      "repairs": {
+        "brand": [
+          436,
+          216,
+          370,
+          78
+        ],
+        "console": [
+          128,
+          141,
+          169,
+          42
+        ],
+        "screens": [
+          355,
+          141,
+          205,
+          42
+        ],
+        "downloadNav": [
+          630,
+          141,
+          171,
+          42
+        ],
+        "language": [
+          696,
+          31,
+          125,
+          44
+        ],
+        "lead": [
+          442,
+          291,
+          366,
+          49
+        ],
+        "body": [
+          176,
+          344,
+          545,
+          45
+        ],
+        "download": [
+          158,
+          426,
+          414,
+          54
+        ],
+        "explore": [
+          659,
+          440,
+          123,
+          45
+        ],
+        "status": [
+          129,
+          1497,
+          192,
+          43
+        ],
+        "profiles": [
+          115,
+          1667,
+          143,
+          72
+        ],
+        "work": [
+          358,
+          1667,
+          158,
+          72
+        ],
+        "diagnostics": [
+          593,
+          1667,
+          254,
+          72
+        ]
+      },
+      "cleaned": "design/landing/vault-door/atlas/text-clean-mobile.png",
+      "cleanedSha256": "d3f179a2623743fc1352c4b926f6a8b3ad1b4e3190b42044d829243003b6f526",
+      "master": "design/landing/vault-door/atlas/scene-mobile-ru.png",
+      "production": "website/assets/scene/mobile-ru.webp",
+      "referenceSha256": "1462d17dac9d1706580de470b77af07fe947c027c003cade9e461449ced3e25e",
+      "masterSha256": "a4f971e51fa64ab8374cff8c760bcae9384fb6154a76efe4b57626b2b923bf7d",
+      "productionSha256": "7b91d7701fdce912dd61bdb014b632f203f946d1a7567dacfecfc2a0fad262d9",
+      "bytes": 656760
+    }
+  ]
+}

@@ -1,36 +1,43 @@
-    <section class="vault-hero" id="console" aria-labelledby="hero-heading">
-      <div class="vault-copy">
-        <img class="vault-serial" src="{{assets}}vault/stencil-443.svg" width="438" height="209" alt="" aria-hidden="true">
-        <h1 id="hero-heading">{{hero_heading}}</h1>
-        <p class="hero-lead">{{hero.lead}}</p>
-        <p class="hero-body">{{hero.body}}</p>
-        <div class="vault-actions"><a class="download-lever" href="#download"><span><svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M9 2h6v10h5l-8 8-8-8h5zM3 20h18v3H3z"/></svg>{{hero.download}}</span></a><a class="steel-key explore-key" href="#routes">{{hero.explore}}<span aria-hidden="true">→</span></a></div>
-        <p class="hero-note">{{hero.note}}</p>
+    <section class="vault-scene" id="console" aria-labelledby="hero-heading">
+      <picture class="scene-atlas" aria-hidden="true">
+        <source media="(max-width:1023px)" srcset="{{assets}}scene/mobile-{{lang}}.webp" width="887" height="1774">
+        <img src="{{assets}}scene/desktop-{{lang}}.webp" width="1487" height="1058" alt="" fetchpriority="high">
+      </picture>
+      <header class="scene-header">
+        <h1 class="scene-slot scene-brand" id="hero-heading"><a href="#console" translate="no"><span class="visually-hidden">Vault 443</span></a></h1>
+        <nav class="scene-nav" aria-label="{{nav.console}}">
+          <a class="scene-slot scene-console scene-key" href="#routes"><span class="scene-caption">{{nav.console}}</span></a>
+          <a class="scene-slot scene-screens scene-key" href="#screenshots"><span class="scene-caption">{{nav.screens}}</span></a>
+          <a class="scene-slot scene-download-nav scene-key" href="#download"><span class="scene-caption">{{nav.download}}</span></a>
+        </nav>
+        <div class="scene-slot scene-language">{{scene_language_links}}</div>
+      </header>
+      <p class="scene-slot scene-lead scene-caption">{{hero.lead}}</p>
+      <p class="scene-slot scene-body scene-caption">{{hero.body}}</p>
+      <a class="scene-slot scene-download scene-key" href="#download"><span class="scene-caption">{{hero.download}}</span></a>
+      <a class="scene-slot scene-explore scene-key" href="#routes"><span class="scene-caption">{{hero.explore}}</span></a>
+      <div class="vault-assembly" data-door-state="open">
+        <a class="scene-slot vault-window" href="{{hero_image}}" data-hero-preview aria-label="{{hero.enlarge}}">
+          <img class="app-screenshot" src="{{hero_image}}" width="472" height="480" alt="{{hero.alt}}" fetchpriority="high">
+          <span class="vault-glow" aria-hidden="true"></span>
+          <span class="vault-shutters" aria-hidden="true"><span class="shutter-leaf shutter-left"></span><span class="shutter-leaf shutter-right"></span></span>
+        </a>
+        <div class="vault-cams" aria-hidden="true">{{scene_cams}}</div>
+        {{scene_lamps}}
       </div>
-      <figure class="vault-figure" aria-label="{{hero.monitor}}">
-        <div class="vault-assembly" data-door-state="open">
-          <img class="vault-art" src="{{assets}}vault/vault-frame.webp" width="1152" height="1152" alt="" fetchpriority="high">
-          <a class="vault-window" href="{{hero_image}}" data-hero-preview aria-label="{{hero.enlarge}}">
-            <img class="app-screenshot" src="{{hero_image}}" width="472" height="480" alt="{{hero.alt}}" fetchpriority="high">
-            <span class="vault-glow" aria-hidden="true"></span>
-            <span class="vault-shutters" aria-hidden="true"><span class="shutter-leaf shutter-left"></span><span class="shutter-leaf shutter-right"></span></span>
-          </a>
-          <div class="vault-cams" aria-hidden="true">{{vault_cams}}</div>
-          <span class="cage-light cage-left" aria-hidden="true"><span class="cage-bulb"></span></span><span class="cage-light cage-right" aria-hidden="true"><span class="cage-bulb"></span></span>
-          <p class="vault-distros" aria-hidden="true">Ubuntu / Debian / Fedora / Arch</p>
-        </div>
-        <ul class="protocol-plaques" aria-label="{{hero.protocols}}">
-          <li class="protocol-vless"><span class="protocol-led" aria-hidden="true"></span>VLESS</li><li class="protocol-trojan"><span class="protocol-led" aria-hidden="true"></span>Trojan</li><li class="protocol-openvpn"><span class="protocol-led" aria-hidden="true"></span>OpenVPN</li><li class="protocol-outline" aria-label="Shadowsocks / Outline"><span class="protocol-led" aria-hidden="true"></span>Outline</li><li class="protocol-wireguard"><span class="protocol-led" aria-hidden="true"></span>WireGuard</li><li class="protocol-amneziawg"><span class="protocol-led" aria-hidden="true"></span>AmneziaWG</li>
-        </ul>
-      </figure>
+      <ul class="scene-protocols visually-hidden" aria-label="{{hero.protocols}}"><li>VLESS</li><li>Trojan</li><li>OpenVPN</li><li>Shadowsocks / Outline</li><li>WireGuard</li><li>AmneziaWG</li></ul>
+      <p class="scene-slot scene-demo scene-caption">{{hero.demo}}</p>
+      <p class="scene-slot scene-demo-caption">{{hero.sceneCaption}}</p>
+      <nav class="scene-benefits" aria-label="{{hero.features}}">{{scene_feature_links}}</nav>
     </section>
-    <div class="system-rail">
-      <div class="demo-readout"><span class="rail-led" aria-hidden="true"></span><span>{{hero.demo}}</span><span class="rail-description">{{hero.caption}}</span></div>
-      <div class="system-controls" data-js-only hidden>
-        <button class="icon-button motion-button" type="button" aria-label="{{controls.motion}}" aria-pressed="true" title="{{controls.motion}}"><svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="m13 2-9 12h7l-1 8 10-12h-7z"/></svg></button>
-        <button class="icon-button sound-button" type="button" aria-label="{{controls.sound}}" aria-pressed="false" title="{{controls.soundOff}}"><svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="sound-waves" d="M17 8c3 2 3 6 0 8m3-11c5 4 5 10 0 14"/><path class="sound-mute" d="m17 10 5 5m0-5-5 5"/></svg></button>
-        <button class="icon-button door-replay" type="button" aria-label="{{controls.replay}}" title="{{controls.replay}}"><svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1 8M4 4v6h6"/></svg></button>
+    <div class="equipment-notes container">
+      <div class="equipment-toolbar"><p>{{hero.note}}</p>
+        <div class="system-controls" data-js-only hidden>
+          <button class="icon-button motion-button" type="button" aria-label="{{controls.motion}}" aria-pressed="true" title="{{controls.motion}}"><svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="m13 2-9 12h7l-1 8 10-12h-7z"/></svg><span>{{controls.motion}}</span></button>
+          <button class="icon-button sound-button" type="button" aria-label="{{controls.sound}}" aria-pressed="false" title="{{controls.soundOff}}"><svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M4 9h4l5-4H4zM8 9l5-4v14l-5-4"/><path class="sound-waves" d="M17 8c3 2 3 6 0 8m3-11c5 4 5 10 0 14"/><path class="sound-mute" d="m17 10 5 5m0-5-5 5"/></svg><span>{{controls.sound}}</span></button>
+          <button class="icon-button door-replay" type="button" aria-label="{{controls.replay}}" title="{{controls.replay}}"><svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1 8M4 4v6h6"/></svg><span>{{controls.replay}}</span></button>
+        </div>
       </div>
+      <p class="positioning-note">{{hero.positioning}}</p>
+      <div class="equipment-features">{{feature_rows}}</div>
     </div>
-    <div class="benefit-bank">{{feature_rows}}</div>
-    <p class="positioning-note container">{{hero.positioning}}</p>
