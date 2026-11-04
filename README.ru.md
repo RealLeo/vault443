@@ -4,6 +4,7 @@
 <h1 align="center">Vault 443</h1>
 <p align="center"><strong>VPN-клиент для Linux с ретро-интерфейсом, вдохновлённым Fallout.</strong></p>
 <p align="center"><a href="README.md">English</a> · <strong>Русский</strong></p>
+<p align="center"><a href="https://realleo.github.io/vault443/ru/"><strong>Откройте интерактивный пульт Vault 443</strong></a></p>
 <p align="center">
   Импортируйте свои профили, подключайтесь одним нажатием и управляйте интернет- и рабочими VPN в одном компактном приложении.<br>
   VLESS, Trojan, Shadowsocks/Outline, OpenVPN, WireGuard и AmneziaWG.<br>
