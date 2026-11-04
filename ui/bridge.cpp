@@ -38,6 +38,13 @@ QVariantMap defaultSnapshot() {
 
 Bridge::Bridge(bool demo, QObject *parent)
     : QObject(parent), m_snapshot(defaultSnapshot()), m_bus(demo ? QDBusConnection(QString()) : QDBusConnection::systemBus()), m_demo(demo) {
+    m_profileModel = new ProfileListModel(!demo, this);
+    connect(m_profileModel, &ProfileListModel::changed, this, [this] {
+        m_profiles = m_profileModel->items(); emit profilesChanged();
+    });
+    connect(m_profileModel, &ProfileListModel::saveFailed, this, [this] {
+        setError(tr("Could not save the profile order. Check access to your interface settings."));
+    });
     connect(this, &Bridge::snapshotChanged, this, [this] {
         QVariantList bootProfiles{QVariantMap{{"id", ""}, {"name", ""}}};
         for (const auto &value : m_snapshot.value("profiles").toList()) {
@@ -61,7 +68,12 @@ Bridge::Bridge(bool demo, QObject *parent)
             profile.remove("runtime"); profile.remove("operation"); profile.remove("lastFailure");
             profiles.append(profile);
         }
-        if (profiles != m_profiles) { m_profiles = profiles; emit profilesChanged(); }
+        // Only a complete library snapshot may prune saved IDs. A service
+        // outage or malformed/partial response must not erase presentation order.
+        if (m_snapshot.value("profiles").metaType().id() == QMetaType::QVariantList
+            && (!m_snapshot.contains("workProfiles") // omitempty in the public API
+                || m_snapshot.value("workProfiles").metaType().id() == QMetaType::QVariantList))
+            m_profileModel->reconcile(profiles);
         const auto key = m_snapshot.value("activeProfileId").toString() + ":"
             + m_snapshot.value("runtime").toMap().value("state").toString() + ":"
             + QString::number(m_snapshot.value("busyByOtherUser").toBool());

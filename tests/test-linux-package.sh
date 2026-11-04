@@ -11,6 +11,13 @@ case "$target" in
   *) exit 2;;
 esac
 test -s "$package"
+baseline=""
+baseline_version=${VAULT443_BASELINE_VERSION:-1.3.3}
+if [ "${VAULT443_TEST_UPGRADE:-0}" = 1 ]; then
+  baseline="${package/$version/$baseline_version}"
+  test -s "$baseline"
+  baseline="/src/$baseline"
+fi
 results="$PWD/test-results/linux-$version/$target"
 mkdir -p "$results"
 name="vault443-linux-test-$target-$$"
@@ -34,6 +41,7 @@ docker run --detach --pull never --name "$name" --network none --cgroupns privat
   -e VAULT443_E2E_ISOLATED=1 -e VAULT443_PROXY_E2E=1 -e VAULT443_PACKAGE_NETWORK=1 \
   -e VAULT443_PACKAGE_LIFECYCLE=/src/tests/linux-package-lifecycle.sh \
   -e "VAULT443_DISTRO=$target" -e "VAULT443_DISTRO_PACKAGE=/src/$package" \
+  -e "VAULT443_BASELINE_PACKAGE=$baseline" -e "VAULT443_BASELINE_VERSION=$baseline_version" \
   "$image" /bin/sh -ec 'mount -o remount,rw /sys/fs/cgroup; exec /usr/lib/systemd/systemd' >/dev/null
 for _ in $(seq 1 100); do
   if docker exec "$name" systemctl show-environment >/dev/null 2>&1; then break; fi

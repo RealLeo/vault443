@@ -5,6 +5,8 @@ release=${1:-24.04}
 case "$release" in 24.04|26.04) ;; *) echo 'Expected Ubuntu 24.04 or 26.04' >&2; exit 2;; esac
 test "$(uname -m)" = x86_64
 proxy_fixture="${VAULT443_PROXY_E2E:-0}"
+work_fixture=1
+if [ "${VAULT443_MAIN_ONLY:-0}" = 1 ]; then work_fixture=0; fi
 case "${VAULT443_E2E_TEST_PATTERN:-}" in *ProxyWork*) proxy_fixture=1;; esac
 test -x .cache/amneziawg/amd64/amneziawg-go
 test -x .cache/xray/amd64/xray
@@ -20,9 +22,10 @@ docker run --rm --network none \
   --cap-add NET_ADMIN --cap-add SYS_ADMIN --device /dev/net/tun \
   --security-opt apparmor=unconfined \
   --sysctl net.ipv4.ip_forward=1 --sysctl net.ipv6.conf.all.forwarding=1 \
-  --env VAULT443_E2E_ISOLATED=1 --env VAULT443_WORKVPN_E2E=1 \
+  --env "VAULT443_E2E_NM=${VAULT443_E2E_NM:-0}" \
+  --env VAULT443_E2E_ISOLATED=1 --env "VAULT443_WORKVPN_E2E=$work_fixture" \
   --env "VAULT443_PROXY_E2E=$proxy_fixture" \
-  --env VAULT443_WIREGUARD_E2E=1 --env VAULT443_SANDBOX_FILTER_ONLY=1 \
+  --env "VAULT443_WIREGUARD_E2E=$work_fixture" --env VAULT443_SANDBOX_FILTER_ONLY=1 \
   --env VAULT443_WORKVPN_EVENT_HELPER=/src/.cache/wireguard-e2e/vault443d \
   --env VAULT443_E2E_TEST_BINARY=/src/.cache/wireguard-e2e/tests \
   --env VAULT443_E2E_FIXTURE_BINARY=/src/.cache/wireguard-e2e/fixture \

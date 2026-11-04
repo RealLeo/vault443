@@ -33,7 +33,12 @@ assert screenshot.size == original.size
 regions = {
     'title bar': (0, 0, 944, 84),
     'left rail': (0, 84, 40, 845),
-    'right rail': (912, 84, 944, 845),
+    # The live main-list scrollbar occupies x=915..921, y=182..747.
+    # All surrounding metal must still match the retained artwork exactly.
+    'right rail above scrollbar': (912, 84, 944, 182),
+    'right rail inside scrollbar': (912, 182, 915, 747),
+    'right rail outside scrollbar': (921, 182, 944, 747),
+    'right rail below scrollbar': (912, 747, 944, 845),
     'divider': (20, 747, 924, 760),
     'bottom edge': (0, 930, 944, 960),
 }

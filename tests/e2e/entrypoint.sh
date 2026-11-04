@@ -43,6 +43,10 @@ fi
 # Server is reachable solely by a veth pair inside this disposable container.
 ip netns add fixture
 ip link add e2euplink type veth peer name e2eserver
+# Docker inherits the host's resolv.conf, including a possible "search .".
+# Keep this network-none fixture deterministic: its local server owns 1.1.1.1,
+# and no inherited global root DNS domain should compete with VPN split DNS.
+printf 'nameserver 1.1.1.1\n' >/etc/resolv.conf
 if [ "${VAULT443_REAL_SYSTEMD:-}" = 1 ]; then
   # PID1 tests keep the real NetworkManager running. This synthetic veth has
   # static fixture addressing, so do not let its automatic DHCP take it over.
@@ -104,7 +108,12 @@ if [ "${VAULT443_REAL_SYSTEMD:-}" = 1 ]; then
 else
   dbus-daemon --system --fork --nopidfile
   install -d -o systemd-resolve -g systemd-resolve -m 0755 /run/systemd/resolve
-  /usr/lib/systemd/systemd-resolved >/results/resolved.log 2>&1 &
+  # Match resolved's real service identity/capabilities, instead of testing a
+  # privileged root resolver that does not represent the distro's systemd unit.
+  setpriv --reuid=systemd-resolve --regid=systemd-resolve --init-groups \
+    --inh-caps=+setpcap,+net_raw,+net_bind_service \
+    --ambient-caps=+setpcap,+net_raw,+net_bind_service \
+    /usr/lib/systemd/systemd-resolved >/results/resolved.log 2>&1 &
 fi
 for attempt in $(seq 1 50); do
   if resolvectl status >/results/resolved-status-before.txt 2>&1; then break; fi

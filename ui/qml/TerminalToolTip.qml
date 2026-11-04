@@ -7,13 +7,13 @@ ToolTip {
     parent: Overlay.overlay
     scale: initialScale
     transformOrigin: Item.TopLeft
-    width: Math.min(670, parent.width / scale - 16)
+    width: parent ? Math.min(670, parent.width / scale - 16) : 670
     padding: 14
     delay: 700
-    visible: control && control.hovered && !control.down
-    x: control ? Math.max(4, Math.min(parent.width - width * scale - 4, control.mapToItem(parent, control.width / 2, 0).x - width * scale / 2)) : 4
+    visible: parent && control && control.hovered && !control.down
+    x: parent && control ? Math.max(4, Math.min(parent.width - width * scale - 4, control.mapToItem(parent, control.width / 2, 0).x - width * scale / 2)) : 4
     y: {
-        if (!control) return 4
+        if (!parent || !control) return 4
         var top = control.mapToItem(parent, 0, 0).y - height * scale - 4
         return top >= 4 ? top : control.mapToItem(parent, 0, control.height).y + 4
     }

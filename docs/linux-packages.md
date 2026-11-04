@@ -1,15 +1,15 @@
-# Linux packages — Vault 443 1.3.1
+# Linux packages — Vault 443 1.3.4
 
 Native x86-64 packages are built separately for each distribution. This is a
-packaging revision of 1.3.1, not an engine or profile-format upgrade. The directory
-name `vless-terminal` does not affect the installed product identity.
+maintenance release refining profile drag handles, without
+engine or profile-format changes. The directory name `vless-terminal` does not affect the installed product identity.
 
 | Target | Artifact under `dist/linux/` | Scope |
 | --- | --- | --- |
-| Ubuntu 24.04 / 26.04 | `ubuntu24/vault443_1.3.1-1ubuntu24.04_amd64.deb` | Existing Ubuntu runtime baseline |
-| Debian 13 (trixie) | `debian13/vault443_1.3.1-1debian13_amd64.deb` | Native Debian 13 Qt/glibc build; not Debian 12 |
-| Fedora 44 | `fedora44/vault443-1.3.1-1.fc44.x86_64.rpm` | Native Fedora build; desktop/SELinux acceptance pending |
-| Arch Linux | `arch/vault443-1.3.1-1-x86_64.pkg.tar.zst` | Native rolling-release build; perform full system updates |
+| Ubuntu 24.04 / 26.04 | `ubuntu24/vault443_1.3.4-1ubuntu24.04_amd64.deb` | Existing Ubuntu runtime baseline |
+| Debian 13 (trixie) | `debian13/vault443_1.3.4-1debian13_amd64.deb` | Native Debian 13 Qt/glibc build; not Debian 12 |
+| Fedora 44 | `fedora44/vault443-1.3.4-1.fc44.x86_64.rpm` | Native Fedora build; desktop/SELinux acceptance pending |
+| Arch Linux | `arch/vault443-1.3.4-1-x86_64.pkg.tar.zst` | Native rolling-release build; perform full system updates |
 
 Each artifact has a `.sha256` file. Native container builds also record their
 image identity, exact package inventory and output checksum in `.build.json`.
@@ -24,23 +24,23 @@ Use the command for your distribution, from the repository root:
 
 ```sh
 # Ubuntu 24.04 or 26.04
-sudo apt install ./dist/linux/ubuntu24/vault443_1.3.1-1ubuntu24.04_amd64.deb
+sudo apt install ./dist/linux/ubuntu24/vault443_1.3.4-1ubuntu24.04_amd64.deb
 
 # Debian 13
-sudo apt install ./dist/linux/debian13/vault443_1.3.1-1debian13_amd64.deb
+sudo apt install ./dist/linux/debian13/vault443_1.3.4-1debian13_amd64.deb
 
 # Fedora 44
-sudo dnf install ./dist/linux/fedora44/vault443-1.3.1-1.fc44.x86_64.rpm
+sudo dnf install ./dist/linux/fedora44/vault443-1.3.4-1.fc44.x86_64.rpm
 
 # Arch Linux: full upgrade first, not a partial Qt upgrade
 sudo pacman -Syu
-sudo pacman -U ./dist/linux/arch/vault443-1.3.1-1-x86_64.pkg.tar.zst
+sudo pacman -U ./dist/linux/arch/vault443-1.3.4-1-x86_64.pkg.tar.zst
 ```
 
 Check the checksum in the directory containing the downloaded package:
 
 ```sh
-sha256sum -c vault443-1.3.1-1.fc44.x86_64.rpm.sha256
+sha256sum -c vault443-1.3.4-1.fc44.x86_64.rpm.sha256
 ```
 
 On **Fedora and Arch**, system services are intentionally not started or enabled
@@ -126,8 +126,8 @@ python3 scripts/build-linux-packages.py debian13 fedora44 arch
 # Existing native Ubuntu build, with a distro packaging revision:
 bash scripts/build.sh
 mkdir -p dist/linux/ubuntu24
-PACKAGE_VERSION=1.3.1-1ubuntu24.04 \
-  PACKAGE_OUTPUT=dist/linux/ubuntu24/vault443_1.3.1-1ubuntu24.04_amd64.deb \
+PACKAGE_VERSION=1.3.4-1ubuntu24.04 \
+  PACKAGE_OUTPUT=dist/linux/ubuntu24/vault443_1.3.4-1ubuntu24.04_amd64.deb \
   bash scripts/package.sh amd64
 ```
 
@@ -160,5 +160,13 @@ bash tests/linux-gui-dbus.sh arch
 
 These privileged test containers have no external network and never mount the
 host's `/etc`, `/run`, `/var/lib` or cgroup hierarchy. Logs and screenshots go to
-ignored `test-results/linux-1.3.1/`. See [validation](VALIDATION.md) for executed
+ignored `test-results/linux-1.3.4/`. See [validation](VALIDATION.md) for executed
 checks and the distinction between container tests and physical-machine support.
+
+### Maintenance upgrade regression
+
+With the 1.3.1 artifacts retained in ignored `dist/linux/`, use
+`VAULT443_TEST_UPGRADE=1 bash tests/test-linux-package.sh ubuntu24` (or `ubuntu26`,
+`debian13`, `fedora44`, `arch`). This installs 1.3.1 inside a disposable container,
+upgrades a connected session to the current package, then reinstalls and removes
+it. Workstation packages and network settings remain outside the fixture.

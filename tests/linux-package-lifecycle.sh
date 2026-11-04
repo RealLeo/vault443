@@ -25,7 +25,11 @@ rm -f /usr/sbin/policy-rc.d
 # package is installed. Unlink only those unowned fixture copies; pacman rightly
 # refuses to overwrite pre-existing files. The running fixture keeps its inode.
 rm -f /usr/lib/vault443/xray /usr/lib/vault443/vault443-outline
+release_package=$package
+if [ -n "${VAULT443_BASELINE_PACKAGE:-}" ]; then package=$VAULT443_BASELINE_PACKAGE; fi
 install_package
+if [ -n "${VAULT443_BASELINE_PACKAGE:-}" ]; then vault443d --version | grep -F "${VAULT443_BASELINE_VERSION:?}"; fi
+package=$release_package
 systemctl stop vault443.service
 getent group vault443
 useradd -u 11000 -m vaultoperator
@@ -46,6 +50,15 @@ state={'version':3,'users':{'11000':{'profiles':[profile],'subscriptions':[]},
        'desired':{'uid':11000,'profileId':'stable-profile'},'boot':{'uid':11000,'profileId':'stable-profile'}}
 p=Path('/var/lib/vault443/state.json');p.write_text(json.dumps(state));p.chmod(0o600)
 Path('/tmp/saved-state.json').write_text(json.dumps(state))
+for uid,name in [(11000,'vaultoperator'),(11001,'vaultcolleague')]:
+    folder=Path('/home')/name/'.config/Vault443'
+    folder.mkdir(parents=True)
+    settings=folder/'vault443.conf'
+    settings.write_text('[ui]\nlanguage='+('ru' if uid==11000 else 'en')+'\nprofileOrder=stable-profile, private-second\n')
+    import os
+    for item in [folder.parent,folder,settings]: os.chown(item,uid,uid)
+    settings.chmod(0o600)
+    Path(f'/tmp/user-settings-{uid}').write_bytes(settings.read_bytes())
 PY
 systemctl enable --now vault443-guard.service vault443.service
 python3 /src/tests/package-network-check.py connected
@@ -58,6 +71,12 @@ install_package
 new_pid=$(systemctl show -p MainPID --value vault443.service)
 test "$old_pid" != "$new_pid"
 python3 /src/tests/package-network-check.py connected
+if [ -n "${VAULT443_BASELINE_PACKAGE:-}" ]; then
+  vault443d --version | grep -F "$(cat /src/VERSION)"
+  install_package
+  test "$new_pid" != "$(systemctl show -p MainPID --value vault443.service)"
+  python3 /src/tests/package-network-check.py connected
+fi
 touch /tmp/guard-monitor-stop
 wait "$monitor"
 cat /results/guard-monitor.log
@@ -67,6 +86,11 @@ python3 - <<'PY'
 import json,os
 assert json.load(open('/tmp/saved-state.json')) == json.load(open('/var/lib/vault443/state.json'))
 assert os.stat('/var/lib/vault443/state.json').st_mode & 0o777 == 0o600
+from pathlib import Path
+for uid,name in [(11000,'vaultoperator'),(11001,'vaultcolleague')]:
+    path=Path('/home')/name/'.config/Vault443/vault443.conf'
+    assert path.read_bytes()==Path(f'/tmp/user-settings-{uid}').read_bytes()
+    assert path.stat().st_uid==uid and path.stat().st_mode & 0o777==0o600
 PY
 vault443d --check
 vault443d --version

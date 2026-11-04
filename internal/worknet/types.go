@@ -21,16 +21,18 @@ type PeerStatus struct {
 	AllowedIPs      []string `json:"allowedIPs"`
 }
 type Status struct {
-	Peers          []PeerStatus `json:"peers,omitempty"`
-	State          string       `json:"state"`
-	Stage          string       `json:"stage"`
-	Message        string       `json:"message,omitempty"`
-	StageStartedAt int64        `json:"stageStartedAt"`
-	ConnectedAt    int64        `json:"connectedAt,omitempty"`
-	Interface      string       `json:"interface,omitempty"`
-	Routes         []string     `json:"routes,omitempty"`
-	DNSServers     []string     `json:"dnsServers,omitempty"`
-	DNSDomains     []string     `json:"dnsDomains,omitempty"`
+	Peers                 []PeerStatus `json:"peers,omitempty"`
+	State                 string       `json:"state"`
+	Stage                 string       `json:"stage"`
+	Message               string       `json:"message,omitempty"`
+	StageStartedAt        int64        `json:"stageStartedAt"`
+	ConnectedAt           int64        `json:"connectedAt,omitempty"`
+	Interface             string       `json:"interface,omitempty"`
+	Routes                []string     `json:"routes,omitempty"`
+	DNSServers            []string     `json:"dnsServers,omitempty"`
+	DNSDomains            []string     `json:"dnsDomains,omitempty"`
+	NetworkManagerState   string       `json:"networkManagerState,omitempty"`
+	NetworkManagerMessage string       `json:"networkManagerMessage,omitempty"`
 }
 type RouteInfo struct {
 	CIDR       string `json:"cidr,omitempty"`
@@ -65,6 +67,8 @@ type session struct {
 	Status       Status              `json:"-"`
 	Full4, Full6 bool                `json:"-"`
 	RemoteOrder  []int               `json:"-"`
+	nmIndex      int
+	nmAddress    string
 	callback     func(Status)
 	log          *journal.Session
 }
@@ -81,6 +85,7 @@ type Manager struct {
 	lastResources string
 	bootID        string
 	view          atomic.Pointer[view]
+	nmSync        *network.NMSynchronizer
 }
 
 func New(c Config, n *network.Manager) *Manager {
@@ -105,7 +110,24 @@ func New(c Config, n *network.Manager) *Manager {
 	if c.AmneziaWGPath == "" {
 		c.AmneziaWGPath = "/usr/lib/vault443/amneziawg-go"
 	}
-	return &Manager{config: c, network: n, sessions: map[string]*session{}}
+	m := &Manager{config: c, network: n, sessions: map[string]*session{}}
+	m.nmSync = network.NewNMSynchronizer(func(t network.NMTunnel, result network.NMResult) {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		ss := m.sessions[t.ID]
+		if ss == nil || !m.nmSync.Current(t) {
+			return
+		}
+		if ss.Status.NetworkManagerState != result.State || ss.Status.NetworkManagerMessage != result.Message {
+			ss.Status.NetworkManagerState, ss.Status.NetworkManagerMessage = result.State, result.Message
+			ss.log.Log("info", result.Message)
+			m.publishView()
+			if ss.callback != nil {
+				ss.callback(copyStatus(ss.Status))
+			}
+		}
+	})
+	return m
 }
 
 type view struct {

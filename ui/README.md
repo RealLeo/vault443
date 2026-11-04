@@ -27,6 +27,16 @@ screens: `main`, `import-preview`, `settings`, `subscriptions`, `vpn`, `profile`
 
 ## UI behavior
 
+The main list uses `ProfileListModel` (`QAbstractListModel`), reconciling IDs with
+row insertions/removals/moves and individual `dataChanged` notifications. Drag the
+three vertical brass dots to the left of an emblem to mix main and work profiles.
+The borderless handle has a 14×32 logical-pixel hit area at scale 0.5, no tooltip
+or Tab stop, and uses hand cursors without taking keyboard focus. The local
+`ui/profileOrder` preference does not change the daemon, tray or boot selection.
+The always-visible olive/brass scrollbar has a 3-pixel visible track, 10-pixel hit
+area and 24-pixel minimum thumb at scale 0.5. Other dialogs keep their own controls.
+See [profile order details](../docs/profile-order.md).
+
 The lower CRT has three fixed-width groups on one line: elapsed session time,
 current download/upload speed, and session download/upload totals. Values come
 from the service's `traffic` snapshot. Unknown/foreign statistics show dashes;

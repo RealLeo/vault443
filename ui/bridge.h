@@ -10,12 +10,14 @@
 #include <QTimer>
 #include <QSet>
 #include <functional>
+#include "profilemodel.h"
 
 class Bridge final : public QObject {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.vault443.Client1")
     Q_PROPERTY(QVariantMap snapshot READ snapshot NOTIFY snapshotChanged)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY profilesChanged)
+    Q_PROPERTY(ProfileListModel *profileModel READ profileModel CONSTANT)
     Q_PROPERTY(QVariantList bootProfiles READ bootProfiles NOTIFY bootProfilesChanged)
     Q_PROPERTY(bool importPreparing READ importPreparing NOTIFY requestStateChanged)
     Q_PROPERTY(bool importCommitting READ importCommitting NOTIFY requestStateChanged)
@@ -54,6 +56,7 @@ public:
     explicit Bridge(bool demo, QObject *parent = nullptr);
     QVariantMap snapshot() const { return m_snapshot; }
     QVariantList profiles() const { return m_profiles; }
+    ProfileListModel *profileModel() const { return m_profileModel; }
     QVariantList bootProfiles() const { return m_bootProfiles; }
     bool importPreparing() const { return hasRequest(RequestScope::ImportPrepare); }
     bool importCommitting() const { return hasRequest(RequestScope::ImportCommit); }
@@ -187,6 +190,7 @@ private:
     bool m_workRoutesPending = false;
     quint64 m_workRoutesGeneration = 0;
     QVariantList m_profiles, m_bootProfiles, m_profileLogs;
+    ProfileListModel *m_profileModel = nullptr;
     QString m_logsError;
     QString m_logProfile, m_logCursor, m_logPreviousCursor;
     QVariantMap m_demoDraft, m_demoLogs;

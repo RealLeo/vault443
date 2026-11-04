@@ -13,12 +13,16 @@ docker build --target runtime -f "packaging/linux/Dockerfile.$target" \
 docker run --rm --network none --pull never \
   --mount "type=bind,src=$PWD/dist/linux/$target,dst=/packages,readonly" \
   --mount "type=bind,src=$results,dst=/results" \
-  -e "DISTRO=$target" -e QT_QPA_PLATFORM=offscreen -e QT_QUICK_BACKEND=software \
+  -e "DISTRO=$target" -e "PRODUCT_VERSION=$version" -e QT_QPA_PLATFORM=offscreen -e QT_QUICK_BACKEND=software \
   "vault443-linux-runtime:$target" bash -euc '
     case "$DISTRO" in
-      debian13) dpkg -i /packages/*.deb; dpkg --audit;;
-      fedora44) rpm -U /packages/*.rpm;;
-      arch) pacman -U --noconfirm /packages/*.pkg.tar.zst;;
+      debian13) dpkg -i "/packages/vault443_${PRODUCT_VERSION}-1debian13_amd64.deb"; dpkg --audit;;
+      fedora44) rpm -U "/packages/vault443-${PRODUCT_VERSION}-1.fc44.x86_64.rpm";;
+      arch)
+        # The official minimal Arch image skips documentation by default. This
+        # test verifies the whole artifact, including bundled licenses/docs.
+        sed -i '/^NoExtract[[:space:]]*=/d' /etc/pacman.conf
+        pacman -U --noconfirm "/packages/vault443-${PRODUCT_VERSION}-1-x86_64.pkg.tar.zst";;
     esac
     vault443d --version
     vault443d --check

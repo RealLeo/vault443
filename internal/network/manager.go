@@ -65,6 +65,7 @@ type Manager struct {
 	ownedRules              bool
 	dnsSaved                map[string]dnsSettings
 	nm                      nmConnectivity
+	nmSync                  *NMSynchronizer
 }
 type persisted struct {
 	Armed              bool             `json:"armed"`
@@ -87,6 +88,13 @@ func New(c Config) *Manager {
 	}
 	m := &Manager{config: c, r: execRunner{}, status: model.RuntimeStatus{State: "disconnected", ExternalVPNs: []string{}}, ipv6State: "inactive", ipv6Message: "Main VPN IPv6 is inactive"}
 	m.nm.state = "inactive"
+	m.nmSync = NewNMSynchronizer(func(t NMTunnel, result NMResult) {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		if m.nmSync.Current(t) {
+			m.nmReport(result.State, result.Message)
+		}
+	})
 	m.publish()
 	return m
 }
@@ -387,7 +395,7 @@ func (m *Manager) Connect(ctx context.Context, p model.Profile) error {
 	m.operationContext = ctx
 	defer func() { m.operationContext = nil }()
 	m.logSession.Log("info", "Preparing protected connection")
-	m.nm = nmConnectivity{state: "inactive"}
+	m.resetNM()
 	// IPv6 availability belongs to a single core session. Never carry a prior
 	// server's success into another connection or restore it from disk.
 	m.ipv6State, m.ipv6Message = "inactive", "Main VPN IPv6 is inactive"
@@ -607,7 +615,7 @@ func (m *Manager) finishIPv6Check(ctx context.Context, s Snapshot, x []external,
 }
 
 func (m *Manager) pause(ctx context.Context, s Snapshot, x []external) error {
-	m.nm = nmConnectivity{state: "inactive"}
+	m.resetNM()
 	m.ipv6State, m.ipv6Message = "inactive", "Main VPN IPv6 is inactive while another VPN owns Internet routing"
 	if e := m.applyGuard(ctx, s, x, false); e != nil {
 		return m.fail(e)
@@ -698,7 +706,7 @@ func (m *Manager) Reconcile(ctx context.Context) error {
 		return m.fail(e)
 	}
 	if !ready && !m.config.DryRun {
-		m.nm = nmConnectivity{state: "inactive"}
+		m.resetNM()
 		// Preserve the concrete failed attempt until the next attempt starts.
 		if m.status.State == "error" && m.status.Message != "" {
 			return errors.New(m.status.Message)
@@ -734,7 +742,7 @@ func (m *Manager) Disconnect(ctx context.Context) error {
 	m.operationContext = ctx
 	defer func() { m.operationContext = nil }()
 	m.ipv6State, m.ipv6Message = "inactive", "Main VPN IPv6 is inactive"
-	m.nm = nmConnectivity{state: "inactive"}
+	m.resetNM()
 	m.status.State = "disconnecting"
 	m.stage("restoring_network", "Stopping Xray and restoring network state")
 	m.logSession.Log("info", "Disconnect requested; stopping Xray and restoring network state")

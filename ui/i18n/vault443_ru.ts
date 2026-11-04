@@ -3,6 +3,10 @@
   <context>
     <name>Bridge</name>
     <message>
+      <source>Could not save the profile order. Check access to your interface settings.</source>
+      <translation>Не удалось сохранить порядок профилей. Проверьте доступ к настройкам интерфейса.</translation>
+    </message>
+    <message>
       <source>Backup</source>
       <translation>Резервный</translation>
     </message>
@@ -3475,6 +3479,20 @@ or add a subscription in settings.</source>
     <message>
       <source>Disconnect %1</source>
       <translation>Отключить %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>ProfileCard</name>
+    <message>
+      <source>Move profile %1</source>
+      <translation>Переместить профиль %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>ProfileScrollBar</name>
+    <message>
+      <source>Scroll profiles</source>
+      <translation>Прокрутка профилей</translation>
     </message>
   </context>
 </TS>

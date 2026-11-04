@@ -126,6 +126,20 @@ func (m *Manager) handleEvent(ctx context.Context, id string, e event) error {
 					return errors.New("cannot assign work tunnel IPv6")
 				}
 			}
+			snapshot, er := k.Collect(ctx)
+			if er != nil {
+				return er
+			}
+			link, ok := snapshot.Link(e.Interface)
+			if !ok || !sessionLinkMatches(ss, link) {
+				return errors.New("work tunnel identity changed")
+			}
+			ss.nmIndex, ss.nmAddress = link.Index, ""
+			for _, address := range link.Addresses {
+				if address.Local == e.Local {
+					ss.nmAddress = fmt.Sprintf("%s/%d", address.Local, address.PrefixLen)
+				}
+			}
 			return nil
 		})
 	}

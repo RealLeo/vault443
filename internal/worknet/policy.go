@@ -568,7 +568,7 @@ func installRoute(ctx context.Context, k network.Kernel, t int, r selected) erro
 	return ip(k, ctx, f, args...)
 }
 func (m *Manager) applyLocked(ctx context.Context) error {
-	return network.WithKernel(ctx, func(k network.Kernel) error {
+	return network.WithKernel(ctx, func(k network.Kernel) (result error) {
 		s, e := k.Collect(ctx)
 		if e != nil {
 			return e
@@ -594,6 +594,11 @@ func (m *Manager) applyLocked(ctx context.Context) error {
 			}
 		}
 		sel := m.choose(s)
+		defer func() {
+			if result == nil {
+				m.syncNMLocked(s, sel)
+			}
+		}()
 		m.routeView = sel.rows
 		if len(m.sessions) == 0 {
 			m.routeView = nil

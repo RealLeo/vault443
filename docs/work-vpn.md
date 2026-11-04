@@ -119,4 +119,19 @@ acceptance check with the organization's server; release tests do not connect
 to the user's real work endpoint.
 
 Install the release through APT so the system OpenVPN dependency is available.
-The 1.3.1 package upgrade is validated from 1.3.0 and preserves profiles and access rights.
+Version 1.3.2 preserves existing profiles, access rights and storage schemas.
+
+## Desktop Internet indicator
+
+Since 1.3.2, the managed OpenVPN selected for full IPv4 Internet routing is
+registered with NetworkManager through its temporary generated TUN profile.
+This allows GNOME's Internet indicator to follow the real VPN instead of showing
+limited connectivity just because its default route is in a private policy table.
+Partial tunnels and losing full-tunnel candidates do not register a default.
+
+No Wi-Fi bypass is added and connectivity checks remain enabled. If OpenVPN
+fails, its registration route is removed even though its persistent TUN remains;
+protected routes and corporate DNS stay reserved for reconnection. Runtime
+`networkManagerState` and `networkManagerMessage` explain unavailable or unsuitable
+NetworkManager integration without stopping a working VPN. A true Internet outage
+can still correctly show limited connectivity.

@@ -2,6 +2,9 @@
 #include "language.h"
 #include "tray.h"
 #include <QApplication>
+#include <QAbstractItemModelTester>
+#include <QPersistentModelIndex>
+#include <QScopeGuard>
 #include <QClipboard>
 #include <QDBusMessage>
 #include <QJsonObject>
@@ -87,8 +90,200 @@ private:
         QTest::qWait(120);
     }
 private slots:
-    void init() { if (qEnvironmentVariable("VAULT443_UI_PRIVATE_BUS_TEST") == "1") fixtureConfigure({}); loadWindow(true); }
+    void init() { QSettings().remove("ui/profileOrder"); if (qEnvironmentVariable("VAULT443_UI_PRIVATE_BUS_TEST") == "1") fixtureConfigure({}); loadWindow(true); }
     void cleanup() { engine.reset(); bridge.reset(); language.reset(); window = nullptr; }
+    void profileOrderModelPreservesIdentityAndPersists() {
+        const QVariantList library{QVariantMap{{"id","a"},{"name","Main"},{"kind","vless"}},
+            QVariantMap{{"id","b"},{"name","Office"},{"kind","openvpn"}}, QVariantMap{{"id","c"},{"name","Peer"},{"kind","wireguard"}}};
+        QSettings().setValue("ui/profileOrder", QStringList{"missing","b","b","","a"});
+        ProfileListModel model(true);
+        QAbstractItemModelTester tester(&model, QAbstractItemModelTester::FailureReportingMode::QtTest);
+        QSignalSpy reset(&model, &QAbstractItemModel::modelReset);
+        QSignalSpy moves(&model, &QAbstractItemModel::rowsMoved);
+        QSignalSpy updates(&model, &QAbstractItemModel::dataChanged);
+        model.reconcile(library);
+        QCOMPARE(model.idAt(0), QString("b")); QCOMPARE(model.idAt(2), QString("c"));
+        QPersistentModelIndex identity(model.index(0));
+        QVERIFY(model.moveBefore("b", "")); QCOMPARE(identity.row(), 2);
+        QCOMPARE(identity.data(Qt::UserRole).toMap().value("id").toString(), QString("b"));
+        QVERIFY(model.moveBefore("b", "c")); QCOMPARE(identity.row(), 1); QCOMPARE(moves.count(), 2);
+        ProfileListModel reopened(true); reopened.reconcile(library); QCOMPARE(reopened.items(), model.items());
+        auto changed = library; auto renamed = changed[1].toMap(); renamed["name"] = "Renamed"; changed[1] = renamed;
+        model.reconcile(changed); QCOMPARE(updates.count(), 1); QCOMPARE(identity.row(), 1);
+        model.reconcile(changed); QCOMPARE(updates.count(), 1);
+        changed.append(QVariantMap{{"id","d"},{"kind","amneziawg"}}); model.reconcile(changed);
+        QCOMPARE(model.idAt(3), QString("d"));
+        changed.removeAt(0); model.reconcile(changed); QCOMPARE(model.idAt(0), QString("b"));
+        QCOMPARE(QSettings().value("ui/profileOrder").toStringList(), QStringList({"b","c","d"}));
+        QVERIFY(model.moveBefore("b", "b")); QVERIFY(!model.moveBefore("missing", "b"));
+        QCOMPARE(reset.count(), 0);
+        // Demo never reads or changes a user's saved order.
+        ProfileListModel demo(false); demo.reconcile(library); QVERIFY(demo.moveBefore("a", "c"));
+        QCOMPARE(QSettings().value("ui/profileOrder").toStringList(), QStringList({"b","c","d"}));
+        // A malformed setting falls back to the source order.
+        QSettings().setValue("ui/profileOrder", QVariantMap{{"invalid", 1}});
+        ProfileListModel corrupted(true); corrupted.reconcile(library); QCOMPARE(corrupted.idAt(0), QString("a"));
+        const auto appName = QCoreApplication::applicationName();
+        const auto restore = qScopeGuard([appName] { QCoreApplication::setApplicationName(appName); });
+        QCoreApplication::setApplicationName("separate-order-user");
+        ProfileListModel separate(true); separate.reconcile(library); QCOMPARE(separate.idAt(0), QString("a"));
+        QVERIFY(separate.moveBefore("c", "a"));
+        QCoreApplication::setApplicationName(appName);
+        QCOMPARE(QSettings().value("ui/profileOrder").toStringList(), QStringList({"a","b","c"}));
+        ProfileListModel emptyAfterRestart(true); emptyAfterRestart.reconcile({});
+        QVERIFY(QSettings().value("ui/profileOrder").toStringList().isEmpty());
+    }
+    void profileOrderWriteFailureRejectsMove() {
+        const auto appName = QCoreApplication::applicationName();
+        const auto restore = qScopeGuard([appName] { QCoreApplication::setApplicationName(appName); });
+        QCoreApplication::setApplicationName("order-unwritable");
+        const auto path = QSettings().fileName();
+        QVERIFY(QDir().mkpath(path)); // A directory cannot be atomically replaced with an INI file, even as root.
+        ProfileListModel model(true); QSignalSpy errors(&model, &ProfileListModel::saveFailed);
+        model.reconcile({QVariantMap{{"id","a"}}, QVariantMap{{"id","b"}}});
+        QSignalSpy moves(&model, &QAbstractItemModel::rowsMoved);
+        QVERIFY(!model.moveBefore("a", "")); QCOMPARE(model.idAt(0), QString("a"));
+        QCOMPARE(moves.count(), 0); QVERIFY(errors.count() >= 1);
+        QDir(path).removeRecursively();
+    }
+    void profileHandleIsCompactAndUnadorned() {
+        for (int i=0; i<3; ++i) {
+            auto *grip=item(QString("grip-%1").arg(i));
+            auto *emblem=item(QString("profile-%1").arg(i));
+            QVERIFY(grip && emblem);
+            QCOMPARE(grip->width()*0.5, 14.0); QCOMPARE(grip->height()*0.5, 32.0);
+            QCOMPARE(grip->x(), 0.0); QVERIFY(grip->x()+grip->width() <= emblem->x());
+            QCOMPARE(emblem->x(), 28.0); QCOMPARE(emblem->width(), 134.0);
+            QVERIFY(!grip->activeFocusOnTab());
+            QList<QQuickItem *> dots;
+            std::function<void(QQuickItem *)> collectDots=[&](QQuickItem *parent) {
+                for (auto *child:parent->childItems()) {
+                    if (child->objectName()=="grip-dot") dots.append(child);
+                    collectDots(child);
+                }
+            };
+            collectDots(grip);
+            QCOMPARE(dots.size(), 3);
+            const auto firstCenter=dots[0]->mapToItem(grip,QPointF(dots[0]->width()/2,dots[0]->height()/2));
+            QCOMPARE(firstCenter.x(), grip->width()/2);
+            for (auto *dot:dots) QCOMPARE(dot->property("color").value<QColor>(), QColor("#97835a"));
+        }
+        auto *grip=item("grip-0"); auto *mouse=item("grip-mouse-0"); QVERIFY(mouse);
+        const auto center=grip->mapToScene(QPointF(grip->width()/2,grip->height()/2)).toPoint();
+        QTest::mouseMove(window,QPoint(2,2)); QTest::qWait(80);
+        const auto clip=grip->mapRectToScene(QRectF(0,0,grip->width(),grip->height()));
+        auto capture=[this,clip] {
+            const auto shot=window->grabWindow();
+            const double ratio=double(shot.width())/window->width();
+            return shot.copy(QRect(qRound(clip.x()*ratio),qRound(clip.y()*ratio),qRound(clip.width()*ratio),qRound(clip.height()*ratio)));
+        };
+        const auto normal=capture(); QVERIFY(!normal.isNull());
+        QTest::mouseMove(window,center); QTest::qWait(850);
+        QCOMPARE(mouse->property("cursorShape").toInt(), int(Qt::OpenHandCursor));
+        QCOMPARE(capture(),normal);
+        for (auto *object:window->findChildren<QObject *>())
+            if (object->inherits("QQuickToolTip")) QVERIFY(!object->property("visible").toBool());
+        QPointer<QQuickItem> focus=window->activeFocusItem();
+        QTest::mousePress(window,Qt::LeftButton,{},center);
+        QCOMPARE(window->activeFocusItem(),focus.data());
+        QCOMPARE(capture(),normal);
+        QTest::mouseRelease(window,Qt::LeftButton,{},center);
+        QCOMPARE(capture(),normal);
+        const auto order=bridge->profileModel()->items();
+        // Even explicit programmatic focus must not retain the removed shortcut.
+        grip->forceActiveFocus();
+        QTest::keyClick(window,Qt::Key_Up,Qt::ControlModifier);
+        QTest::keyClick(window,Qt::Key_Down,Qt::ControlModifier);
+        QCOMPARE(bridge->profileModel()->items(),order);
+        for (int i=0; i<3; ++i) {
+            click(QString("profile-%1").arg(i));
+            QTRY_VERIFY(item("profile-name")->isVisible());
+            QVERIFY(item("profile-list-controller")->property("draggingId").toString().isEmpty());
+            QTest::keyClick(window,Qt::Key_Escape); QTest::qWait(80);
+        }
+    }
+    void profileDragAndCancellation() {
+        bridge->setDemoState("work-vpns"); QTest::qWait(80);
+        auto *model = bridge->profileModel(); const auto first = model->idAt(0), work = model->idAt(1);
+        const auto snapshot = bridge->snapshot();
+        auto *grip = item("grip-0"); QVERIFY(grip); QCOMPARE(grip->width()*0.5, 14.0); QCOMPARE(grip->height()*0.5, 32.0);
+        const auto start = grip->mapToScene(QPointF(grip->width()/2, grip->height()/2)).toPoint();
+        auto *controller = item("profile-list-controller"); QVERIFY(controller);
+        auto *list = item("profile-list");
+        const auto destination = list->mapToScene(QPointF(190, 480)).toPoint();
+        QTest::mousePress(window, Qt::LeftButton, {}, start);
+        QTest::mouseMove(window, start+QPoint(1,1));
+        QVERIFY(controller->property("draggingId").toString().isEmpty());
+        QTest::mouseMove(window, destination, 50);
+        QTRY_COMPARE(controller->property("draggingId").toString(), first);
+        QTRY_VERIFY(item("profile-drag-preview")->isVisible());
+        QCOMPARE(model->idAt(0), first); // No move until release.
+        for (int i=0;i<5;++i) bridge->refresh();
+        QCOMPARE(controller->property("draggingId").toString(), first);
+        QTest::mouseRelease(window, Qt::LeftButton, {}, destination);
+        QTRY_COMPARE(model->idAt(2), first); QCOMPARE(model->idAt(0), work);
+        QCOMPARE(bridge->snapshot(), snapshot); // Sorting never sends a connection action.
+        QVERIFY(!item("grip-2")->hasActiveFocus());
+        const auto droppedOrder = model->items();
+        QTest::keyClick(window, Qt::Key_Up, Qt::ControlModifier);
+        QTest::keyClick(window, Qt::Key_Down, Qt::ControlModifier);
+        QCOMPARE(model->items(), droppedOrder);
+        // Cancel by Escape, release outside, hiding, loss of grab, and library mutation.
+        for (int mode=0;mode<5;++mode) {
+            // Wayland hide/show and ListView relayout complete asynchronously.
+            QVERIFY(QTest::qWaitForWindowExposed(window));
+            QTest::qWait(80);
+            const auto order = model->items();
+            grip = item("grip-0"); QVERIFY(grip);
+            const auto p = grip->mapToScene(QPointF(grip->width()/2,grip->height()/2)).toPoint();
+            QTest::mousePress(window, Qt::LeftButton, {}, p);
+            QTest::mouseMove(window, destination, 30);
+            QTRY_VERIFY2(!controller->property("draggingId").toString().isEmpty(), qPrintable(QString("Cancel case %1").arg(mode)));
+            if (mode==0) QTest::keyClick(window, Qt::Key_Escape);
+            if (mode==1) QTest::mouseRelease(window, Qt::LeftButton, {}, QPoint(1,1));
+            if (mode==2) { window->hide(); QCoreApplication::processEvents(); window->show(); window->requestActivate(); }
+            if (mode==3) { auto *grabber=window->mouseGrabberItem(); QVERIFY(grabber); grabber->ungrabMouse(); }
+            if (mode==4) bridge->removeProfile(work);
+            QTRY_VERIFY(controller->property("draggingId").toString().isEmpty());
+            if (mode!=1) QTest::mouseRelease(window, Qt::LeftButton, {}, destination);
+            if (mode!=4) QCOMPARE(model->items(), order);
+        }
+    }
+    void profileScrollAlwaysVisibleAndAutoscroll() {
+        auto *bar = item("profile-scrollbar"); auto *thumb = item("profile-scroll-thumb"); auto *list = item("profile-list");
+        QVERIFY(bar && thumb && list); QVERIFY(bar->isVisible());
+        QCOMPARE(bar->width()*0.5, 10.0); QCOMPARE(thumb->width()*0.5, 3.0);
+        bridge->setDemoState("single"); QTest::qWait(50);
+        QVERIFY(!item("grip-0")->isEnabled()); QVERIFY(bar->isVisible()); QVERIFY(thumb->isVisible());
+        QCOMPARE(bar->property("size").toDouble(), 1.0); QVERIFY(!bar->property("interactive").toBool());
+        bridge->setDemoState("empty"); QTest::qWait(50);
+        QVERIFY(bar->isVisible()); QVERIFY(thumb->isVisible()); QVERIFY(thumb->height() > 0);
+        QVariantList profiles;
+        for (int i=0;i<100;++i) profiles.append(QVariantMap{{"id",QString("synthetic-%1").arg(i)}, {"name",QString("Profile %1").arg(i)},
+            {"kind",QStringList{"vless","openvpn","wireguard","amneziawg","trojan","shadowsocks"}[i%6]}, {"iconId","antenna"}});
+        bridge->profileModel()->reconcile(profiles); QTest::qWait(100);
+        QCOMPARE(list->property("count").toInt(), 100); QVERIFY(bar->property("interactive").toBool());
+        QVERIFY(thumb->height()*0.5 >= 23.9);
+        auto p=bar->mapToScene(QPointF(bar->width()/2,bar->height()*0.8)).toPoint();
+        QTest::mouseClick(window, Qt::LeftButton, {}, p); QTest::qWait(80);
+        const double page = list->property("contentY").toDouble();
+        QVERIFY2(qAbs(page-list->height()) < 4, qPrintable(QString("Page step was %1, expected %2").arg(page).arg(list->height())));
+        auto t=thumb->mapToScene(QPointF(thumb->width()/2,thumb->height()/2)).toPoint();
+        QTest::mousePress(window, Qt::LeftButton, {}, t);
+        QTest::mouseMove(window, t+QPoint(0,60), 50); QTest::mouseRelease(window, Qt::LeftButton, {}, t+QPoint(0,60));
+        QVERIFY(list->property("contentY").toDouble() > page+100);
+        QVERIFY(QMetaObject::invokeMethod(list, "positionViewAtBeginning")); QTest::qWait(50);
+        auto *grip=item("grip-0"); QVERIFY(grip); const auto first=bridge->profileModel()->idAt(0);
+        p=grip->mapToScene(QPointF(grip->width()/2,grip->height()/2)).toPoint();
+        const auto edge=list->mapToScene(QPointF(190,list->height()-5)).toPoint();
+        QTest::mousePress(window,Qt::LeftButton,{},p); QTest::mouseMove(window,edge,50);
+        QTest::qWait(2400);
+        QVERIFY(list->property("contentY").toDouble() > 600);
+        QCOMPARE(item("profile-list-controller")->property("draggingId").toString(), first);
+        QTest::mouseRelease(window,Qt::LeftButton,{},edge);
+        QVERIFY(bridge->profileModel()->indexOf(first) >= 5);
+        QTest::qWait(100); QVERIFY(bar->isVisible()); QVERIFY(thumb->isVisible());
+    }
     void bootSelectionSurvivesRefreshAndRemovedProfile() {
         click("settings-button"); auto *field = item("boot-profile");
         field->setProperty("currentIndex", 2);
@@ -933,6 +1128,43 @@ private slots:
         QCOMPARE(find().value("iconId").toString(), QString("vault-door"));
         bridge->removeProfile(id);
     }
+    void realDBusProfileOrderSurvivesPollingAndRestart() {
+        if (qEnvironmentVariable("VAULT443_UI_PRIVATE_BUS_TEST") != "1") QSKIP("Private D-Bus fixture required");
+        cleanup(); loadWindow(false);
+        QTRY_VERIFY_WITH_TIMEOUT(bridge->online() && bridge->profiles().size() > 2, 5000);
+        const auto sourceOrder=bridge->snapshot().value("profiles").toList();
+        const auto first=bridge->profileModel()->idAt(0), second=bridge->profileModel()->idAt(1);
+        fixtureConfigure({{"Pulse",true},{"SnapshotMS",150}});
+        auto *grip=item("grip-0"); QVERIFY(grip); auto *list=item("profile-list");
+        const auto p=grip->mapToScene(QPointF(grip->width()/2,grip->height()/2)).toPoint();
+        const auto target=list->mapToScene(QPointF(190,450)).toPoint();
+        QSignalSpy operations(bridge.get(),&Bridge::operationDone);
+        QSignalSpy snapshots(bridge.get(),&Bridge::snapshotChanged);
+        QSignalSpy resets(bridge->profileModel(),&QAbstractItemModel::modelReset);
+        QPointer<QQuickItem> retainedGrip=grip;
+        QTest::mousePress(window,Qt::LeftButton,{},p); QTest::mouseMove(window,target,50);
+        QTest::qWait(2600);
+        QVERIFY(snapshots.count() >= 2); QVERIFY(retainedGrip);
+        QCOMPARE(item("profile-list-controller")->property("draggingId").toString(),first);
+        QTest::mouseRelease(window,Qt::LeftButton,{},target);
+        QTRY_COMPARE(bridge->profileModel()->idAt(0),second);
+        const auto stored=QSettings().value("ui/profileOrder").toStringList();
+        QVERIFY(stored.indexOf(first)>0);
+        fixtureControl("FixtureRestart");
+        QTRY_VERIFY(!bridge->online());
+        QCOMPARE(QSettings().value("ui/profileOrder").toStringList(),stored);
+        QTRY_VERIFY_WITH_TIMEOUT(bridge->online(),4000);
+        QCOMPARE(bridge->profileModel()->idAt(0),second); QCOMPARE(resets.count(),0);
+        for(const auto &event:operations) {
+            const auto method=event[0].toString();
+            QVERIFY2(method.startsWith("Get"),qPrintable("Sorting triggered mutation: "+method));
+        }
+        QCOMPARE(bridge->snapshot().value("profiles").toList(),sourceOrder);
+        cleanup(); loadWindow(false);
+        QTRY_VERIFY_WITH_TIMEOUT(bridge->online(),5000);
+        QCOMPARE(bridge->profileModel()->idAt(0),second);
+        fixtureConfigure({});
+    }
     void realDBusPollingDoesNotBlinkOrClosePopup() {
         if (qEnvironmentVariable("VAULT443_UI_PRIVATE_BUS_TEST") != "1") QSKIP("Private D-Bus fixture required");
         cleanup(); loadWindow(false);
@@ -1105,6 +1337,10 @@ private slots:
         QCOMPARE(workProfile(first).value("iconId").toString(), QString("atom"));
         QCOMPARE(workProfile(blocked).value("iconId").toString(), QString("key"));
         auto *list = item("profile-list"); QVERIFY(list);
+        QTRY_COMPARE(list->property("count").toInt(), originalCount+2);
+        // Let the queued post-import viewport restoration finish before the
+        // test explicitly scrolls to the newly inserted work profiles.
+        QTest::qWait(80);
         QVERIFY(QMetaObject::invokeMethod(list, "positionViewAtEnd"));
         QTRY_VERIFY(item(QString("connect-%1").arg(originalCount+1)));
         QSignalSpy libraryChanges(bridge.get(), &Bridge::profilesChanged);

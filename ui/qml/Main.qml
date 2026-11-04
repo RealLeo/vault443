@@ -332,91 +332,12 @@ ApplicationWindow {
         }
 
         Rectangle { x: 40; y: appWindow.profiles.length === 1 ? 367 : 557; width: 872; height: appWindow.profiles.length === 1 ? 380 : 190; visible: appWindow.profiles.length === 1 || appWindow.profiles.length === 2; color: "#141913"; border.color: "#554c38"; radius: 8 }
-        ListView {
-            id: profileList
-            objectName: "profile-list"
+        ProfileList {
+            id: profileListWidget
             x: 40; y: 182; width: 872; height: 565
-            clip: true
-            spacing: 0
-            boundsBehavior: Flickable.StopAtBounds
-            model: appWindow.profiles
-            ScrollBar.vertical: ScrollBar { policy: profileList.count > 3 ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff; width: 10 }
-            delegate: Item {
-                id: row
-                required property var modelData
-                required property int index
-                width: 872; height: index % 3 === 0 ? 185 : 190
-                property int variant: index % 3
-                property int cardHeight: [182, 186, 190][variant]
-                property bool active: appWindow.profileActive(modelData)
-                property bool lit: active && appWindow.profileRuntime(modelData).state === "connected"
-                Image { width: parent.width; height: row.cardHeight; source: "qrc:/assets/skin/card-" + (row.variant + 1) + ".png" }
-                Image { x: 221; y: row.variant === 0 ? 88 : 93; width: 54; height: 53; source: "qrc:/assets/skin/led-" + (row.lit ? "on" : "off") + ".png" }
-                Text { textFormat: Text.PlainText;
-                    x: 223; y: [41,42,41][row.variant]; width: 302; height: 43
-                    text: row.modelData.name || qsTr("Profile")
-                    color: "#78df8a"
-                    font.family: appWindow.monoFont; font.pixelSize: 40; font.letterSpacing: 0.6
-                    elide: Text.ElideRight
-                    verticalAlignment: Text.AlignVCenter
-                }
-                Text { objectName: "profile-kind-" + row.index; x: 224; y: [20,21,20][row.variant]; width: 302; height: 20; text: appWindow.protocolName(row.modelData); textFormat: Text.PlainText; color: "#90a68a"; font.family: appWindow.bodyFont; font.pixelSize: 18 }
-                Button { PointerHover {}
-                    id: profileStatus
-                    objectName: "status-" + row.index
-                    x: 283; y: row.variant === 0 ? 86 : 93; width: 250; height: 64
-                    padding: 0; hoverEnabled: true
-                    text: appWindow.statusText(row.modelData)
-                    Accessible.name: appWindow.statusDetail(row.modelData)
-                    background: Rectangle { color: "transparent"; border.color: profileStatus.visualFocus ? "#a0e8a4" : "transparent"; radius: 3 }
-                    contentItem: Text {
-                        textFormat: Text.PlainText; text: profileStatus.text
-                        color: row.lit ? "#78df8a" : (row.active ? "#d6b468" : "#708985")
-                        font.family: appWindow.monoFont; font.pixelSize: text.length > 18 ? 22 : 30; font.letterSpacing: 0.1
-                        wrapMode: Text.Wrap
-                        elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter
-                        maximumLineCount: 2
-                    }
-                    TerminalToolTip { control: profileStatus; text: appWindow.statusDetail(row.modelData) }
-                    onClicked: appWindow.openDiagnostics(row.modelData)
-                }
-                Button { PointerHover {}
-                    id: connectionButton
-                    objectName: "connect-" + row.index
-                    x: 588; y: row.variant === 0 ? 43 : 48; width: 247; height: row.variant === 0 ? 88 : 89
-                    enabled: appWindow.canActivate(row.modelData)
-                    hoverEnabled: true
-                    padding: 0
-                    Accessible.name: qsTr("%1 %2").arg(appWindow.connectionLabel(row.modelData)).arg(row.modelData.name)
-                    text: appWindow.connectionLabel(row.modelData)
-                    background: Item {
-                        Image { anchors.fill: parent; source: "qrc:/assets/skin/button-" + (row.active ? "red" : "green") + ".png" }
-                        Rectangle { anchors.fill: parent; anchors.margins: 5; radius: 9; color: connectionButton.down ? "#33000000" : (connectionButton.hovered ? "#14ffeead" : "transparent"); border.color: connectionButton.visualFocus ? "#d3eab0" : "transparent"; border.width: 2 }
-                    }
-                    contentItem: Text { textFormat: Text.PlainText;
-                        text: connectionButton.text
-                        color: connectionButton.enabled ? "#e7c68a" : "#aa9570"
-                        font.family: appWindow.monoFont; font.pixelSize: text.length > 10 ? 30 : 38; font.letterSpacing: 0.1
-                        horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
-                    }
-                    onClicked: appWindow.activateProfile(row.modelData)
-                }
-                ProfileIcon {
-                    x: 44; y: [31,35,36][row.variant]; width: row.variant === 0 ? 114 : 115; height: [115,114,116][row.variant]
-                    iconId: row.modelData.iconId || ["antenna","dish","globe"][row.variant]
-                    visible: iconId !== ["antenna","dish","globe"][row.variant]
-                }
-                Button { PointerHover {}
-                    objectName: "profile-" + row.index
-                    x: 28; y: 25; width: 134; height: 135
-                    background: Rectangle { color: parent.hovered ? "#1cffe1a0" : "transparent"; border.color: parent.visualFocus ? "#8be599" : "transparent"; radius: 8 }
-                    Accessible.name: qsTr("Profile details: %1").arg(row.modelData.name)
-                    ToolTip.visible: hovered; ToolTip.text: qsTr("Name, emblem and connection logs")
-                    onClicked: appWindow.showProfile(row.modelData)
-                }
-                TapHandler { acceptedButtons: Qt.RightButton; onTapped: appWindow.showProfile(row.modelData) }
-            }
+            host: appWindow
         }
+
         Rectangle {
             x: 56; y: 196; width: 834; height: 523
             visible: appWindow.profiles.length === 0

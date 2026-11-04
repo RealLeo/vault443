@@ -145,21 +145,36 @@ and explicit maintenance cleanup do not depend on journal availability.
 
 ## NetworkManager connectivity reporting
 
-After a verified connection, the service reapplies only NetworkManager's
-existing generated/volatile TUN profile. It verifies the live core, TUN kind,
-interface, IPv4 address and prefix before doing so. A version-guarded Reapply
-with `preserve-external-ip` registers a main-table IPv4 default via the TUN peer
-and the existing TUN DNS / `~.` domain. Private policy tables, physical
-connections and other VPN profiles remain separate. The main default is owned
-by the ephemeral TUN; deleting the device removes it even after daemon death.
+The main VPN and the coordinator-selected managed full IPv4 OpenVPN tunnel use
+one registration mechanism. A serialized background worker validates the owned
+interface index, authenticated lease and NM's generated + volatile TUN profile.
+User connection profiles are never reapplied. A version-guarded `Reapply` with
+`preserve-external-ip` registers an ephemeral main-table default. OpenVPN uses
+its actual pushed gateway and the coordinator-selected DNS servers/domains;
+the main VPN uses its synthetic TUN peer. Partial and losing full tunnels do
+not announce Internet service.
 
-The networkManagerState/networkManagerMessage diagnostic fields describe the
-integration (`inactive`, `pending`, `registered`, `unavailable`, `skipped`).
-`registered` means the real probe is enabled on TUN, not a fabricated claim of
-Internet access. NetworkManager reports the result of its own HTTP request.
-No `CheckConnectivity` call delays the network worker; bounded D-Bus operations
-are retried during reconciliation, at most once per five seconds. No bus is
-opened for dry runs, early boot protection, or without a live core.
+D-Bus work has a two-second deadline and runs outside network locks. Unchanged
+settings are not reapplied; active registrations and incomplete cleanup are
+rechecked no more frequently than every five seconds. NM restarts are detected
+by reading its current unique owner and applied settings. A coalesced asynchronous
+`CheckConnectivity` requests a real probe after changes; failure never disconnects
+the VPN or fabricates `FULL`.
+
+OpenVPN's persistent TUN outlives a process failure. Cleanup removes only the
+matching injected default, retaining coordinator DNS during recovery. When the
+Internet owner changes, its root DNS domain changes with it. Cancellation tracks
+possibly applied requests, suppresses stale notifications and compensates before
+registering another owner. Previously verified leases allow NM's applied address
+to follow an OpenVPN reconnect without restoring the old source address. Same-boot
+recovery reconciles preserved TUNs before reconnecting; no store schema changes
+are required.
+
+`networkManagerState` / `networkManagerMessage` describe integration (`inactive`,
+`pending`, `registered`, `unavailable`, `skipped`) in main diagnostics and work
+profile runtime/diagnostics. State changes are logged to the corresponding
+profile. `registered` means the probe route is available, not a claim that the
+Internet works. NM absence or an unsuitable profile leaves VPN protection intact.
 
 GNOME may choose a generic network symbol when TUN becomes the primary
 connection. Physical Wi-Fi configuration is unchanged. The app neither disables

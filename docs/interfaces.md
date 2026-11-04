@@ -175,3 +175,12 @@ schemas are unchanged. `Changed` / snapshots continue updating in the background
 `profiles[].switchFailure` optionally retains the failed candidate reason during
 A's automatic recovery. It is private to the profile owner, cleared by a new
 attempt or log clearing, and does not alter the persistent profile schema.
+
+## Managed OpenVPN connectivity reporting (1.3.2)
+
+`workProfiles[].runtime` and `GetWorkDiagnostics` optionally include
+`networkManagerState` and `networkManagerMessage`. Values describe only the
+NetworkManager integration: `inactive`, `pending`, `registered`, `unavailable`,
+`skipped`. They contain no configuration secrets. Existing per-owner filtering,
+D-Bus signatures and all storage versions remain unchanged. `registered` does
+not substitute for NetworkManager's real connectivity result.

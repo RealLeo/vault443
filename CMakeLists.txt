@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Widgets Quick QuickControls2 DBus)
 qt_add_executable(vault443
-    ui/main.cpp ui/bridge.cpp ui/bridge.h ui/tray.cpp ui/tray.h ui/language.cpp ui/language.h)
+    ui/main.cpp ui/bridge.cpp ui/bridge.h ui/profilemodel.cpp ui/profilemodel.h ui/tray.cpp ui/tray.h ui/language.cpp ui/language.h)
 target_compile_definitions(vault443 PRIVATE VAULT443_APP_VERSION="${PROJECT_VERSION}")
 target_link_libraries(vault443 PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Quick Qt6::QuickControls2 Qt6::DBus)
 add_library(vault443-ui-resources OBJECT)
@@ -26,7 +26,7 @@ set_source_files_properties("${VAULT443_RUSSIAN_QM}" PROPERTIES GENERATED TRUE Q
 qt_add_resources(vault443-ui-resources "translations" PREFIX "/i18n" FILES "${VAULT443_RUSSIAN_QM}")
 qt_add_resources(vault443-ui-resources "qml" PREFIX "/qml" BASE "ui/qml"
     FILES ui/qml/TrafficValue.qml ui/qml/TerminalToolTip.qml ui/qml/PointerHover.qml ui/qml/Main.qml ui/qml/MetalButton.qml ui/qml/TerminalDialog.qml ui/qml/TerminalField.qml
-    ui/qml/ProfileIcon.qml ui/qml/IconPicker.qml ui/qml/TerminalCombo.qml ui/qml/TerminalTabButton.qml ui/qml/TerminalCheckBox.qml)
+    ui/qml/ProfileIcon.qml ui/qml/ProfileCard.qml ui/qml/ProfileList.qml ui/qml/ProfileScrollBar.qml ui/qml/IconPicker.qml ui/qml/TerminalCombo.qml ui/qml/TerminalTabButton.qml ui/qml/TerminalCheckBox.qml)
 # Explicit runtime assets: source artwork, manifests and licenses stay outside rcc.
 qt_add_resources(vault443-ui-resources "skin" PREFIX "/assets" BASE "assets" FILES
     assets/skin/button-green.png
@@ -72,7 +72,7 @@ option(VAULT443_BUILD_UI_TESTS "Build isolated offscreen UI interaction tests" O
 if(VAULT443_BUILD_UI_TESTS)
     enable_testing()
     find_package(Qt6 6.4 REQUIRED COMPONENTS Test)
-    qt_add_executable(vault443-ui-tests ui/ui_tests.cpp ui/bridge.cpp ui/bridge.h ui/tray.cpp ui/tray.h ui/language.cpp ui/language.h)
+    qt_add_executable(vault443-ui-tests ui/ui_tests.cpp ui/bridge.cpp ui/bridge.h ui/profilemodel.cpp ui/profilemodel.h ui/tray.cpp ui/tray.h ui/language.cpp ui/language.h)
     target_compile_definitions(vault443-ui-tests PRIVATE VAULT443_APP_VERSION="${PROJECT_VERSION}")
     target_link_libraries(vault443-ui-tests PRIVATE vault443-ui-resources Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Quick Qt6::QuickControls2 Qt6::DBus Qt6::Test)
     foreach(VAULT443_TEST_LANGUAGE IN ITEMS en ru)

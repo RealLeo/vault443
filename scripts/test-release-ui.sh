@@ -7,6 +7,7 @@ if [ "${1:-}" != --inside ]; then
   build_dir="${VAULT443_UI_BUILD_DIR:-$PWD/build}"
   mkdir -p "$artifacts"
   docker run --rm --pull never --network none --user "$(id -u):$(id -g)" \
+    -e "VAULT443_UI_PLATFORMS=${VAULT443_UI_PLATFORMS:-xcb wayland}" \
     --mount "type=bind,src=$build_dir,dst=/app,readonly" \
     --mount "type=bind,src=$PWD/scripts/test-release-ui.sh,dst=/runner,readonly" \
     --mount "type=bind,src=$artifacts,dst=/artifacts" --tmpfs /tmp:rw,mode=1777 \
@@ -29,7 +30,8 @@ wpid=$!
 export WAYLAND_DISPLAY=wayland-vault443
 for i in $(seq 1 50); do test -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" && break; sleep .1; done
 test -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
-for platform in xcb wayland; do
+for platform in ${VAULT443_UI_PLATFORMS:-xcb wayland}; do
+  case "$platform" in xcb|wayland) ;; *) echo "Unsupported test platform: $platform" >&2; exit 2;; esac
   for language in en ru; do
     for dpi in 1 1.25 1.5 2; do
       tag="$platform-$language-$dpi"
@@ -38,6 +40,7 @@ for platform in xcb wayland; do
       LANGUAGE="$language" QT_QPA_PLATFORM="$platform" QT_SCALE_FACTOR="$dpi" \
         /app/vault443-ui-tests compactImportAndTrafficFitInBothLanguagesAndScales \
         trafficStaysAfterDisconnectAndHidesWhenUnavailableOrForeign \
+        profileHandleIsCompactAndUnadorned profileDragAndCancellation profileScrollAlwaysVisibleAndAutoscroll \
         workButtonLabelsFitBothLanguages workRoutesAndDNSCanReturnToAutomatic >>"/artifacts/$tag.log" 2>&1
       echo "PASS: $tag screenshot and traffic/import layout"
     done

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"net/netip"
 	"time"
 
@@ -29,83 +28,23 @@ func (m *Manager) nmReport(state, message string) {
 	}
 }
 
-// syncNetworkManager advertises only our live, core-owned TUN. Ubuntu's
-// connectivity checks bind their sockets to a device. Physical-interface checks
-// must remain blocked by the guard; NM needs to check the tunnel instead.
-//
-// Reapply changes only the applied, volatile TUN connection. The main-table
-// default makes NM account for it; our earlier policy rules still select all
-// actual traffic, including transport exceptions and other VPNs. A next hop is
-// necessary: Linux normalizes gateway-less IPv4 routes to scope link, which NM
-// 1.46 refuses to probe. No firewall exception or global NM setting is added.
+// Queue immutable core identity; D-Bus work never holds the manager/kernel locks.
 func (m *Manager) syncNetworkManager(ctx context.Context, s Snapshot) {
 	if m.config.DryRun || !m.core.Alive() {
 		return
 	}
 	link, ok := s.Link(TunName)
-	if !ok || link.Kind != "tun" || !m.v4.IsValid() || time.Now().Before(m.nm.nextCheck) {
+	if !ok || link.Kind != "tun" || !m.v4.IsValid() {
 		return
 	}
-	m.nm.nextCheck = time.Now().Add(5 * time.Second)
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	bus, err := dbus.ConnectSystemBus(dbus.WithContext(ctx))
-	if err != nil {
-		m.nmReport("unavailable", "NetworkManager integration unavailable; VPN protection is unchanged")
-		return
-	}
-	defer bus.Close()
-	var owner string
-	if err = bus.BusObject().CallWithContext(ctx, "org.freedesktop.DBus.GetNameOwner", 0, nmName).Store(&owner); err != nil {
-		m.nmReport("unavailable", "NetworkManager is not running; VPN protection is unchanged")
-		return
-	}
-	var devicePath dbus.ObjectPath
-	if err = bus.Object(owner, "/org/freedesktop/NetworkManager").CallWithContext(ctx, nmName+".GetDeviceByIpIface", 0, TunName).Store(&devicePath); err != nil {
-		m.nmReport("pending", "Waiting for NetworkManager to recognize the VPN tunnel")
-		return
-	}
-	device := bus.Object(owner, devicePath)
-	var settings nmSettings
-	var version uint64
-	if err = device.CallWithContext(ctx, nmName+".Device.GetAppliedConnection", 0, uint32(0)).Store(&settings, &version); err != nil {
-		m.nmReport("pending", "NetworkManager has not activated the external VPN tunnel yet")
-		return
-	}
-	key := fmt.Sprintf("%s/%s/%d/%s", owner, devicePath, link.Index, m.v4)
-	if m.nm.key == key && nmHasDefault(s, m.v4.Addr().Next()) {
-		m.nmReport("registered", nmRegisteredMessage)
-		return
-	}
-	// NM 1.54 omits autoconnect on assumed profiles (default true), unlike
-	// 1.46. Generated + volatile flags, not that property, establish ownership.
-	// Never adopt a user-created or persistent profile merely because its
-	// interface is named vault4430. Require NM's generated, volatile connection.
-	var activePath, connectionPath dbus.ObjectPath
-	var flags uint32
-	if nmProperty(ctx, device, nmName+".Device", "ActiveConnection", &activePath) != nil ||
-		nmProperty(ctx, bus.Object(owner, activePath), nmName+".Connection.Active", "Connection", &connectionPath) != nil ||
-		nmProperty(ctx, bus.Object(owner, connectionPath), nmName+".Settings.Connection", "Flags", &flags) != nil {
-		m.nmReport("pending", "Cannot verify NetworkManager tunnel ownership yet")
-		return
-	}
-	if flags&6 != 6 { // NM_GENERATED | VOLATILE
-		m.nmReport("skipped", "NetworkManager tunnel profile is not generated and volatile; left unchanged")
-		return
-	}
-	settings, err = nmTunnelSettings(settings, m.v4)
-	if err != nil {
-		m.nmReport("skipped", "NetworkManager tunnel identity differs from the running core; left unchanged")
-		return
-	}
-	// Version guard rejects concurrent edits. Since NM 1.42, flag 1 preserves
-	// external addresses/routes, notably the private policy-routing tables.
-	if err = device.CallWithContext(ctx, nmName+".Device.Reapply", 0, settings, version, uint32(1)).Err; err != nil {
-		m.nmReport("pending", "NetworkManager could not register the tunnel for connectivity checks; will retry")
-		return
-	}
-	m.nm.key = key
-	m.nmReport("registered", nmRegisteredMessage)
+	peer := m.v4.Addr().Next()
+	m.nmSync.Update([]NMTunnel{{ID: "main", Interface: TunName, Index: link.Index,
+		Address: m.v4, Gateway: peer, Enabled: true, DNS: []string{peer.String()}, Domains: []string{"~."}}})
+}
+
+func (m *Manager) resetNM() {
+	m.nmSync.Update(nil)
+	m.nm = nmConnectivity{state: "inactive"}
 }
 
 func nmProperty(ctx context.Context, obj dbus.BusObject, iface, name string, target any) error {
@@ -127,17 +66,26 @@ func nmHasDefault(s Snapshot, gateway netip.Addr) bool {
 }
 
 func nmTunnelSettings(original nmSettings, address netip.Prefix) (nmSettings, error) {
+	peer := address.Addr().Next()
+	return nmDesiredSettings(original, NMTunnel{Interface: TunName, Address: address,
+		Gateway: peer, Enabled: true, DNS: []string{peer.String()}, Domains: []string{"~."}})
+}
+
+// Only modern IP data round-trips safely through godbus (legacy IPv6 tuples do
+// not). The input snapshot and unrelated routes/settings remain untouched.
+func nmDesiredSettings(original nmSettings, t NMTunnel) (nmSettings, error) {
 	conn, ip := original["connection"], original["ipv4"]
-	if !address.IsValid() || !address.Addr().Is4() || conn["interface-name"].Value() != TunName ||
-		conn["type"].Value() != "tun" || ip["method"].Value() != "manual" {
-		return nil, errors.New("not an external core-owned TUN connection")
+	if !t.Address.IsValid() || !t.Address.Addr().Is4() || !t.Gateway.Is4() ||
+		conn["interface-name"].Value() != t.Interface || conn["type"].Value() != "tun" || ip["method"].Value() != "manual" {
+		return nil, errors.New("not an owned TUN connection")
 	}
 	var addresses []map[string]dbus.Variant
-	if err := ip["address-data"].Store(&addresses); err != nil || len(addresses) != 1 ||
-		addresses[0]["address"].Value() != address.Addr().String() || addresses[0]["prefix"].Value() != uint32(address.Bits()) {
+	matches := func(p netip.Prefix) bool {
+		return p.IsValid() && len(addresses) == 1 && addresses[0]["address"].Value() == p.Addr().String() && addresses[0]["prefix"].Value() == uint32(p.Bits())
+	}
+	if err := ip["address-data"].Store(&addresses); err != nil || (!matches(t.Address) && !matches(t.previousAddress)) {
 		return nil, errors.New("unexpected TUN address")
 	}
-	// Copy maps: the caller's snapshot remains intact, including on rejection.
 	out := make(nmSettings, len(original))
 	for section, values := range original {
 		out[section] = make(map[string]dbus.Variant, len(values))
@@ -146,9 +94,6 @@ func nmTunnelSettings(original nmSettings, address netip.Prefix) (nmSettings, er
 		}
 	}
 	for _, section := range []string{"ipv4", "ipv6"} {
-		// GetAppliedConnection includes deprecated duplicates. The IPv6 tuple
-		// variant cannot be round-tripped by godbus's generic decoder; modern
-		// address-data/route-data are lossless and take precedence here.
 		delete(out[section], "addresses")
 		delete(out[section], "routes")
 	}
@@ -159,27 +104,61 @@ func nmTunnelSettings(original nmSettings, address netip.Prefix) (nmSettings, er
 			return nil, errors.New("unexpected route data")
 		}
 	}
-	peer := address.Addr().Next()
-	// Do not accumulate duplicate defaults on daemon/NM restart.
 	retained := make([]map[string]dbus.Variant, 0, len(routes)+1)
 	for _, r := range routes {
-		if r["dest"].Value() == "0.0.0.0" && r["prefix"].Value() == uint32(0) {
+		if nmOwnDefault(r, t.Gateway) {
 			continue
 		}
 		retained = append(retained, r)
 	}
-	retained = append(retained, map[string]dbus.Variant{
-		"dest": dbus.MakeVariant("0.0.0.0"), "prefix": dbus.MakeVariant(uint32(0)),
-		"next-hop": dbus.MakeVariant(peer.String()), "metric": dbus.MakeVariant(uint32(0)),
-	})
+	if t.Enabled {
+		v4["address-data"] = dbus.MakeVariant([]map[string]dbus.Variant{{"address": dbus.MakeVariant(t.Address.Addr().String()), "prefix": dbus.MakeVariant(uint32(t.Address.Bits()))}})
+		retained = append(retained, map[string]dbus.Variant{
+			"dest": dbus.MakeVariant("0.0.0.0"), "prefix": dbus.MakeVariant(uint32(0)),
+			"next-hop": dbus.MakeVariant(t.Gateway.String()), "metric": dbus.MakeVariant(uint32(0)),
+		})
+		v4["never-default"] = dbus.MakeVariant(false)
+		v4["route-metric"] = dbus.MakeVariant(int64(0))
+		v4["route-table"] = dbus.MakeVariant(uint32(254))
+	}
+	if !t.preserveDNS {
+		var dns4 []uint32
+		var dns6 [][]byte
+		for _, raw := range t.DNS {
+			address, err := netip.ParseAddr(raw)
+			if err != nil {
+				return nil, errors.New("unexpected DNS address")
+			}
+			if address.Is4() {
+				b := address.As4()
+				dns4 = append(dns4, binary.NativeEndian.Uint32(b[:]))
+			} else {
+				b := address.As16()
+				dns6 = append(dns6, append([]byte(nil), b[:]...))
+			}
+		}
+		if dns4 == nil {
+			dns4 = []uint32{}
+		}
+		if dns6 == nil {
+			dns6 = [][]byte{}
+		}
+		v4["dns"] = dbus.MakeVariant(dns4)
+		domains := append([]string{}, t.Domains...)
+		v4["dns-search"] = dbus.MakeVariant(domains)
+		if v6 := out["ipv6"]; v6 != nil && (v6["method"].Value() == "manual" || v6["method"].Value() == "auto" || v6["method"].Value() == "dhcp") {
+			out["ipv6"]["dns"] = dbus.MakeVariant(dns6)
+			out["ipv6"]["dns-search"] = dbus.MakeVariant(domains)
+		} else if len(dns6) > 0 {
+			return nil, errors.New("NetworkManager IPv6 method cannot preserve the selected DNS servers")
+		}
+	}
+	// Cleanup removes only our exact default. DNS stays attached to persistent
+	// work TUNs during recovery so corporate requests cannot fall back outside.
 	v4["route-data"] = dbus.MakeVariant(retained)
-	v4["never-default"] = dbus.MakeVariant(false)
-	v4["route-metric"] = dbus.MakeVariant(int64(0))
-	v4["route-table"] = dbus.MakeVariant(uint32(254))
-	// NM must retain the TUN's existing resolver when adopting it. Corporate
-	// per-link suffixes still win over ~.; no foreign DNS metadata is changed.
-	b := peer.As4()
-	v4["dns"] = dbus.MakeVariant([]uint32{binary.NativeEndian.Uint32(b[:])})
-	v4["dns-search"] = dbus.MakeVariant([]string{"~."})
 	return out, nil
+}
+func nmOwnDefault(r map[string]dbus.Variant, gateway netip.Addr) bool {
+	return r["dest"].Value() == "0.0.0.0" && r["prefix"].Value() == uint32(0) &&
+		r["next-hop"].Value() == gateway.String() && r["metric"].Value() == uint32(0)
 }

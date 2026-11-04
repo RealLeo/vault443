@@ -134,23 +134,32 @@ ip netns exec fixture ip -6 addr add 2001:db8:100::15/128 dev lo nodad
 ip netns exec fixture ip addr add 192.168.100.15/32 dev lo
 ip netns exec fixture ip addr add 10.42.0.15/32 dev lo
 cat >/fixture/work/servers.py <<'PY'
-import http.server, json, socket, struct, threading, time
+import http.server, json, socket, socketserver, struct, threading, time
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         body=json.dumps({'marker':'work-vpn-ok','peer':self.client_address[0], 'server':self.server.server_address[0]}).encode()
         self.send_response(200); self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
     def log_message(self,*args): pass
-class IPv6HTTPServer(http.server.ThreadingHTTPServer):
+class IPv4HTTPServer(http.server.ThreadingHTTPServer):
+    def server_bind(self):
+        # HTTPServer normally performs reverse DNS during construction. On an
+        # NSS-resolve distro that can wait for the very DNS fixture started
+        # below. No external resolver belongs in fixture startup.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name='work.e2e.test'
+        self.server_port=self.server_address[1]
+class IPv6HTTPServer(IPv4HTTPServer):
     address_family=socket.AF_INET6
 threading.Thread(target=IPv6HTTPServer(('2001:db8:100::15',8081),Handler).serve_forever,daemon=True).start()
 for address in ['192.168.100.15','10.42.0.15']:
-    threading.Thread(target=http.server.ThreadingHTTPServer((address,8081),Handler).serve_forever,daemon=True).start()
+    threading.Thread(target=IPv4HTTPServer((address,8081),Handler).serve_forever,daemon=True).start()
 def dns(bind, answer):
     sock=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
     for _ in range(200):
         try: sock.bind((bind,53)); break
         except OSError: time.sleep(.1)
     else: raise RuntimeError('OpenVPN DNS fixture failed to bind')
+    with open('/fixture/work/dns-ready-'+bind,'w') as ready: ready.write('ready\n')
     while True:
         data,peer=sock.recvfrom(4096)
         if len(data)<12: continue
@@ -170,6 +179,13 @@ for bind,answer in [('10.70.0.1','192.168.100.15'),('10.71.0.1','10.42.0.15'),('
 threading.Event().wait()
 PY
 ip netns exec fixture python3 /fixture/work/servers.py >/results/work-web-dns.log 2>&1 &
+for address in 10.70.0.1 10.71.0.1 10.72.0.1; do
+  for _ in $(seq 1 100); do
+    test ! -f "/fixture/work/dns-ready-$address" || break
+    sleep .05
+  done
+  test -f "/fixture/work/dns-ready-$address" || { cat /results/work-web-dns.log; exit 1; }
+done
 for attempt in $(seq 1 100); do
   if ip netns exec fixture ip link show wserver1 >/dev/null 2>&1 && \
      ip netns exec fixture ip link show wserver2 >/dev/null 2>&1 && \

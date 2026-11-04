@@ -21,79 +21,8 @@ func TestRealVLESSNetworkManagerConnectivity(t *testing.T) {
 	if os.Getenv("VAULT443_E2E_NM") != "1" {
 		t.Skip("opt-in isolated NetworkManager fixture required")
 	}
-	config := `[main]
-plugins=keyfile
-dns=systemd-resolved
-rc-manager=unmanaged
-[keyfile]
-unmanaged-devices=
-[connectivity]
-uri=http://93.184.215.14:8080/
-response={"marker":"vless-e2e-ok"
-interval=300
-[logging]
-backend=debug
-level=DEBUG
-domains=CONCHECK,DEVICE,IP4
-`
-	if err := os.WriteFile("/fixture/NetworkManager.conf", []byte(config), 0600); err != nil {
-		t.Fatal(err)
-	}
-	log, err := os.Create("/results/networkmanager.log")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer log.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
-	defer cancel()
-	bus, err := dbus.ConnectSystemBus(dbus.WithContext(ctx))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer bus.Close()
-	obj := bus.Object("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager")
-	var nm *exec.Cmd
-	stop := func() {
-		if nm != nil {
-			if nm.Process != nil {
-				_ = nm.Process.Kill()
-				_ = nm.Wait()
-			}
-			nm = nil
-		}
-	}
-	defer stop()
-	start := func() {
-		nm = exec.Command("NetworkManager", "--no-daemon", "--debug", "--config=/fixture/NetworkManager.conf", "--pid-file=/fixture/nm.pid")
-		nm.Stdout, nm.Stderr = log, log
-		if err := nm.Start(); err != nil {
-			t.Fatal(err)
-		}
-		for end := time.Now().Add(5 * time.Second); time.Now().Before(end); {
-			if _, err := obj.GetProperty("org.freedesktop.NetworkManager.Version"); err == nil {
-				return
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
-		t.Fatal("NetworkManager did not start")
-	}
-	start()
-	// A real managed uplink, as on Ubuntu Wi-Fi. Its saved profile must not change.
-	metric := os.Getenv("VAULT443_E2E_NM_METRIC")
-	if metric == "" {
-		metric = "600"
-	}
-	command(t, "nmcli", "con", "add", "type", "ethernet", "ifname", "e2euplink", "con-name", "fixture-uplink", "autoconnect", "no", "ipv4.method", "manual", "ipv4.addresses", "192.0.2.2/24", "ipv4.gateway", "192.0.2.1", "ipv4.route-metric", metric, "ipv4.dns", "1.1.1.1", "ipv6.method", "disabled")
-	command(t, "nmcli", "con", "up", "fixture-uplink")
-	profileBefore := command(t, "nmcli", "-t", "-f", "connection.id,connection.uuid,connection.type,connection.interface-name,connection.autoconnect,ipv4,ipv6", "con", "show", "fixture-uplink")
-	full := func(label string) {
-		t.Helper()
-		var state uint32
-		if err := obj.CallWithContext(ctx, "org.freedesktop.NetworkManager.CheckConnectivity", 0).Store(&state); err != nil || state != 4 {
-			t.Fatalf("%s: NM connectivity=%d, error=%v", label, state, err)
-		}
-		t.Log(label + ": real NetworkManager connectivity FULL")
-	}
+	f := startNMFixture(t)
+	ctx, bus, obj, start, stop, full, profileBefore := f.ctx, f.bus, f.obj, f.start, f.stop, f.full, f.profileBefore
 	full("baseline")
 	m := network.New(network.Config{StateDir: "/var/lib/vault443-e2e", RuntimeDir: "/run/vault443-e2e", XrayPath: "/usr/lib/vault443/xray"})
 	defer func() {
@@ -207,4 +136,95 @@ domains=CONCHECK,DEVICE,IP4
 	if after := command(t, "nmcli", "-t", "-f", "connection.id,connection.uuid,connection.type,connection.interface-name,connection.autoconnect,ipv4,ipv6", "con", "show", "fixture-uplink"); after != profileBefore {
 		t.Fatal("physical profile changed after cleanup")
 	}
+}
+
+type nmFixture struct {
+	ctx           context.Context
+	bus           *dbus.Conn
+	obj           dbus.BusObject
+	start, stop   func()
+	full          func(string)
+	profileBefore string
+}
+
+func startNMFixture(t *testing.T) nmFixture {
+	t.Helper()
+	if os.Getenv("VAULT443_E2E_NM") != "1" {
+		t.Skip("opt-in isolated NetworkManager fixture required")
+	}
+	config := `[main]
+plugins=keyfile
+dns=systemd-resolved
+rc-manager=unmanaged
+[keyfile]
+unmanaged-devices=
+[connectivity]
+uri=http://93.184.215.14:8080/
+response={"marker":"vless-e2e-ok"
+interval=300
+[logging]
+backend=debug
+level=DEBUG
+domains=CONCHECK,DEVICE,IP4
+`
+	if err := os.WriteFile("/fixture/NetworkManager.conf", []byte(config), 0600); err != nil {
+		t.Fatal(err)
+	}
+	log, err := os.Create("/results/networkmanager.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = log.Close() })
+	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
+	t.Cleanup(cancel)
+	bus, err := dbus.ConnectSystemBus(dbus.WithContext(ctx))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = bus.Close() })
+	obj := bus.Object("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager")
+	var nm *exec.Cmd
+	stop := func() {
+		if nm != nil {
+			if nm.Process != nil {
+				_ = nm.Process.Kill()
+				_ = nm.Wait()
+			}
+			nm = nil
+		}
+	}
+	t.Cleanup(stop)
+	start := func() {
+		nm = exec.Command("NetworkManager", "--no-daemon", "--debug", "--config=/fixture/NetworkManager.conf", "--pid-file=/fixture/nm.pid")
+		nm.Stdout, nm.Stderr = log, log
+		if err := nm.Start(); err != nil {
+			t.Fatal(err)
+		}
+		for end := time.Now().Add(5 * time.Second); time.Now().Before(end); {
+			if _, err := obj.GetProperty("org.freedesktop.NetworkManager.Version"); err == nil {
+				return
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		t.Fatal("NetworkManager did not start")
+	}
+	start()
+	// A real managed uplink, as on Ubuntu Wi-Fi. Its saved profile must not change.
+	metric := os.Getenv("VAULT443_E2E_NM_METRIC")
+	if metric == "" {
+		metric = "600"
+	}
+	command(t, "nmcli", "con", "add", "type", "ethernet", "ifname", "e2euplink", "con-name", "fixture-uplink", "autoconnect", "no", "ipv4.method", "manual", "ipv4.addresses", "192.0.2.2/24", "ipv4.gateway", "192.0.2.1", "ipv4.route-metric", metric, "ipv4.dns", "1.1.1.1", "ipv6.method", "disabled")
+	command(t, "nmcli", "con", "up", "fixture-uplink")
+	t.Cleanup(func() { _ = exec.Command("nmcli", "con", "delete", "fixture-uplink").Run() })
+	profileBefore := command(t, "nmcli", "-t", "-f", "connection.id,connection.uuid,connection.type,connection.interface-name,connection.autoconnect,ipv4,ipv6", "con", "show", "fixture-uplink")
+	full := func(label string) {
+		t.Helper()
+		var state uint32
+		if err := obj.CallWithContext(ctx, "org.freedesktop.NetworkManager.CheckConnectivity", 0).Store(&state); err != nil || state != 4 {
+			t.Fatalf("%s: NM connectivity=%d, error=%v", label, state, err)
+		}
+		t.Log(label + ": real NetworkManager connectivity FULL")
+	}
+	return nmFixture{ctx, bus, obj, start, stop, full, profileBefore}
 }

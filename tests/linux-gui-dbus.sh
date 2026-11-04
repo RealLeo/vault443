@@ -13,6 +13,7 @@ docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
   "vault443-linux-build:$target" bash -euc '
     for language in en ru; do
       LANGUAGE=$language bash scripts/test-gui-dbus.sh \
+        realDBusProfileOrderSurvivesPollingAndRestart \
         realDBusPollingDoesNotBlinkOrClosePopup realDBusJournalActionsSupersedePolling \
         realDBusSwitchCancellationPreservesActiveProfile realDBusImportDialogWhenFixtureAvailable
     done

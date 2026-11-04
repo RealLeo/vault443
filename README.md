@@ -9,7 +9,7 @@
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Ubuntu-24.04%20%7C%2026.04-E95420?style=flat-square" alt="Ubuntu 24.04 and 26.04">
-  <img src="https://img.shields.io/badge/version-1.3.1-b6a166?style=flat-square" alt="Version 1.3.1">
+  <img src="https://img.shields.io/badge/version-1.3.4-b6a166?style=flat-square" alt="Version 1.3.4">
   <img src="https://img.shields.io/badge/Qt-6%20Quick-41CD52?style=flat-square" alt="Qt 6 Quick">
   <img src="https://img.shields.io/badge/Go-1.27.3-00ADD8?style=flat-square" alt="Go 1.27.3">
 </p>
@@ -18,7 +18,7 @@
   <a href="#first-connection">Get started</a> ·
   <a href="#working-alongside-other-vpns">Other VPNs</a> ·
   <a href="#build-from-source">Build</a> ·
-  <a href="docs/RELEASE-1.3.1.md">What's new</a>
+  <a href="docs/RELEASE-1.3.4.md">What's new</a>
 </p>
 <p align="center">
   <a href="docs/images/readme/main.png"><img src="docs/images/readme/main.png" width="472" alt="Vault 443 main window with three demo profiles and an active connection"></a>
@@ -30,6 +30,7 @@
 - **Connect with one click.** After an administrator grants access once, everyday connections need no password prompt. Watch connection stages, cancel a pending attempt, or disconnect from the tray.
 - **Bring your own profiles.** Import mixed VLESS, Trojan and Shadowsocks links, text files, Base64 lists, or HTTPS subscriptions. Dynamic Outline keys refresh safely before connecting. Review entries and choose from 23 emblems before saving. Subscription updates retain your choices.
 - **Connect your work VPNs.** Import self-contained `.ovpn` and WireGuard/AmneziaWG `.conf` files, or paste an autonomous Amnezia `vpn://` export. Run several connections alongside the main Internet connection and choose how overlapping work and Docker networks are routed. Each profile has its own status, cancel button, and journal.
+- **Arrange profiles your way.** Drag the three vertical brass dots to the left of an emblem to mix any profile types in your preferred order. The order is saved per user. A slim, always-visible scrollbar stays in the main frame.
 - **Keep control when the tunnel fails.** The network guard blocks direct Internet traffic during recovery, including forwarded Docker bridge traffic. Explicitly disconnect to restore ordinary routing.
 - **Keep local networks reachable.** Attached LANs and verified work VPN routes retain their paths. IPv4 and IPv6 are checked separately; unavailable tunnel IPv6 fails quickly so applications can fall back to IPv4.
 - **Start the way you want.** Launch the interface at login, connect a selected system profile at boot, or use both. Closing the window leaves the VPN running.
@@ -79,15 +80,15 @@ ports; Ubuntu remains the established desktop target.
 Install a locally built `.deb` from `dist/`. Run these commands in your **normal desktop user's terminal**:
 
 ```sh
-sudo apt install ./dist/vault443_1.3.1_amd64.deb
+sudo apt install ./dist/linux/ubuntu24/vault443_1.3.4-1ubuntu24.04_amd64.deb
 sudo vault443-access "$USER"
 ```
 
-For ARM64, use `vault443_1.3.1_arm64.deb`. The access command is a one-time setup per local user; an existing Vault 443 account keeps its permissions. Open **Vault 443** from the application launcher afterward. The GUI runs as your regular user, and the service checks current group membership on each request.
+Version 1.3.4 packages target x86-64; see [Linux packages](docs/linux-packages.md) for Debian, Fedora and Arch. The access command is a one-time setup per local user; an existing Vault 443 account keeps its permissions. Open **Vault 443** from the application launcher afterward. The GUI runs as your regular user, and the service checks current group membership on each request.
 
 **Updating Vault 443:** use the same APT command. Updates from **1.3.0** preserve profiles, subscriptions, logs, group membership and startup settings. The service may briefly restart and resumes the requested connection under the traffic guard. Earlier VLESS Terminal installations must first complete their transition using the **1.0.0 release tools**; this source tree no longer includes that migration.
 
-**Release status:** 1.3.1 fixes audited switching and Outline issues and pins Go 1.27.3 for all application-owned Go binaries. It keeps the pinned Xray core unchanged. The project uses isolated networking and desktop validation on Ubuntu 24.04 and 26.04 amd64; ARM64 packages are cross-compiled and still require device acceptance. The bundled [Xray 26.9.30](https://github.com/XTLS/Xray-core/releases/tag/v26.9.30) is an upstream **prerelease**, pinned with [archive checksums](packaging/xray-lock.json). AmneziaWG is built separately from [locked upstream sources](packaging/amneziawg-lock.json). See the [validation record](docs/VALIDATION.md) for tested scenarios and remaining limitations.
+**Release status:** 1.3.4 places a compact, borderless drag handle to the left of each emblem and removes keyboard reordering. The OpenVPN NetworkManager integration from 1.3.2 is retained. NetworkManager checks the actual tunnel; checks remain enabled and direct traffic stays protected. Packages target Ubuntu 24.04/26.04, Debian 13, Fedora 44 and Arch on x86-64. Distribution containers share the host kernel; Fedora enforcing SELinux and physical desktop acceptance remain pending. The bundled [Xray 26.9.30](https://github.com/XTLS/Xray-core/releases/tag/v26.9.30) is an upstream **prerelease**, pinned with [archive checksums](packaging/xray-lock.json). AmneziaWG is built separately from [locked upstream sources](packaging/amneziawg-lock.json). See the [validation record](docs/VALIDATION.md) for tested scenarios and remaining limitations.
 
 See [Trojan, Shadowsocks and Outline](docs/proxy-protocols.md) for supported formats, source caching and rollback. The Outline SDK and dependencies are [pinned separately](packaging/outline-lock.json) and built with the [shared private Go 1.27.3 toolchain](packaging/go-toolchain-lock.json) as the supervisor and AmneziaWG.
 
@@ -229,6 +230,9 @@ This removes only Vault 443's network resources, clears the desired connection a
 
 ## Documentation and third-party components
 
+- [1.3.4 release notes](docs/RELEASE-1.3.4.md) — compact left-side drag handles, without borders or shortcut hints.
+- [1.3.3 release notes](docs/RELEASE-1.3.3.md) — drag-to-reorder profiles and a permanent themed scrollbar.
+- [1.3.2 release notes](docs/RELEASE-1.3.2.md) — OpenVPN Internet indicator and NetworkManager recovery.
 - [1.3.1 release notes](docs/RELEASE-1.3.1.md) — safe profile switching, Outline fixes and compiler security.
 - [1.3.0 release notes](docs/RELEASE-1.3.0.md) — Trojan, Shadowsocks and dynamic Outline.
 - [1.2.1 release notes](docs/RELEASE-1.2.1.md) — stable controls during background updates.
@@ -238,6 +242,7 @@ This removes only Vault 443's network resources, clears the desired connection a
 - [1.0.1 release notes](docs/RELEASE-1.0.1.md) — single-line traffic counters and source cleanup.
 - [1.0.0 release notes](docs/RELEASE-1.0.0.md) — the Vault 443 baseline.
 - [Service and profiles](docs/backend.md) · [D-Bus API](docs/interfaces.md) · [Qt frontend](ui/README.md).
+- [Profile order](docs/profile-order.md) — dragging, keyboard controls and local preferences.
 - [Validation record](docs/VALIDATION.md) — completed checks and known limits.
 - [Xray-core](https://github.com/XTLS/Xray-core) is distributed as a separate executable under [MPL-2.0](https://github.com/XTLS/Xray-core/blob/v26.9.30/LICENSE); its license is included in the package. Qt uses the distribution's dynamically linked libraries.
 - [AmneziaWG-Go](https://github.com/amnezia-vpn/amneziawg-go/tree/v3.1.20260828) is distributed as a separate executable under MIT; its license, linked Go module licenses and exact source/build manifest are included in the package.
