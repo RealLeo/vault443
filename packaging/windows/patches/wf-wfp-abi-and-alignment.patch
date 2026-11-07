@@ -1,0 +1,103 @@
+--- a/malloc.go
++++ b/malloc.go
+@@ -45,9 +45,17 @@
+ 	if length == 0 {
+ 		panic("can't allocate zero bytes")
+ 	}
+-	if length > a.remaining {
++	// Typed struct writes use the Go bulk write barrier even for Windows-owned
++	// memory. Every allocation must retain pointer alignment after byte/string
++	// allocations, including when alignment padding exhausts the current slab.
++	const alignment = unsafe.Alignof(uintptr(0))
++	padding := -a.next & (alignment - 1)
++	if length+padding > a.remaining {
+ 		a.grow()
++		padding = -a.next & (alignment - 1)
+ 	}
++	a.next += padding
++	a.remaining -= padding
+ 
+ 	// Cast from *uintptr rather than plain uintptr to avoid the go
+ 	// vet unsafe.Pointer safety check. This pattern is safe because
+--- a/types.go
++++ b/types.go
+@@ -167,6 +167,7 @@
+ // fwpmFilter0 is the Go representation of FWPM_FILTER0,
+ // which stores the state associated with a filter.
+ // See https://docs.microsoft.com/en-us/windows/win32/api/fwpmtypes/ns-fwpmtypes-fwpm_filter0
++//
+ //go:notinheap
+ type fwpmFilter0 struct {
+ 	FilterKey           RuleID
+@@ -181,9 +182,9 @@
+ 	FilterConditions    *fwpmFilterCondition0
+ 	Action              fwpmAction0
+ 
+-	// Only one of RawContext/ProviderContextKey must be set.
+-	RawContext         uint64
+-	ProviderContextKey windows.GUID
++	// Native union { UINT64 rawContext; GUID providerContextKey; }.
++	// Two uint64 words preserve both its 16-byte size and 8-byte alignment.
++	Context [2]uint64
+ 
+ 	Reserved        *windows.GUID
+ 	FilterID        uint64
+--- /dev/null
++++ b/vault443_abi_windows_test.go
+@@ -0,0 +1,56 @@
++// Copyright (c) 2026 Vault 443 contributors.
++// Use of this source code is governed by the BSD-style license in LICENSE.
++
++package wf
++
++import (
++	"testing"
++	"unsafe"
++
++	"golang.org/x/sys/windows"
++)
++
++func TestVault443FWPMFilter0ABI(t *testing.T) {
++	if unsafe.Sizeof(uintptr(0)) != 8 {
++		t.Skip("Vault 443 ships Windows x64 only")
++	}
++	var filter fwpmFilter0
++	for _, check := range []struct {
++		name      string
++		got, want uintptr
++	}{
++		{"sizeof", unsafe.Sizeof(filter), 200},
++		{"action", unsafe.Offsetof(filter.Action), 128},
++		{"rawContext/providerContextKey union", unsafe.Offsetof(filter.Context), 152},
++		{"context union sizeof", unsafe.Sizeof(filter.Context), 16},
++		{"reserved", unsafe.Offsetof(filter.Reserved), 168},
++		{"filterId", unsafe.Offsetof(filter.FilterID), 176},
++		{"effectiveWeight", unsafe.Offsetof(filter.EffectiveWeight), 184},
++	} {
++		t.Logf("%s=%d", check.name, check.got)
++		if check.got != check.want {
++			t.Errorf("%s=%d, Windows SDK expects %d", check.name, check.got, check.want)
++		}
++	}
++}
++
++func TestVault443ArenaAlignment(t *testing.T) {
++	var a arena
++	defer a.Dispose()
++	const alignment = unsafe.Alignof(uintptr(0))
++	// Odd byte/string allocations and padding at a slab boundary previously
++	// placed the next FWPM_FILTER0 at an invalid bulk-write-barrier address.
++	for iteration := 0; iteration < 20; iteration++ {
++		for _, length := range []uintptr{1, 3, 7, 13, slabSize - 1, 1, 2, 15, slabSize} {
++			p := a.Alloc(length)
++			if uintptr(p)%alignment != 0 {
++				t.Fatalf("length %d returned unaligned address %p", length, p)
++			}
++			filter := (*fwpmFilter0)(a.Alloc(unsafe.Sizeof(fwpmFilter0{})))
++			if uintptr(unsafe.Pointer(filter))%alignment != 0 {
++				t.Fatalf("filter after length %d has unaligned address %p", length, filter)
++			}
++			*filter = fwpmFilter0{ProviderKey: toGUID(&a, windows.GUID{Data1: 1})}
++		}
++	}
++}

@@ -198,7 +198,7 @@ func (s *Service) GetSnapshot(c Caller) Snapshot {
 		}
 		out.LastFailure = s.latestFailureLocked(c.UID, out.ActiveProfileID)
 	}
-	if c.Admin && st.Boot != nil && st.Boot.UID == c.UID {
+	if st.Boot != nil && st.Boot.UID == c.UID {
 		out.BootProfileID = st.Boot.ProfileID
 	}
 	return out

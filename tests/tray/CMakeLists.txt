@@ -8,6 +8,7 @@ qt_add_executable(vault443-tray-host-tests
     tray_host_tests.cpp
     "${VAULT443_ROOT}/ui/tray.cpp" "${VAULT443_ROOT}/ui/tray.h"
     "${VAULT443_ROOT}/ui/bridge.cpp" "${VAULT443_ROOT}/ui/bridge.h"
+    "${VAULT443_ROOT}/ui/servicetransport.cpp" "${VAULT443_ROOT}/ui/servicetransport.h"
     "${VAULT443_ROOT}/ui/language.cpp" "${VAULT443_ROOT}/ui/language.h")
 target_include_directories(vault443-tray-host-tests PRIVATE "${VAULT443_ROOT}/ui")
 target_link_libraries(vault443-tray-host-tests PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::DBus Qt6::Test)

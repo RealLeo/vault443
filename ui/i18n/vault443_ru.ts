@@ -3,6 +3,22 @@
   <context>
     <name>Bridge</name>
     <message>
+      <source>Administrator approval was cancelled. You can try again when ready.</source>
+      <translation>Подтверждение администратора отменено. Вы можете повторить запрос позже.</translation>
+    </message>
+    <message>
+      <source>Administrator approval is still pending. Refresh the status after it finishes.</source>
+      <translation>Подтверждение администратора ещё ожидается. После завершения обновите состояние.</translation>
+    </message>
+    <message>
+      <source>Could not grant access. Check that the Vault 443 service is running and approve the request with an administrator account.</source>
+      <translation>Не удалось предоставить доступ. Убедитесь, что служба Vault 443 запущена, и подтвердите запрос с учётной записью администратора.</translation>
+    </message>
+    <message>
+      <source>Administrator approval is required to use Vault 443 with this Windows account.</source>
+      <translation>Для использования Vault 443 с этой учётной записью Windows нужно подтверждение администратора.</translation>
+    </message>
+    <message>
       <source>Could not save the profile order. Check access to your interface settings.</source>
       <translation>Не удалось сохранить порядок профилей. Проверьте доступ к настройкам интерфейса.</translation>
     </message>
@@ -332,6 +348,74 @@
   </context>
   <context>
     <name>Main</name>
+    <message>
+      <source>Allow this Windows account</source>
+      <translation>Доступ для учётной записи Windows</translation>
+    </message>
+    <message>
+      <source>An administrator must approve access to the VPN service once for this Windows account. Review the request to continue.</source>
+      <translation>Администратор должен один раз разрешить этой учётной записи Windows доступ к службе VPN. Для продолжения просмотрите запрос.</translation>
+    </message>
+    <message>
+      <source>Start the Vault 443 Windows service, then refresh the status.</source>
+      <translation>Запустите службу Vault 443 в Windows, затем обновите состояние.</translation>
+    </message>
+    <message>
+      <source>Review access request</source>
+      <translation>Просмотреть запрос</translation>
+    </message>
+    <message>
+      <source>Administrator approval required</source>
+      <translation>Требуется подтверждение администратора</translation>
+    </message>
+    <message>
+      <source>This grants the Windows account currently signed in at this computer permission to manage VPN connections through the Vault 443 service.</source>
+      <translation>Текущая учётная запись Windows на этом компьютере получит право управлять VPN-подключениями через службу Vault 443.</translation>
+    </message>
+    <message>
+      <source>Windows will ask for administrator approval. If this is a standard account, enter an administrator's credentials. Access is granted to the signed-in account, and the interface continues to run without administrator rights.</source>
+      <translation>Windows запросит подтверждение администратора. Для обычной учётной записи введите данные администратора. Доступ получит текущий пользователь, а интерфейс продолжит работать без прав администратора.</translation>
+    </message>
+    <message>
+      <source>Waiting for administrator approval…</source>
+      <translation>Ожидание подтверждения администратора…</translation>
+    </message>
+    <message>
+      <source>Later</source>
+      <translation>Позже</translation>
+    </message>
+    <message>
+      <source>Request approval</source>
+      <translation>Запросить подтверждение</translation>
+    </message>
+    <message>
+      <source>Adapter name, e.g. Corporate VPN</source>
+      <translation>Имя адаптера, например Corporate VPN</translation>
+    </message>
+    <message>
+      <source>Windows service name, e.g. OpenVPNService</source>
+      <translation>Имя службы Windows, например OpenVPNService</translation>
+    </message>
+    <message>
+      <source>Use the service name from Windows Services, not its display name. Transport exceptions require a verified LocalSystem VPN service.</source>
+      <translation>Укажите имя службы из оснастки «Службы» Windows, а не её отображаемое имя. Для исключений транспорта нужна проверенная служба VPN от LocalSystem.</translation>
+    </message>
+    <message>
+      <source>WireGuard services are detected automatically. For other VPNs, add a manual binding.</source>
+      <translation>Службы WireGuard определяются автоматически. Для других VPN добавьте ручную привязку.</translation>
+    </message>
+    <message>
+      <source>No active external VPNs found. Connect a supported VPN, then reopen this tab.</source>
+      <translation>Активные внешние VPN не найдены. Подключите поддерживаемый VPN и снова откройте эту вкладку.</translation>
+    </message>
+    <message>
+      <source>Work routes use the external VPN; the main VPN handles the internet.
+
+For a full tunnel, the requested main VPN connection waits until the external VPN releases its internet routes, then resumes.</source>
+      <translation>Рабочие маршруты идут через внешний VPN, а интернет — через основной VPN.
+
+При полном туннеле запрошенное подключение основного VPN ожидает, пока внешний VPN освободит интернет-маршруты, и затем возобновляется.</translation>
+    </message>
     <message>
       <source>Service unavailable — the last received log is shown.</source>
       <translation>Служба недоступна — показан последний полученный журнал.</translation>

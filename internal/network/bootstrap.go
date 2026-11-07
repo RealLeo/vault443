@@ -12,7 +12,6 @@ import (
 	"net/netip"
 	"net/url"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -48,18 +47,6 @@ type bootstrapResolver struct {
 	ipv6                     bool
 }
 
-func bootstrapDialer() *net.Dialer {
-	return &net.Dialer{Timeout: bootstrapDNSTimeout, Control: func(_, _ string, raw syscall.RawConn) error {
-		var markErr error
-		if err := raw.Control(func(fd uintptr) {
-			markErr = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_MARK, int(BootstrapMark))
-		}); err != nil {
-			return err
-		}
-		return markErr
-	}}
-}
-
 // Fixed-IP dialing prevents bootstrap recursion and pins the narrow firewall
 // exception. TLS still authenticates the public resolver's DNS name. A fresh
 // transport is scoped to one attempt; neither an environment proxy nor a
@@ -87,12 +74,6 @@ func newBootstrapResolver(dialer *net.Dialer) *bootstrapResolver {
 		close:      transport.CloseIdleConnections,
 		dnsTimeout: bootstrapDNSTimeout, totalTimeout: bootstrapTotalTimeout,
 	}
-}
-
-func (m *Manager) resolveEndpoint(ctx context.Context, server string) (netip.Addr, error) {
-	resolver := newBootstrapResolver(bootstrapDialer())
-	defer resolver.close()
-	return resolver.resolve(ctx, server)
 }
 
 func (r *bootstrapResolver) resolve(ctx context.Context, server string) (netip.Addr, error) {

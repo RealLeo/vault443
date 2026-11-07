@@ -296,6 +296,7 @@ func (s *Service) runWork(ctx context.Context, a *workActor) {
 			delay = time.Second
 		}
 		if ctx.Err() != nil {
+			privateWorkCleanupError(a.profile.ID, "run-cancelled", err)
 			break
 		}
 		if err == nil {
@@ -338,6 +339,7 @@ func (s *Service) finishWorkDisconnect(a *workActor, log *journal.Session) {
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
 	defer cancel()
 	err := s.work.runtime.Forget(ctx, a.profile.ID)
+	privateWorkCleanupError(a.profile.ID, "forget", err)
 	s.work.mu.Lock()
 	if s.work.actors[a.profile.ID] == a {
 		if err == nil {

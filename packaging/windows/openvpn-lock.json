@@ -1,0 +1,44 @@
+{
+  "version": "2.6.23",
+  "windowsPackageVersion": "2.6.23-I002",
+  "license": "GPL-2.0-only WITH openvpn-openssl-exception",
+  "assets": [
+    {
+      "name": "OpenVPN-2.6.23-I002-amd64.msi",
+      "url": "https://build.openvpn.net/downloads/releases/OpenVPN-2.6.23-I002-amd64.msi",
+      "sha256": "31809e97debe44c12be06ed892c2a43e55b67b31cb852827b7ec8f2d6c0b8dc6",
+      "bytes": 5959680
+    },
+    {
+      "name": "openvpn-2.6.23.tar.gz",
+      "url": "https://build.openvpn.net/downloads/releases/openvpn-2.6.23.tar.gz",
+      "sha256": "4041c709162bec1325abf5aa8cf27a255cc477c634b15ee310411c701fc40a96",
+      "bytes": 1953056
+    },
+    {
+      "name": "lzo-2.10.tar.gz",
+      "url": "https://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz",
+      "sha256": "c0f892943208266f9b6543b3ae308fab6284c5c90e627931446fb49b4221a072",
+      "bytes": 600622
+    },
+    {
+      "name": "pkcs11-helper-1.31.0.tar.bz2",
+      "url": "https://github.com/OpenSC/pkcs11-helper/releases/download/pkcs11-helper-1.31.0/pkcs11-helper-1.31.0.tar.bz2",
+      "sha256": "46f0067bccd7be2c28f88b8bca775172b9e52fb6fc1280b44ca8bb831433fef9",
+      "bytes": 424487
+    },
+    {
+      "name": "openvpn-49620843c487a7fe.tar.gz",
+      "url": "https://codeload.github.com/OpenVPN/openvpn/tar.gz/49620843c487a7fe",
+      "sha256": "4bca889bd5943133bab659410a88b2437941b01b868af4349ea3c9674bd3508d",
+      "bytes": 1246936
+    }
+  ],
+  "runtimeComponents": {
+    "openvpn": "2.6.23",
+    "openssl": "3.6.5",
+    "pkcs11-helper": "1.31.0",
+    "lzo": "2.10"
+  },
+  "sourceCommit": "49620843c487a7fe"
+}

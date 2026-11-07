@@ -18,8 +18,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
+	"vault443/internal/securefs"
 )
 
 const MaxMessageBytes = 4096
@@ -131,19 +131,20 @@ func Open(dir string, options ...Options) (*Journal, error) {
 	return j, nil
 }
 func privateDir(dir string) error {
-	if e := os.MkdirAll(dir, 0700); e != nil {
+	if e := securefs.MkdirAll(dir, 0700); e != nil {
 		return errors.New("cannot create private journal directory")
 	}
 	fi, e := os.Lstat(dir)
-	if e != nil || !fi.IsDir() || fi.Mode()&os.ModeSymlink != 0 || fi.Mode().Perm()&0077 != 0 || !owned(fi) {
+	if e != nil || !fi.IsDir() || fi.Mode()&os.ModeSymlink != 0 || !owned(fi, dir) {
 		return errors.New("journal directory must be private")
 	}
 	return nil
 }
-func owned(fi os.FileInfo) bool {
-	st, ok := fi.Sys().(*syscall.Stat_t)
-	return ok && st.Uid == uint32(os.Geteuid())
+func owned(fi os.FileInfo, path string) bool {
+	owner, _ := securefs.Owner(true)
+	return securefs.Check(fi, path, owner, true) == nil
 }
+
 func profileKey(uid uint32, profileID string) key {
 	sum := sha256.Sum256([]byte(profileID))
 	return key{uid, hex.EncodeToString(sum[:])}
@@ -543,12 +544,12 @@ func (j *Journal) write(k key, rewrite bool) error {
 		return e
 	}
 	if !rewrite {
-		f, e := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND|syscall.O_NOFOLLOW, 0600)
+		f, e := securefs.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND|securefs.NoFollow, 0600)
 		if e != nil {
 			return errors.New("cannot append connection journal")
 		}
 		fi, e := f.Stat()
-		if e != nil || !fi.Mode().IsRegular() || fi.Mode().Perm()&0077 != 0 || !owned(fi) {
+		if e != nil || !fi.Mode().IsRegular() || !owned(fi, path) {
 			f.Close()
 			return errors.New("journal file permissions are unsafe")
 		}
@@ -600,7 +601,7 @@ func (j *Journal) write(k key, rewrite bool) error {
 		e = ce
 	}
 	if e == nil {
-		e = os.Rename(f.Name(), path)
+		e = securefs.Replace(f.Name(), path)
 	}
 	if e != nil {
 		return errors.New("cannot persist connection journal")
@@ -640,7 +641,7 @@ func (j *Journal) load() error {
 			}
 			path := filepath.Join(dir, f.Name())
 			fi, e := os.Lstat(path)
-			if e != nil || !fi.Mode().IsRegular() || fi.Mode().Perm()&0077 != 0 || !owned(fi) {
+			if e != nil || !fi.Mode().IsRegular() || !owned(fi, path) {
 				return errors.New("journal file permissions are unsafe")
 			}
 			if fi.Size() > 64<<20 {

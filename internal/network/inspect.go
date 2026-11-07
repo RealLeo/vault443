@@ -1,3 +1,5 @@
+//go:build linux
+
 package network
 
 import (
@@ -20,7 +22,6 @@ const (
 	BypassTable          = 52781
 	UnderlayTable        = 52782
 	RuleBase             = 5270
-	OuterMark     uint32 = 0x564c5401
 	BootstrapMark uint32 = 0x564c5402
 	// IPv6ProbeMark is valid only for root-owned HTTPS probes through TUN.
 	// It deliberately has no policy-routing or physical-interface exception.
@@ -69,61 +70,9 @@ func runCommand(ctx context.Context, c command) ([]byte, error) {
 	return output, nil
 }
 
-type Link struct {
-	Index    int      `json:"ifindex"`
-	Name     string   `json:"ifname"`
-	Alias    string   `json:"ifalias,omitempty"`
-	MTU      int      `json:"mtu"`
-	Flags    []string `json:"flags"`
-	Kind     string   `json:"-"`
-	LinkInfo struct {
-		Kind string `json:"info_kind"`
-	} `json:"linkinfo"`
-	Addresses []struct {
-		Local     string `json:"local"`
-		PrefixLen int    `json:"prefixlen"`
-		Family    string `json:"family"`
-	} `json:"addr_info"`
-}
-type Route struct {
-	Destination string          `json:"dst"`
-	Gateway     string          `json:"gateway,omitempty"`
-	Device      string          `json:"dev,omitempty"`
-	Scope       string          `json:"scope,omitempty"`
-	Type        string          `json:"type,omitempty"`
-	Table       json.RawMessage `json:"table,omitempty"`
-	Protocol    json.RawMessage `json:"protocol,omitempty"`
-	Metric      int             `json:"metric,omitempty"`
-	Family      int             `json:"-"`
-	Nexthops    []Route         `json:"nexthops,omitempty"`
-}
-
-func (r Route) Prefix() (netip.Prefix, bool) {
-	if r.Destination == "default" {
-		if r.Family == 6 {
-			return netip.MustParsePrefix("::/0"), true
-		}
-		return netip.MustParsePrefix("0.0.0.0/0"), true
-	}
-	p, e := netip.ParsePrefix(r.Destination)
-	if e != nil {
-		a, err := netip.ParseAddr(r.Destination)
-		if err != nil {
-			return netip.Prefix{}, false
-		}
-		return netip.PrefixFrom(a, a.BitLen()), true
-	}
-	return p.Masked(), true
-}
 func (r Route) owned() bool {
 	t, _ := strconv.Atoi(string(r.Table))
 	return t == sourceTable || (t >= 52783 && t <= 52787 || t >= 52800 && t <= 52832) || r.Device == TunName || string(r.Table) == strconv.Itoa(ProxyTable) || string(r.Table) == strconv.Itoa(BypassTable) || string(r.Table) == strconv.Itoa(UnderlayTable)
-}
-
-type Snapshot struct {
-	Links          []Link
-	Routes         []Route
-	Rules4, Rules6 []map[string]any
 }
 
 func (s Snapshot) HasTable(family, table int) bool {
@@ -135,14 +84,6 @@ func (s Snapshot) HasTable(family, table int) bool {
 	return false
 }
 
-func (s Snapshot) Link(name string) (Link, bool) {
-	for _, l := range s.Links {
-		if l.Name == name {
-			return l, true
-		}
-	}
-	return Link{}, false
-}
 func (s Snapshot) Uplink() (Route, error) {
 	var candidates []Route
 	for _, r := range s.Routes {
@@ -242,37 +183,7 @@ func ChooseSubnets(s Snapshot) (netip.Prefix, netip.Prefix, error) {
 			}
 		}
 	}
-	free := func(p netip.Prefix) bool {
-		for _, q := range occupied {
-			if p.Overlaps(q) {
-				return false
-			}
-		}
-		return true
-	}
-	var v4, v6 netip.Prefix
-	// Avoid generic Docker/RFC1918 assumptions. Check every candidate against all
-	// tables, including connected routes and addresses not in the main table.
-	for a := 18; a <= 19 && !v4.IsValid(); a++ {
-		for b := 0; b < 256; b++ {
-			p := netip.MustParsePrefix(fmt.Sprintf("198.%d.%d.0/30", a, b))
-			if free(p) {
-				v4 = netip.PrefixFrom(p.Addr().Next(), 30)
-				break
-			}
-		}
-	}
-	for n := 0; n < 256; n++ {
-		p := netip.MustParsePrefix(fmt.Sprintf("fd56:4c54:%x::/64", n))
-		if free(p) {
-			v6 = netip.PrefixFrom(p.Addr().Next(), 64)
-			break
-		}
-	}
-	if !v4.IsValid() || !v6.IsValid() {
-		return v4, v6, errors.New("no collision-free TUN subnet available")
-	}
-	return v4, v6, nil
+	return chooseFreeSubnets(occupied)
 }
 
 // iproute2 emits numeric table IDs as JSON strings on several supported

@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
-	"syscall"
+	"vault443/internal/securefs"
 
 	"vault443/internal/model"
 )
@@ -71,19 +71,19 @@ func OpenExclusive(dir string, allowUnprivileged bool) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	f, err := os.OpenFile(filepath.Join(s.dir, "daemon.lock"), os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
+	f, err := securefs.OpenFile(filepath.Join(s.dir, "daemon.lock"), os.O_CREATE|os.O_RDWR|securefs.NoFollow, 0600)
 	if err != nil {
 		return nil, errors.New("cannot open daemon state lock")
 	}
 	info, err := f.Stat()
 	if err == nil {
-		err = secureInfo(info, s.owner, false)
+		err = secureInfo(info, s.owner, false, f.Name())
 	}
 	if err != nil {
 		f.Close()
 		return nil, err
 	}
-	if err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	if err = securefs.Lock(f); err != nil {
 		f.Close()
 		return nil, errors.New("daemon is already running; stop it before root maintenance")
 	}
@@ -116,11 +116,9 @@ func open(dir string, allowUnprivileged, migrate bool) (*Store, error) {
 	if !filepath.IsAbs(dir) {
 		return nil, errors.New("state directory must be absolute")
 	}
-	owner := 0
-	if allowUnprivileged {
-		owner = os.Geteuid()
-	} else if os.Geteuid() != 0 {
-		return nil, errors.New("the system daemon must run as root")
+	owner, ownerErr := securefs.Owner(allowUnprivileged)
+	if ownerErr != nil {
+		return nil, ownerErr
 	}
 	// Check all existing ancestors before creating any child: do not follow a
 	// writable symlink supplied in a custom --state-dir.
@@ -131,13 +129,12 @@ func open(dir string, allowUnprivileged, migrate bool) (*Store, error) {
 				return nil, errors.New("state path must not contain symlinks or non-directories")
 			}
 			if !allowUnprivileged {
-				stat, ok := info.Sys().(*syscall.Stat_t)
-				if !ok || stat.Uid != 0 || info.Mode().Perm()&0022 != 0 {
-					return nil, errors.New("system state ancestors must be root-owned and not group/world-writable")
+				if securefs.Check(info, p, owner, false) != nil {
+					return nil, errors.New("system state ancestors must be owned by a trusted account and not writable by other users")
 				}
 			}
 			if p == filepath.Clean(dir) {
-				if e = secureInfo(info, owner, true); e != nil {
+				if e = secureInfo(info, owner, true, dir); e != nil {
 					return nil, e
 				}
 			}
@@ -148,19 +145,19 @@ func open(dir string, allowUnprivileged, migrate bool) (*Store, error) {
 			break
 		}
 	}
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := securefs.MkdirAll(dir, 0700); err != nil {
 		return nil, err
 	}
 	info, err := os.Lstat(dir)
 	if err != nil {
 		return nil, err
 	}
-	if err = secureInfo(info, owner, true); err != nil {
+	if err = secureInfo(info, owner, true, dir); err != nil {
 		return nil, err
 	}
 	s := &Store{dir: dir, owner: owner, state: State{Version: 3, Users: map[string]User{}}}
 	path := filepath.Join(dir, "state.json")
-	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	f, err := securefs.OpenFile(path, os.O_RDONLY|securefs.NoFollow, 0)
 	if os.IsNotExist(err) {
 		return s, nil
 	}
@@ -172,7 +169,7 @@ func open(dir string, allowUnprivileged, migrate bool) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = secureInfo(info, owner, false); err != nil {
+	if err = secureInfo(info, owner, false, f.Name()); err != nil {
 		return nil, err
 	}
 	if info.Size() > 16<<20 {
@@ -223,19 +220,17 @@ func open(dir string, allowUnprivileged, migrate bool) (*Store, error) {
 	return s, nil
 }
 
-func secureInfo(info os.FileInfo, owner int, dir bool) error {
+func secureInfo(info os.FileInfo, owner int, dir bool, paths ...string) error {
 	if info.IsDir() != dir || (!dir && !info.Mode().IsRegular()) {
 		return errors.New("state path has incorrect file type")
 	}
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || int(stat.Uid) != owner {
-		return errors.New("state must be owned by the daemon user")
+	path := info.Name()
+	if len(paths) > 0 {
+		path = paths[0]
 	}
-	if info.Mode().Perm()&0077 != 0 {
-		return errors.New("state permissions must exclude group and other users")
-	}
-	return nil
+	return securefs.Check(info, path, owner, true)
 }
+
 func clone(s State) State {
 	b, _ := json.Marshal(s)
 	var out State
@@ -284,7 +279,7 @@ func (s *Store) save(next State) error {
 	if closeErr != nil {
 		return closeErr
 	}
-	if err = os.Rename(name, filepath.Join(s.dir, "state.json")); err != nil {
+	if err = securefs.Replace(name, filepath.Join(s.dir, "state.json")); err != nil {
 		return err
 	}
 	d, err := os.Open(s.dir)
@@ -292,5 +287,5 @@ func (s *Store) save(next State) error {
 		return fmt.Errorf("state saved but directory sync failed: %w", err)
 	}
 	defer d.Close()
-	return d.Sync()
+	return securefs.SyncDir(d)
 }

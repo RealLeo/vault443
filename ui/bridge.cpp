@@ -4,11 +4,6 @@
 #include <QClipboard>
 #include <QDateTime>
 #include <QCryptographicHash>
-#include <QDBusConnectionInterface>
-#include <QDBusError>
-#include <QDBusMessage>
-#include <QDBusPendingCallWatcher>
-#include <QDBusPendingReply>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -37,7 +32,7 @@ QVariantMap defaultSnapshot() {
 }
 
 Bridge::Bridge(bool demo, QObject *parent)
-    : QObject(parent), m_snapshot(defaultSnapshot()), m_bus(demo ? QDBusConnection(QString()) : QDBusConnection::systemBus()), m_demo(demo) {
+    : QObject(parent), m_snapshot(defaultSnapshot()), m_bus(demo ? ServiceConnection(QString()) : ServiceConnection::systemBus()), m_demo(demo) {
     m_profileModel = new ProfileListModel(!demo, this);
     connect(m_profileModel, &ProfileListModel::changed, this, [this] {
         m_profiles = m_profileModel->items(); emit profilesChanged();
@@ -101,8 +96,8 @@ Bridge::Bridge(bool demo, QObject *parent)
         setOnline(true);
         return;
     }
-    m_watcher = new QDBusServiceWatcher(Service, m_bus, QDBusServiceWatcher::WatchForOwnerChange, this);
-    connect(m_watcher, &QDBusServiceWatcher::serviceOwnerChanged, this, &Bridge::serviceChanged);
+    m_watcher = new ServiceWatcher(Service, m_bus, ServiceWatcher::WatchForOwnerChange, this);
+    connect(m_watcher, &ServiceWatcher::serviceOwnerChanged, this, &Bridge::serviceChanged);
     m_bus.connect(Service, Object, Interface, "Changed", this, SLOT(refresh()));
     QTimer::singleShot(0, this, &Bridge::refresh);
     auto *snapshotTimer = new QTimer(this);
@@ -124,6 +119,39 @@ void Bridge::setOnline(bool available) {
 }
 void Bridge::setTrayAvailable(bool available) { if (available != m_trayAvailable) { m_trayAvailable = available; emit trayAvailableChanged(); } }
 void Bridge::Raise() { emit raiseRequested(); }
+
+void Bridge::requestServiceAccess() {
+    if (!m_enrollmentRequired || m_enrollmentPending) return;
+    m_enrollmentPending = true; m_enrollmentError.clear(); emit enrollmentChanged();
+    if (m_demo) {
+        QTimer::singleShot(80, this, [this] {
+            m_enrollmentPending = false; m_enrollmentRequired = false;
+            emit enrollmentChanged(); setOnline(true);
+        });
+        return;
+    }
+#ifdef Q_OS_WIN
+    const auto message = ServiceMessage::createMethodCall(Service, Object, Interface, "GrantConsoleOperator");
+    auto *watcher = new ServiceCallWatcher(m_bus.asyncCall(message, 60000), this);
+    connect(watcher, &ServiceCallWatcher::finished, this, [this, watcher] {
+        const auto answer = watcher->reply(); watcher->deleteLater();
+        m_enrollmentPending = false;
+        if (answer.type() == ServiceMessage::ErrorMessage) {
+            m_enrollmentError = answer.errorName() == "AccessCancelled"
+                ? tr("Administrator approval was cancelled. You can try again when ready.")
+                : answer.errorName() == "NoReply"
+                    ? tr("Administrator approval is still pending. Refresh the status after it finishes.")
+                    : tr("Could not grant access. Check that the Vault 443 service is running and approve the request with an administrator account.");
+            emit enrollmentChanged(); return;
+        }
+        // Helper success alone is not proof that this client is authorized.
+        // Clear the access requirement only after an authenticated snapshot.
+        emit enrollmentChanged(); refresh();
+    });
+#else
+    m_enrollmentPending = false; emit enrollmentChanged();
+#endif
+}
 
 void Bridge::setVPNCompatibilityActive(bool active) {
     if (m_compatibilityActive == active) return;
@@ -167,14 +195,14 @@ void Bridge::refreshVPNCompatibility() {
     m_compatibilityPending = true; m_compatibilityAgain = false;
     emit vpnCompatibilityChanged();
     const auto generation = m_compatibilityGeneration;
-    const auto message = QDBusMessage::createMethodCall(Service, Object, Interface, "GetVPNCompatibility");
-    auto *watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(message, 5000), this);
-    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, watcher, generation] {
+    const auto message = ServiceMessage::createMethodCall(Service, Object, Interface, "GetVPNCompatibility");
+    auto *watcher = new ServiceCallWatcher(m_bus.asyncCall(message, 5000), this);
+    connect(watcher, &ServiceCallWatcher::finished, this, [this, watcher, generation] {
         const auto answer = watcher->reply(); watcher->deleteLater();
         m_compatibilityPending = false;
         if (m_compatibilityActive && generation == m_compatibilityGeneration) {
             m_vpnCompatibility.clear(); m_vpnCompatibilityError.clear();
-            if (answer.type() == QDBusMessage::ErrorMessage) {
+            if (answer.type() == ServiceMessage::ErrorMessage) {
                 m_vpnCompatibilityError = answer.errorName().contains("UnknownMethod")
                     ? QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "Update the system service to a version with automatic VPN discovery."))
                     : QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "Could not refresh the VPN list. Check the service and diagnostics."));
@@ -223,14 +251,14 @@ void Bridge::call(const QString &method, const QVariantList &args, Reply reply,
         demoCall(method, args, std::move(reply));
         endRequest(token); return;
     }
-    auto message = QDBusMessage::createMethodCall(Service, Object, Interface, method);
+    auto message = ServiceMessage::createMethodCall(Service, Object, Interface, method);
     message.setArguments(args);
     const bool networkOperation = method == "Connect" || method == "Disconnect" || method == "TakeControl";
     if (networkOperation) { ++m_networkPending; emit busyChanged(); }
     const auto generation = m_serviceGeneration;
     const int timeout = method.startsWith("Get") ? 3000 : (method == "RefreshSubscriptions" ? 720000 : 60000);
-    auto *watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(message, timeout), this);
-    connect(watcher, &QDBusPendingCallWatcher::finished, this,
+    auto *watcher = new ServiceCallWatcher(m_bus.asyncCall(message, timeout), this);
+    connect(watcher, &ServiceCallWatcher::finished, this,
             [this, watcher, method, token, networkOperation, generation, current = std::move(current), failed = std::move(failed), reply = std::move(reply)]() {
         const auto message = watcher->reply();
         watcher->deleteLater();
@@ -239,7 +267,7 @@ void Bridge::call(const QString &method, const QVariantList &args, Reply reply,
         if (generation != m_serviceGeneration) return;
         if (current && !current()) {
             // A canceled prepare may still have created a service-side draft.
-            if (message.type() != QDBusMessage::ErrorMessage && (method == "PrepareImport" || method == "PrepareWorkImport")) {
+            if (message.type() != ServiceMessage::ErrorMessage && (method == "PrepareImport" || method == "PrepareWorkImport")) {
                 const auto json = QJsonDocument::fromJson(message.arguments().value(0).toString().toUtf8());
                 const auto draft = json.object().value("draftId").toString();
                 if (!draft.isEmpty()) call(method == "PrepareWorkImport" ? "CancelWorkImport" : "CancelImport", {draft});
@@ -253,7 +281,15 @@ void Bridge::call(const QString &method, const QVariantList &args, Reply reply,
             else setError(error);
             emit operationDone(method, result);
         };
-        if (message.type() == QDBusMessage::ErrorMessage) {
+        if (message.type() == ServiceMessage::ErrorMessage) {
+            if (message.errorName() == "EnrollmentRequired") {
+                if (!m_enrollmentRequired) { m_enrollmentRequired = true; emit enrollmentChanged(); }
+                setOnline(false);
+                if (method == "GetSnapshot") { m_refreshing = false; m_refreshAgain = false; }
+                if (failed) failed({{"error", tr("Administrator approval is required to use Vault 443 with this Windows account.")}});
+                emit operationDone(method, {{"error", message.errorMessage()}});
+                return;
+            }
             if (method == "CancelImport" || method == "CancelWorkImport") { emit operationDone(method, {}); return; }
             if (message.errorName().contains("ServiceUnknown") || message.errorName().contains("Disconnected")) setOnline(false);
             reportError(message.errorMessage().isEmpty() ? QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "System service unavailable")) : message.errorMessage());
@@ -283,7 +319,13 @@ void Bridge::refresh() {
 }
 
 void Bridge::acceptSnapshot(const QVariantMap &snapshot) {
+    if (m_enrollmentRequired || !m_enrollmentError.isEmpty()) {
+        m_enrollmentRequired = false; m_enrollmentError.clear(); emit enrollmentChanged();
+    }
     m_snapshot = snapshot;
+#ifdef Q_OS_WIN
+    if (!m_demo && ServiceConnection::administratorEligible()) m_snapshot["canAdmin"] = true;
+#endif
     m_snapshotReceivedAt = QDateTime::currentMSecsSinceEpoch();
     const auto operation = snapshot.value("operation").toMap();
     if (!m_unconfirmedRequest.isEmpty()
@@ -497,18 +539,18 @@ void Bridge::requestConnection(const QString &action, const QString &profileId) 
         demoCall(method, action == "connect" ? QVariantList{profileId} : QVariantList{}, {});
         m_connectionRequest.clear(); emit connectionRequestChanged(); return;
     }
-    auto message = QDBusMessage::createMethodCall(Service, Object, Interface, method);
+    auto message = ServiceMessage::createMethodCall(Service, Object, Interface, method);
     if (action == "connect") message.setArguments({profileId});
     ++m_networkPending; emit busyChanged();
     const auto generation = m_serviceGeneration;
     const auto requested = m_connectionRequest;
-    auto *watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(message, 3000), this);
-    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, watcher, generation, profileId, method, requested] {
+    auto *watcher = new ServiceCallWatcher(m_bus.asyncCall(message, 3000), this);
+    connect(watcher, &ServiceCallWatcher::finished, this, [this, watcher, generation, profileId, method, requested] {
         const auto answer = watcher->reply(); watcher->deleteLater();
         --m_networkPending; emit busyChanged();
         if (generation != m_serviceGeneration) return;
         QVariantMap result;
-        if (answer.type() == QDBusMessage::ErrorMessage) {
+        if (answer.type() == ServiceMessage::ErrorMessage) {
             if (answer.errorName().contains("ServiceUnknown") || answer.errorName().contains("Disconnected")) setOnline(false);
             if (answer.errorName().contains("UnknownMethod")) m_connectionError = QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "Update the Vault 443 system service to the current release."));
             else if (answer.errorName().contains("NoReply")) {
@@ -563,13 +605,13 @@ void Bridge::getDiagnostics(const QString &profileId) {
             demoCall(isWorkID(profileId) ? "GetWorkDiagnostics" : "GetDiagnostics", {profileId}, [this](const QVariantMap &result) { finishDiagnostics(result, {}); });
         }); return;
     }
-    auto message = QDBusMessage::createMethodCall(Service, Object, Interface, profileId.isEmpty() ? "GetDiagnostics" : (isWorkID(profileId) ? "GetWorkDiagnostics" : "GetProfileDiagnostics"));
+    auto message = ServiceMessage::createMethodCall(Service, Object, Interface, profileId.isEmpty() ? "GetDiagnostics" : (isWorkID(profileId) ? "GetWorkDiagnostics" : "GetProfileDiagnostics"));
     if (!profileId.isEmpty()) message.setArguments({profileId});
-    auto *watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(message, 3000), this);
-    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, watcher, generation] {
+    auto *watcher = new ServiceCallWatcher(m_bus.asyncCall(message, 3000), this);
+    connect(watcher, &ServiceCallWatcher::finished, this, [this, watcher, generation] {
         const auto answer = watcher->reply(); watcher->deleteLater();
         if (generation != m_diagnosticsGeneration) return;
-        if (answer.type() == QDBusMessage::ErrorMessage) {
+        if (answer.type() == ServiceMessage::ErrorMessage) {
             finishDiagnostics({}, answer.errorName().contains("NoReply")
                 ? QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "The service did not respond within 3 s. Showing the last received snapshot."))
                 : QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "Could not load diagnostics. Check that the system service is available."))); return;
@@ -602,11 +644,23 @@ QString Bridge::autostartPath() const {
 }
 bool Bridge::autostart() const {
     if (m_demo) return m_demoAutostart;
+#ifdef Q_OS_WIN
+    QSettings run("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", QSettings::NativeFormat);
+    return !run.value("Vault443").toString().isEmpty();
+#else
     QFile file(autostartPath());
     return file.open(QIODevice::ReadOnly) && !file.readAll().contains("Hidden=true");
+#endif
 }
 void Bridge::setAutostart(bool enabled) {
     if (m_demo) { m_demoAutostart = enabled; emit autostartChanged(); return; }
+#ifdef Q_OS_WIN
+    QSettings run("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", QSettings::NativeFormat);
+    if (enabled) run.setValue("Vault443", "\"" + QDir::toNativeSeparators(QCoreApplication::applicationFilePath()) + "\"");
+    else run.remove("Vault443");
+    run.sync();
+    if (run.status() != QSettings::NoError) setError(tr("Could not save interface autostart"));
+#else
     if (!enabled) {
         if (QFile::exists(autostartPath()) && !QFile::remove(autostartPath())) setError(QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "Could not disable interface autostart")));
     } else {
@@ -617,6 +671,7 @@ void Bridge::setAutostart(bool enabled) {
         auto content = QString("[Desktop Entry]\nType=Application\nName=Vault 443\nExec=\"%1\"\nIcon=vault443\nTerminal=false\nX-GNOME-Autostart-enabled=true\n").arg(executable).toUtf8();
         if (!file.open(QIODevice::WriteOnly) || file.write(content) != content.size() || !file.commit()) setError(QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "Could not enable interface autostart")));
     }
+#endif
     emit autostartChanged();
 }
 
@@ -640,6 +695,10 @@ void Bridge::updateDemo(const QString &state, const QString &id) {
 }
 void Bridge::setDemoState(const QString &state) {
     if (!m_demo) return;
+    if (state == "access-required") {
+        m_enrollmentRequired = true; m_enrollmentError.clear(); emit enrollmentChanged();
+        setOnline(false); return;
+    }
     if (state.startsWith("switch-")) {
         updateDemo("connected", "demo-main");
         const auto candidate = m_snapshot.value("profiles").toList()[1].toMap().value("id");
@@ -936,17 +995,17 @@ void Bridge::requestWorkConnection(const QString &action, const QString &id) {
         demoCall(method, {id}, {});
         m_workRequests.remove(id); emit workRequestsChanged(); return;
     }
-    auto message = QDBusMessage::createMethodCall(Service, Object, Interface, method);
+    auto message = ServiceMessage::createMethodCall(Service, Object, Interface, method);
     message.setArguments({id});
     const auto generation = m_serviceGeneration;
-    auto *watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(message, 3000), this);
-    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, watcher, id, method, generation, request] {
+    auto *watcher = new ServiceCallWatcher(m_bus.asyncCall(message, 3000), this);
+    connect(watcher, &ServiceCallWatcher::finished, this, [this, watcher, id, method, generation, request] {
         const auto answer = watcher->reply(); watcher->deleteLater();
         if (generation != m_serviceGeneration) return;
         const bool disconnectQueued = m_workRequests.value(id).toMap().value("disconnectQueued").toBool();
         auto current = request; current["pending"] = false;
         QVariantMap result;
-        if (answer.type() == QDBusMessage::ErrorMessage) {
+        if (answer.type() == ServiceMessage::ErrorMessage) {
             current["error"] = answer.errorName().contains("NoReply")
                 ? QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "The service did not acknowledge the command within 3 s. Checking its status."))
                 : answer.errorMessage().isEmpty() ? QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "Service unavailable — VPN state unknown.")) : answer.errorMessage();
@@ -985,15 +1044,15 @@ void Bridge::workRouteCall(const QString &method, const QVariantList &args) {
             if (method != "GetWorkRoutes") refreshWorkRoutes();
         }); return;
     }
-    auto message = QDBusMessage::createMethodCall(Service, Object, Interface, method);
+    auto message = ServiceMessage::createMethodCall(Service, Object, Interface, method);
     message.setArguments(args);
     const auto generation = m_workRoutesGeneration;
-    auto *watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(message, 3000), this);
-    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, watcher, method, generation] {
+    auto *watcher = new ServiceCallWatcher(m_bus.asyncCall(message, 3000), this);
+    connect(watcher, &ServiceCallWatcher::finished, this, [this, watcher, method, generation] {
         const auto answer = watcher->reply(); watcher->deleteLater();
         if (generation != m_workRoutesGeneration) return;
         m_workRoutesPending = false;
-        if (answer.type() == QDBusMessage::ErrorMessage) {
+        if (answer.type() == ServiceMessage::ErrorMessage) {
             m_workRoutesError = answer.errorMessage().isEmpty() ? QString::fromUtf8(QT_TRANSLATE_NOOP("Bridge", "Routes could not be refreshed. Check the service and try again.")) : answer.errorMessage();
         } else if (method == "GetWorkRoutes") {
             const auto json = QJsonDocument::fromJson(answer.arguments().value(0).toString().toUtf8());

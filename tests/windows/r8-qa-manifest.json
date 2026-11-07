@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "candidate": "R8",
+  "postFrozenSource": true,
+  "productBackendSHA": "4a799842a43d949740f3567698371a95118fce90cc1f004a142527825fcbde50",
+  "sourceTemplates": "r6-* controllers plus narrow optional fixed engine selectors in QA bootstrap/runner",
+  "nativeParserValidated": false,
+  "nativeScenariosRun": false,
+  "files": {
+    "r8-boot-setup.ps1": {
+      "bytes": 9286,
+      "sha256": "47076645b15804e22be3afcf9a5880ca50e34f615b5f513c0f1e9b790cb8b9b9"
+    },
+    "r8-boot-startup.ps1": {
+      "bytes": 10778,
+      "sha256": "8bba082469aa01dfd081a7ab15be712aaf5ec6b2ea3844d43cc8cc91a5be276b"
+    },
+    "r8-full-work.ps1": {
+      "bytes": 9476,
+      "sha256": "5cce6ede541b08571dc629b933c62b49e31ed23ed52de71b45fd4b78a9c00282"
+    },
+    "r8-partial-host.py": {
+      "bytes": 14515,
+      "sha256": "d85755fbd88ad2e87106bb024c253b3ed04a90fb2035b6c299084c332eb67eb2"
+    },
+    "r8-partial.ps1": {
+      "bytes": 12967,
+      "sha256": "1e6c839392dbe4ab071193a408b67d1ae9120c8274f8a2bd763984ecaf64bec6"
+    },
+    "r8-service-faults.ps1": {
+      "bytes": 12528,
+      "sha256": "7c2d1bd1acf89ac17538763538782363bb99acc7aea0a9c3af02946f7aca74b9"
+    },
+    "r8-ui-matrix.ps1": {
+      "bytes": 11401,
+      "sha256": "7e9bae520d5d9a908513aebf518a7d46ce593620358991d4a3e03367a2fdb2b0"
+    },
+    "qa-bootstrap.ps1": {
+      "bytes": 9008,
+      "sha256": "f7cb15e11a8bc2d534c1b7660b3771b0cd532b9af8b9f2706f23b0d9cfef8cda"
+    },
+    "qa-runner.ps1": {
+      "bytes": 21466,
+      "sha256": "733f8c2c8bbd59d49e14caab009c1e7750e66909e65b84c4466a2238298a7f1b"
+    },
+    "r8-engine-faults.ps1": {
+      "bytes": 10987,
+      "sha256": "29ccad7361df94415b75e54b5ea563ff0b539d6d98c4ee741999485484fd1687"
+    },
+    "r8-user-isolation.ps1": {
+      "bytes": 21331,
+      "sha256": "5b64369703449d2fa44676671cb54a60f7bc6052803419d00b464bf95c056c96"
+    },
+    "r8-engine-selector-diagnostic.ps1": {
+      "bytes": 7134,
+      "sha256": "133b78375c1e58770cc29a674fa01941e805464a5076be5a343c8073614d7cf7"
+    },
+    "r8-network-change.ps1": {
+      "bytes": 21250,
+      "sha256": "fb74e5291ab715861457ffa2badb00ffa555d48fadf2bfbfd5ceaafe23d55d6e"
+    },
+    "r8-engine-matrix.ps1": {
+      "bytes": 12917,
+      "sha256": "2a65c121de9d39a444b375636a4c78f33f2d0c5047504b0b11d17b716839c7e2"
+    },
+    "r8-foreign-abort.ps1": {
+      "bytes": 7654,
+      "sha256": "14b09f603df8bfe64b72593f0cad7e7402da2801a34c1492de00677808917100",
+      "template": "dist/windows/native-win10-r8/controllers/r8-foreign-abort.ps1",
+      "templateSHA256": "881595d9ced31d9b5d3aa7b1848ff31a08db8a8ce0e641f955fd60a3f80ebcba"
+    }
+  },
+  "corrections": [
+    {
+      "file": "qa-runner.ps1",
+      "scope": "QA only; before native engine-fault proof",
+      "problem": "Initial main-only unprefixed profile ID regex refused valid prefixed work IDs.",
+      "fix": "Root-reviewed selector-specific wg-/awg-/ovpn- plus 32 lowercase hex; main retains unprefixed 32 hex.",
+      "nativeFaultProofRun": false
+    },
+    {
+      "file": "qa-runner.ps1",
+      "scope": "QA only; initial OpenVPN engine-fault task stopped before Kill",
+      "problem": "Protected rejected inherited TrustedInstaller maintenance rights on public installed app directories.",
+      "fix": "Trust exact TrustedInstaller SID only for nonprivate exact application root or normalized descendants, keeping Vault443QA/private trust list and InheritOnly handling unchanged.",
+      "evidence": "Read-only native ACL: app/openvpn directories owner BA, inherited TrustedInstaller FullControl; installed manifest/EXE owner BA, BU read only."
+    },
+    {
+      "file": "r8-network-change.ps1",
+      "scope": "QA syntax only; before execution/network mutation",
+      "problem": "Native PS5 rejected catch immediately adjacent to exception type.",
+      "fix": "Insert the required space in catch [Net.Sockets.SocketException].",
+      "nativeParserValidated": false
+    },
+    {
+      "file": "r8-network-change.ps1",
+      "scope": "QA DNS family selection; native addresses restored but IPv6 resolver remained after IPv4-only setter",
+      "problem": "Set-DnsClientServerAddress with one-family addresses retains static list of the other family.",
+      "fix": "Use explicit family InputObject; change resets IPv4 then sets IPv6, restore resets IPv6 then sets original IPv4. Existing write-ahead intent and exact known-DNS ownership guard preserved.",
+      "nativeOriginalIPRestorationConfirmed": true,
+      "nativeNewVersionExecutionPending": true
+    },
+    {
+      "files": [
+        "qa-runner.ps1",
+        "r8-engine-faults.ps1",
+        "r8-engine-matrix.ps1",
+        "r8-engine-selector-diagnostic.ps1"
+      ],
+      "scope": "QA model mapping only; native matrix stopped at preflight before setup/fault",
+      "problem": "Outline protocol label was incorrectly compared with Profile.Kind; real Kind is shadowsocks.",
+      "fix": "Require exact Outline cache ID plus public kind=shadowsocks, transport=outline, source.kind=outline; protected selector requires private Outline object and transport=outline. Return family remains actual shadowsocks. Update fault/runner SHA pins.",
+      "nativeNewVersionExecutionPending": true
+    }
+  ]
+}

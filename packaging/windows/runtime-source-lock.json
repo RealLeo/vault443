@@ -1,0 +1,10 @@
+{
+  "assets": [
+    {
+      "name": "xray-core-26.9.30-source.tar.gz",
+      "url": "https://codeload.github.com/XTLS/Xray-core/tar.gz/refs/tags/v26.9.30",
+      "bytes": 1118487,
+      "sha256": "85162fa61eb6d1adc9199afff7b41299e69dedd094907e9c56ef665c236b3ef0"
+    }
+  ]
+}

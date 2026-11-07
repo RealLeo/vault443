@@ -58,19 +58,11 @@ func run() error {
 	if e != nil {
 		return e
 	}
-	lf := os.NewFile(3, "private-tcp")
-	listener, e := net.FileListener(lf)
-	lf.Close()
+	listener, packet, e := privateListeners()
 	if e != nil {
-		return errors.New("missing private TCP descriptor")
+		return e
 	}
 	defer listener.Close()
-	uf := os.NewFile(4, "private-udp")
-	packet, e := net.FilePacketConn(uf)
-	uf.Close()
-	if e != nil {
-		return errors.New("missing private UDP descriptor")
-	}
 	defer packet.Close()
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
@@ -108,7 +100,7 @@ func run() error {
 	}))
 	go func() { <-ctx.Done(); listener.Close(); packet.Close() }()
 	slots := make(chan struct{}, 256)
-	fmt.Println(`{"ready":true}`)
+	json.NewEncoder(os.Stdout).Encode(map[string]any{"ready": true, "port": listener.Addr().(*net.TCPAddr).Port})
 	for {
 		conn, e := listener.Accept()
 		if e != nil {

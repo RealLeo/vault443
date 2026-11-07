@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
+	"vault443/internal/securefs"
 )
 
 // Store shares the daemon's already exclusively locked state directory with the
@@ -27,11 +27,9 @@ type Store struct {
 
 func Open(dir string, allowUnprivileged ...bool) (*Store, error) {
 	testing := len(allowUnprivileged) > 0 && allowUnprivileged[0]
-	owner := 0
-	if testing {
-		owner = os.Geteuid()
-	} else if os.Geteuid() != 0 {
-		return nil, errors.New("the system daemon must run as root")
+	owner, ownerErr := securefs.Owner(testing)
+	if ownerErr != nil {
+		return nil, ownerErr
 	}
 	if !filepath.IsAbs(dir) {
 		return nil, errors.New("work VPN state directory must be absolute")
@@ -44,13 +42,12 @@ func Open(dir string, allowUnprivileged ...bool) (*Store, error) {
 				return nil, errors.New("work VPN state path must contain directories without symlinks")
 			}
 			if !testing {
-				st, ok := fi.Sys().(*syscall.Stat_t)
-				if !ok || st.Uid != 0 || fi.Mode().Perm()&0022 != 0 {
-					return nil, errors.New("work VPN state ancestors must be root-owned and not writable by other users")
+				if securefs.Check(fi, p, owner, false) != nil {
+					return nil, errors.New("work VPN state ancestors must be owned by a trusted account and not writable by other users")
 				}
 			}
 			if p == dir {
-				if e = secureInfo(fi, owner, true); e != nil {
+				if e = secureInfo(fi, owner, true, dir); e != nil {
 					return nil, e
 				}
 			}
@@ -61,18 +58,18 @@ func Open(dir string, allowUnprivileged ...bool) (*Store, error) {
 			break
 		}
 	}
-	if e := os.MkdirAll(dir, 0700); e != nil {
+	if e := securefs.MkdirAll(dir, 0700); e != nil {
 		return nil, errors.New("cannot create private work VPN state directory")
 	}
 	fi, e := os.Lstat(dir)
 	if e != nil {
 		return nil, errors.New("cannot inspect work VPN state directory")
 	}
-	if e = secureInfo(fi, owner, true); e != nil {
+	if e = secureInfo(fi, owner, true, dir); e != nil {
 		return nil, e
 	}
 	s := &Store{dir: dir, owner: owner, state: State{Version: 2, Users: map[string]WorkUser{}}}
-	f, e := os.OpenFile(filepath.Join(dir, StoreFilename), os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	f, e := securefs.OpenFile(filepath.Join(dir, StoreFilename), os.O_RDONLY|securefs.NoFollow|securefs.NonBlock, 0)
 	if os.IsNotExist(e) {
 		return s, nil
 	}
@@ -84,7 +81,7 @@ func Open(dir string, allowUnprivileged ...bool) (*Store, error) {
 	if e != nil {
 		return nil, errors.New("cannot inspect work VPN state")
 	}
-	if e = secureInfo(fi, owner, false); e != nil {
+	if e = secureInfo(fi, owner, false, f.Name()); e != nil {
 		return nil, e
 	}
 	if fi.Size() > MaxStateBytes {
@@ -152,13 +149,13 @@ func (s *Store) backupLegacy(raw []byte) error {
 	// backup. A crash before publication leaves only an ignored temporary file.
 	e = os.Link(tmp, path)
 	if os.IsExist(e) {
-		old, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+		old, err := securefs.OpenFile(path, os.O_RDONLY|securefs.NoFollow|securefs.NonBlock, 0)
 		if err != nil {
 			return errors.New("cannot verify existing work VPN migration backup")
 		}
 		defer old.Close()
 		fi, err := old.Stat()
-		if err != nil || secureInfo(fi, s.owner, false) != nil || fi.Size() > MaxStateBytes {
+		if err != nil || secureInfo(fi, s.owner, false, path) != nil || fi.Size() > MaxStateBytes {
 			return errors.New("invalid work VPN migration backup")
 		}
 		data, err := io.ReadAll(io.LimitReader(old, MaxStateBytes+1))
@@ -173,22 +170,23 @@ func (s *Store) backupLegacy(raw []byte) error {
 		return errors.New("cannot sync work VPN migration backup")
 	}
 	defer d.Close()
-	if d.Sync() != nil {
+	if securefs.SyncDir(d) != nil {
 		return errors.New("cannot sync work VPN migration backup")
 	}
 	return nil
 }
 
-func secureInfo(fi os.FileInfo, owner int, dir bool) error {
+func secureInfo(fi os.FileInfo, owner int, dir bool, paths ...string) error {
 	if fi.IsDir() != dir || (!dir && !fi.Mode().IsRegular()) {
 		return errors.New("work VPN state has incorrect file type")
 	}
-	st, ok := fi.Sys().(*syscall.Stat_t)
-	if !ok || int(st.Uid) != owner || fi.Mode().Perm()&0077 != 0 {
-		return errors.New("work VPN state must be private and owned by the daemon user")
+	path := fi.Name()
+	if len(paths) > 0 {
+		path = paths[0]
 	}
-	return nil
+	return securefs.Check(fi, path, owner, true)
 }
+
 func clone(s State) State        { b, _ := json.Marshal(s); var o State; _ = json.Unmarshal(b, &o); return o }
 func (s *Store) Snapshot() State { s.mu.Lock(); defer s.mu.Unlock(); return clone(s.state) }
 func (s *Store) Update(fn func(*State) error) error {
@@ -209,12 +207,12 @@ func (s *Store) Update(fn func(*State) error) error {
 	// permission changes or symlinks are rejected rather than silently repaired.
 	if fi, e := os.Lstat(s.dir); e != nil {
 		return errors.New("cannot inspect work VPN state directory")
-	} else if e = secureInfo(fi, s.owner, true); e != nil {
+	} else if e = secureInfo(fi, s.owner, true, s.dir); e != nil {
 		return e
 	}
 	path := filepath.Join(s.dir, StoreFilename)
 	if fi, e := os.Lstat(path); e == nil {
-		if e = secureInfo(fi, s.owner, false); e != nil {
+		if e = secureInfo(fi, s.owner, false, path); e != nil {
 			return e
 		}
 	} else if !os.IsNotExist(e) {
@@ -236,7 +234,7 @@ func (s *Store) Update(fn func(*State) error) error {
 	if e != nil || closeErr != nil {
 		return errors.New("cannot save private work VPN state")
 	}
-	if e = os.Rename(tmp, path); e != nil {
+	if e = securefs.Replace(tmp, path); e != nil {
 		return errors.New("cannot replace private work VPN state")
 	}
 	// Publish the durable document after rename even if fsync fails; continuing
@@ -247,7 +245,7 @@ func (s *Store) Update(fn func(*State) error) error {
 		return errors.New("work VPN state saved but directory sync failed")
 	}
 	defer d.Close()
-	if e = d.Sync(); e != nil {
+	if e = securefs.SyncDir(d); e != nil {
 		return errors.New("work VPN state saved but directory sync failed")
 	}
 	return nil

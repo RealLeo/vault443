@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"syscall"
+	"vault443/internal/securefs"
 )
 
 func (s *Store) backupLegacy(raw []byte) error {
@@ -31,13 +31,13 @@ func (s *Store) backupLegacy(raw []byte) error {
 	// backup. A crash before publication leaves only an ignored temporary file.
 	e = os.Link(tmp, path)
 	if os.IsExist(e) {
-		old, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+		old, err := securefs.OpenFile(path, os.O_RDONLY|securefs.NoFollow|securefs.NonBlock, 0)
 		if err != nil {
 			return errors.New("cannot verify existing profile migration backup")
 		}
 		defer old.Close()
 		fi, err := old.Stat()
-		if err != nil || secureInfo(fi, s.owner, false) != nil || fi.Size() > 16<<20 {
+		if err != nil || secureInfo(fi, s.owner, false, path) != nil || fi.Size() > 16<<20 {
 			return errors.New("invalid profile migration backup")
 		}
 		data, err := io.ReadAll(io.LimitReader(old, 16<<20+1))
@@ -52,7 +52,7 @@ func (s *Store) backupLegacy(raw []byte) error {
 		return errors.New("cannot sync profile migration backup")
 	}
 	defer d.Close()
-	if d.Sync() != nil {
+	if securefs.SyncDir(d) != nil {
 		return errors.New("cannot sync profile migration backup")
 	}
 	return nil

@@ -47,17 +47,58 @@ func answer(q []byte) ([]byte, error) {
 	if typ == 1 && class == 1 && name != "web6.e2e.example.com" {
 		binary.BigEndian.PutUint16(a[6:], 1)
 		a = append(a, 0xc0, 0x0c, 0, 1, 0, 1, 0, 0, 0, 1, 0, 4, 93, 184, 215, 14)
-	} else if typ == 28 && class == 1 && (name == "web6.e2e.example.com" || name == "webdual.e2e.example.com" || name == "cp.cloudflare.com" || name == "www.gstatic.com") {
+	} else if typ == 28 && class == 1 && (name == "web6.e2e.example.com" || name == "webdual.e2e.example.com" || strings.HasSuffix(name, ".webdual.e2e.example.com") || name == "cp.cloudflare.com" || name == "www.gstatic.com") {
 		binary.BigEndian.PutUint16(a[6:], 1)
 		a = append(a, 0xc0, 0x0c, 0, 28, 0, 1, 0, 0, 0, 1, 0, 16)
 		a = append(a, net.ParseIP("2001:db8:66::14").To16()...)
 	}
 	return a, nil
 }
+
+// The marker includes the actual sender observed by the destination. Echoing a
+// nonce alone would also succeed over an accidentally unprotected physical path.
+func serveUDP(conn *net.UDPConn) error {
+	var packet [512]byte
+	for {
+		n, peer, err := conn.ReadFromUDP(packet[:])
+		if err != nil {
+			return err
+		}
+		text := string(packet[:n])
+		const prefix = "vault443-main-udp:"
+		if !strings.HasPrefix(text, prefix) || len(text) != len(prefix)+32 {
+			continue
+		}
+		nonce := strings.TrimPrefix(text, prefix)
+		if strings.IndexFunc(nonce, func(c rune) bool { return !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') }) >= 0 {
+			continue
+		}
+		body, err := json.Marshal(map[string]string{"marker": "main-udp-e2e-ok", "peer": peer.IP.String(), "nonce": nonce})
+		if err == nil {
+			_, _ = conn.WriteToUDP(body, peer)
+		}
+	}
+}
+
 func main() {
+	for _, address := range []string{"93.184.215.14:18081", "[2001:db8:66::14]:18081"} {
+		addr, err := net.ResolveUDPAddr("udp", address)
+		if err != nil {
+			log.Fatal(err)
+		}
+		conn, err := net.ListenUDP("udp", addr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		go func() { log.Fatal(serveUDP(conn)) }()
+	}
 	web := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/outline" {
-			data, e := os.ReadFile("/fixture/dynamic-outline")
+		if r.URL.Path == "/outline" || r.URL.Path == "/subscription" {
+			path := "/fixture/dynamic-outline"
+			if r.URL.Path == "/subscription" {
+				path = "/fixture/main-subscription"
+			}
+			data, e := os.ReadFile(path)
 			if e != nil {
 				http.Error(w, "unavailable", 503)
 				return
@@ -107,13 +148,15 @@ func main() {
 			log.Fatal(server.ListenAndServeTLS("/fixture/server.crt", "/fixture/server.key"))
 		}(address)
 	}
-	go func() {
-		log.Fatal(http.ListenAndServe("93.184.215.14:8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			peer, _, _ := net.SplitHostPort(r.RemoteAddr)
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]string{"marker": "vless-e2e-ok", "peer": peer})
-		})))
-	}()
+	for _, address := range []string{"93.184.215.14:8080", "[2001:db8:66::14]:8080"} {
+		go func(address string) {
+			log.Fatal(http.ListenAndServe(address, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				peer, _, _ := net.SplitHostPort(r.RemoteAddr)
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(map[string]string{"marker": "vless-e2e-ok", "peer": peer})
+			})))
+		}(address)
+	}
 	doh := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Accept") == "application/dns-json" {
 			name := r.URL.Query().Get("name")

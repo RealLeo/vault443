@@ -4,8 +4,13 @@
 
 #include <QApplication>
 #include <QCommandLineParser>
+#ifndef Q_OS_WIN
 #include <QDBusInterface>
 #include <QDBusReply>
+#else
+#include <QLocalServer>
+#include <QLocalSocket>
+#endif
 #include <QIcon>
 #include <QMenu>
 #include <QQmlApplicationEngine>
@@ -27,7 +32,7 @@ int main(int argc, char **argv) {
     app.setDesktopFileName("vault443");
     app.setWindowIcon(QIcon(":/assets/profile-icons/vault-door.png"));
     QCommandLineParser parser;
-    parser.setApplicationDescription("Vault 443 — Linux VPN client");
+    parser.setApplicationDescription("Vault 443 — VPN client");
     parser.addHelpOption(); parser.addVersionOption();
     parser.addOption({"demo", "Run isolated in-memory demo; never contact the VPN service"});
     parser.addOption({"screenshot", "Write a demo screenshot and exit", "path"});
@@ -40,9 +45,12 @@ int main(int argc, char **argv) {
     const bool demo = parser.isSet("demo");
     if (parser.isSet("screenshot") && !demo) { qCritical("--screenshot requires --demo"); return 2; }
     LanguageController language(!demo);
+#ifndef Q_OS_WIN
     auto session = QDBusConnection::sessionBus();
+#endif
     Bridge bridge(demo);
     if (demo) bridge.setDemoState(parser.value("demo-state"));
+#ifndef Q_OS_WIN
     if (!demo && session.isConnected()) {
         if (!session.registerService("org.vault443.Client")) {
             QDBusInterface previous("org.vault443.Client", "/org/vault443/Client", "org.vault443.Client1", session);
@@ -52,6 +60,26 @@ int main(int argc, char **argv) {
         }
         session.registerObject("/org/vault443/Client", &bridge, QDBusConnection::ExportAllSlots);
     }
+#else
+    QLocalServer instance;
+    instance.setSocketOptions(QLocalServer::UserAccessOption);
+    if (!demo) {
+        const auto name = ServiceConnection::instanceName();
+        if (name.isEmpty()) { qCritical("Cannot identify the local desktop session"); return 4; }
+        QLocalSocket previous; previous.connectToServer(name);
+        if (previous.waitForConnected(250)) { previous.write("Raise\n"); previous.waitForBytesWritten(250); return 0; }
+        if (!instance.listen(name)) { qCritical("Cannot open the local interface instance"); return 4; }
+        QObject::connect(&instance, &QLocalServer::newConnection, &bridge, [&instance, &bridge] {
+            while (auto *socket = instance.nextPendingConnection()) {
+                QObject::connect(socket, &QLocalSocket::readyRead, &bridge, [socket, &bridge] {
+                    if (socket->readAll() == "Raise\n") bridge.Raise();
+                    socket->disconnectFromServer();
+                });
+                QObject::connect(socket, &QLocalSocket::disconnected, socket, &QObject::deleteLater);
+            }
+        });
+    }
+#endif
     QQuickStyle::setStyle("Basic");
     TrayController tray(&bridge, !demo);
     QQmlApplicationEngine engine;

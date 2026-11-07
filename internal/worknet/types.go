@@ -1,3 +1,5 @@
+//go:build linux
+
 // Package worknet supervises owned OpenVPN processes and their shared routing
 // policy. Imported configuration never selects privileged executable paths.
 package worknet
@@ -12,43 +14,6 @@ import (
 	"vault443/internal/workvpn"
 )
 
-type Config struct{ StateDir, RuntimeDir, OpenVPNPath, EventHelperPath, WireGuardPath, AmneziaWGPath, AmneziaWGSocketDir string }
-type PeerStatus struct {
-	ID              string   `json:"id"`
-	Endpoint        string   `json:"endpoint"`
-	State           string   `json:"state"`
-	LastHandshakeAt int64    `json:"lastHandshakeAt,omitempty"`
-	AllowedIPs      []string `json:"allowedIPs"`
-}
-type Status struct {
-	Peers                 []PeerStatus `json:"peers,omitempty"`
-	State                 string       `json:"state"`
-	Stage                 string       `json:"stage"`
-	Message               string       `json:"message,omitempty"`
-	StageStartedAt        int64        `json:"stageStartedAt"`
-	ConnectedAt           int64        `json:"connectedAt,omitempty"`
-	Interface             string       `json:"interface,omitempty"`
-	Routes                []string     `json:"routes,omitempty"`
-	DNSServers            []string     `json:"dnsServers,omitempty"`
-	DNSDomains            []string     `json:"dnsDomains,omitempty"`
-	NetworkManagerState   string       `json:"networkManagerState,omitempty"`
-	NetworkManagerMessage string       `json:"networkManagerMessage,omitempty"`
-}
-type RouteInfo struct {
-	CIDR       string `json:"cidr,omitempty"`
-	Domain     string `json:"domain,omitempty"`
-	Source     string `json:"source"`
-	Target     string `json:"target"`
-	TargetName string `json:"targetName,omitempty"`
-	Interface  string `json:"interface,omitempty"`
-	State      string `json:"state"`
-	Message    string `json:"message,omitempty"`
-	Conflict   bool   `json:"conflict"`
-}
-type route struct {
-	CIDR    string `json:"cidr"`
-	Gateway string `json:"gateway,omitempty"`
-}
 type session struct {
 	ID           string              `json:"id"`
 	Kind         string              `json:"kind,omitempty"`
@@ -151,16 +116,6 @@ func (m *Manager) Snapshot(id string) Status {
 		return copyStatus(s)
 	}
 	return Status{State: "disconnected", Stage: "disconnected"}
-}
-func copyStatus(s Status) Status {
-	s.Peers = append([]PeerStatus(nil), s.Peers...)
-	for i := range s.Peers {
-		s.Peers[i].AllowedIPs = append([]string(nil), s.Peers[i].AllowedIPs...)
-	}
-	s.Routes = append([]string(nil), s.Routes...)
-	s.DNSServers = append([]string(nil), s.DNSServers...)
-	s.DNSDomains = append([]string(nil), s.DNSDomains...)
-	return s
 }
 func (m *Manager) Routes() []RouteInfo {
 	v := m.view.Load()

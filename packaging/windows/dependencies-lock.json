@@ -1,0 +1,80 @@
+{
+  "qtVersion": "6.12.0",
+  "xrayVersion": "26.9.30",
+  "innoVersion": "7.1.1",
+  "assets": [
+    {
+      "name": "qtshadertools-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z",
+      "url": "https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6120/qt6_6120_msvc2022_64/qt.qt6.6120.addons.qtshadertools.win64_msvc2022_64/6.12.0-0-202609280346qtshadertools-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z",
+      "bytes": 3357406,
+      "sha256": "dfceb86842d60a81ff75c1c2c98d49d186efc5c6cc49f0225b3b2ed699beca4b"
+    },
+    {
+      "name": "qtbase-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z",
+      "url": "https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6120/qt6_6120_msvc2022_64/qt.qt6.6120.win64_msvc2022_64/6.12.0-0-202609280346qtbase-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z",
+      "bytes": 40184745,
+      "sha256": "219d1b86def3be418e31d704572bc4acc91b2ec373c65595c9fb12b42bf098dc"
+    },
+    {
+      "name": "qtdeclarative-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z",
+      "url": "https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6120/qt6_6120_msvc2022_64/qt.qt6.6120.win64_msvc2022_64/6.12.0-0-202609280346qtdeclarative-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z",
+      "bytes": 199517162,
+      "sha256": "258146e9972fadbc1162cda31c7d7ed7e627f5022b2a848f2edb84d9c2ce27db"
+    },
+    {
+      "name": "qttools-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z",
+      "url": "https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6120/qt6_6120_msvc2022_64/qt.qt6.6120.win64_msvc2022_64/6.12.0-0-202609280346qttools-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z",
+      "bytes": 27373417,
+      "sha256": "73328e361429378df518f391ebe4d82c51e833f4d5a951692768ab5a5a1d7da5"
+    },
+    {
+      "name": "qttranslations-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z",
+      "url": "https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6120/qt6_6120_msvc2022_64/qt.qt6.6120.win64_msvc2022_64/6.12.0-0-202609280346qttranslations-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z",
+      "bytes": 2014837,
+      "sha256": "328321e8879a3dc119775b4404d6e32ec2a361696e73f760540a732921507917"
+    },
+    {
+      "name": "xray-windows-x64.zip",
+      "url": "https://github.com/XTLS/Xray-core/releases/download/v26.9.30/Xray-windows-64.zip",
+      "bytes": 21392686,
+      "sha256": "b17a619343c11b89d8faf36278298856749b15c52277d875d32051b33dcda617"
+    },
+    {
+      "name": "wintun-0.14.1.zip",
+      "url": "https://www.wintun.net/builds/wintun-0.14.1.zip",
+      "bytes": 750540,
+      "sha256": "07c256185d6ee3652e09fa55c0b673e2624b565e02c4b9091c79ca7d2f24ef51"
+    },
+    {
+      "name": "vs-BuildTools-2022.exe",
+      "url": "https://download.visualstudio.microsoft.com/download/pr/6bd63d7f-1818-4e03-a552-9feb11496c19/5dc747350fb0589f908915c7b5fa52ec22d22b37ae2e5f4964d83519667498b2/vs_BuildTools.exe",
+      "bytes": 4474816,
+      "sha256": "5dc747350fb0589f908915c7b5fa52ec22d22b37ae2e5f4964d83519667498b2"
+    },
+    {
+      "name": "innosetup-7.1.1.exe",
+      "url": "https://github.com/jrsoftware/issrc/releases/download/is-7_1_1/innosetup-7.1.1-x64.exe",
+      "bytes": 14336568,
+      "sha256": "8a5a6711c3766a6e5fb74f280ba0e3551e719ce94538d901fdbd1f8f9920b3f0"
+    },
+    {
+      "name": "qtbase-everywhere-src-6.12.0.tar.xz",
+      "url": "https://download.qt.io/official_releases/qt/6.12/6.12.0/submodules/qtbase-everywhere-src-6.12.0.tar.xz",
+      "bytes": 51220268,
+      "sha256": "a951bd163c7b80fc6b8c88d7668fb56abf91c152373e13c10666763238131307"
+    },
+    {
+      "name": "qtbase-CVE-2026-105924.diff",
+      "url": "https://download.qt.io/official_releases/qt/6.12/CVE-2026-105924-qtbase-6.12.diff",
+      "bytes": 5019,
+      "sha256": "c27d27b86aaf2cdab0c18d513fbb94a432e98782eddfc5f856387e4be68be50b"
+    },
+    {
+      "name": "python-3.12.10-embed-amd64.zip",
+      "url": "https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip",
+      "bytes": 11133606,
+      "sha256": "4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3"
+    }
+  ],
+  "msvcVersion": "17.14.44"
+}

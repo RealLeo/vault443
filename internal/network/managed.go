@@ -1,3 +1,5 @@
+//go:build linux
+
 package network
 
 // This file is the narrow in-process integration point for application-owned

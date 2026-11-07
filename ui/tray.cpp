@@ -2,10 +2,13 @@
 #include "bridge.h"
 
 #include <QApplication>
+#ifndef Q_OS_WIN
+#include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusPendingCallWatcher>
 #include <QDBusServiceWatcher>
 #include <QDBusVariant>
+#endif
 #include <QPainter>
 #include <QEvent>
 #include <QJsonDocument>
@@ -122,6 +125,7 @@ TrayController::TrayController(Bridge *bridge, bool enabled, QObject *parent)
     if (!enabled) { createIcon(); return; }
     connect(&m_hostTimer, &QTimer::timeout, this, &TrayController::checkHost);
     m_hostTimer.start(2000);
+#ifndef Q_OS_WIN
     auto *watcher = new QDBusServiceWatcher("org.kde.StatusNotifierWatcher", QDBusConnection::sessionBus(),
                                           QDBusServiceWatcher::WatchForOwnerChange, this);
     connect(watcher, &QDBusServiceWatcher::serviceOwnerChanged, this,
@@ -132,6 +136,7 @@ TrayController::TrayController(Bridge *bridge, bool enabled, QObject *parent)
         if (owner.isEmpty() && m_tray) m_tray->hide();
         checkHost();
     });
+#endif
     checkHost();
 }
 
@@ -197,6 +202,15 @@ void TrayController::update() {
 }
 
 void TrayController::checkHost() {
+#ifdef Q_OS_WIN
+    const bool available = QSystemTrayIcon::isSystemTrayAvailable();
+    if (available) {
+        if (!m_tray) createIcon();
+        m_tray->show();
+    } else if (m_tray) m_tray->hide();
+    m_bridge->setTrayAvailable(available);
+    qApp->setQuitOnLastWindowClosed(!available);
+#else
     if (m_hostPending) return;
     m_hostPending = true;
     const auto generation = m_hostGeneration;
@@ -220,4 +234,5 @@ void TrayController::checkHost() {
         m_bridge->setTrayAvailable(available);
         qApp->setQuitOnLastWindowClosed(!available);
     });
+#endif
 }

@@ -6,7 +6,7 @@
 #include <QPersistentModelIndex>
 #include <QScopeGuard>
 #include <QClipboard>
-#include <QDBusMessage>
+#include "servicetransport.h"
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -38,10 +38,14 @@ private:
     }
     QQuickItem *item(const QString &name) { return findItem(window->contentItem(), name); }
     void fixtureControl(const QString &method, const QVariantList &args = {}) {
-        auto message = QDBusMessage::createMethodCall("org.vault443.Service1", "/org/vault443/Service1", "org.vault443.Service1", method);
+        auto message = ServiceMessage::createMethodCall("org.vault443.Service1", "/org/vault443/Service1", "org.vault443.Service1", method);
         message.setArguments(args);
-        const auto reply = QDBusConnection::systemBus().call(message, QDBus::Block, 5000);
-        QVERIFY2(reply.type() != QDBusMessage::ErrorMessage, qPrintable(reply.errorMessage()));
+        const auto connection = ServiceConnection::systemBus();
+        ServiceCallWatcher call(connection.asyncCall(message, 5000));
+        QSignalSpy completed(&call, &ServiceCallWatcher::finished);
+        QVERIFY(completed.wait(6000));
+        const auto reply = call.reply();
+        QVERIFY2(reply.type() != ServiceMessage::ErrorMessage, qPrintable(reply.errorMessage()));
     }
     void fixtureConfigure(const QVariantMap &options) {
         fixtureControl("FixtureConfigure", {QString::fromUtf8(QJsonDocument(QJsonObject::fromVariantMap(options)).toJson(QJsonDocument::Compact))});
@@ -92,6 +96,51 @@ private:
 private slots:
     void init() { QSettings().remove("ui/profileOrder"); if (qEnvironmentVariable("VAULT443_UI_PRIVATE_BUS_TEST") == "1") fixtureConfigure({}); loadWindow(true); }
     void cleanup() { engine.reset(); bridge.reset(); language.reset(); window = nullptr; }
+    void enrollmentRequiresExactServiceRejection() {
+        const QString denied = "Access denied: this user has not been granted Vault 443 access";
+        QCOMPARE(ServiceMessage::fromJsonRpcError(-32001, denied).errorName(), QString("EnrollmentRequired"));
+        for (const auto &answer : {ServiceMessage::fromJsonRpcError(-32603, denied),
+                                  ServiceMessage::fromJsonRpcError(-32001, "Access denied: the local login session changed"),
+                                  ServiceMessage::fromJsonRpcError(-32001, "Access denied: administrator approval is required"),
+                                  ServiceMessage::fromJsonRpcError(-32001, denied + ".")})
+            QVERIFY(answer.errorName() != "EnrollmentRequired");
+        QCOMPARE(ServiceMessage::fromJsonRpcError(-32601, "Unknown method").errorName(), QString("UnknownMethod"));
+    }
+    void enrollmentIsReviewedAndNeverPromptedByPolling() {
+        bridge->requestServiceAccess(); QVERIFY(!bridge->enrollmentPending());
+        bridge->setDemoState("access-required");
+        auto *dialog = window->findChild<QObject *>("enrollment-dialog"); QVERIFY(dialog);
+        QVERIFY(!dialog->property("visible").toBool()); QVERIFY(!bridge->enrollmentPending());
+        QCOMPARE(item("access-status")->property("text").toString(), qmlText("Allow this Windows account"));
+        click("empty-action"); QTRY_VERIFY(dialog->property("visible").toBool());
+        QVERIFY(!bridge->enrollmentPending());
+        click("enrollment-later"); QTRY_VERIFY(!dialog->property("visible").toBool());
+        for (int i = 0; i < 3; ++i) bridge->setDemoState("access-required");
+        QTest::qWait(100);
+        QVERIFY(!dialog->property("visible").toBool()); QVERIFY(!bridge->enrollmentPending());
+        click("empty-action"); click("enrollment-approve");
+        QVERIFY(bridge->enrollmentPending()); QVERIFY(!item("enrollment-approve")->isEnabled());
+        bridge->requestServiceAccess(); // Repeated activation cannot start a second helper.
+        QTRY_VERIFY(!bridge->enrollmentRequired()); QTRY_VERIFY(!dialog->property("visible").toBool());
+        QVERIFY(bridge->online()); QVERIFY(bridge->enrollmentError().isEmpty());
+    }
+    void manualVPNBindingUsesPlatformFields() {
+        click("settings-button"); click("vpn-tab"); click("vpn-advanced");
+        auto *alias = item("vpn-interface"), *service = item("vpn-service"); QVERIFY(alias && service);
+        QCOMPARE(alias->property("maximumLength").toInt(), bridge->windowsPlatform() ? 256 : 15);
+        QCOMPARE(item("vpn-cgroup")->isVisible(), !bridge->windowsPlatform());
+        QCOMPARE(item("vpn-mark")->isVisible(), !bridge->windowsPlatform());
+        const auto managers = item("vpn-manager")->property("model").toStringList();
+        if (bridge->windowsPlatform()) {
+            alias->setProperty("text", "Corporate VPN Adapter With Long Name");
+            QCOMPARE(alias->property("text").toString(), QString("Corporate VPN Adapter With Long Name"));
+            QCOMPARE(service->property("placeholderText").toString(), qmlText("Windows service name, e.g. OpenVPNService"));
+            QVERIFY(!managers.contains("networkmanager")); QVERIFY(managers.contains("wireguard"));
+        } else {
+            QCOMPARE(service->property("placeholderText").toString(), qmlText("systemd unit, e.g. openvpn-client@work.service"));
+            QVERIFY(managers.contains("networkmanager")); QVERIFY(managers.contains("wg-quick"));
+        }
+    }
     void profileOrderModelPreservesIdentityAndPersists() {
         const QVariantList library{QVariantMap{{"id","a"},{"name","Main"},{"kind","vless"}},
             QVariantMap{{"id","b"},{"name","Office"},{"kind","openvpn"}}, QVariantMap{{"id","c"},{"name","Peer"},{"kind","wireguard"}}};
@@ -516,9 +565,13 @@ private slots:
     void initialLanguageUsesSystemPreferences() {
         QCOMPARE(language->preference(), QString("system"));
         QCOMPARE(language->language(), LanguageController::resolveLanguage(QLocale::system().uiLanguages()));
+#ifndef Q_OS_WIN
+        // Qt obtains native Windows UI preferences through the OS API. The
+        // Unix LANGUAGE override does not change Windows system preferences.
         const auto requestedLanguages = qEnvironmentVariable("LANGUAGE");
         if (!requestedLanguages.isEmpty())
             QCOMPARE(language->language(), LanguageController::resolveLanguage(requestedLanguages.split(':')));
+#endif
         qInfo().noquote() << "System UI languages:" << QLocale::system().uiLanguages().join(", ")
                           << "; resolved:" << language->language();
     }
@@ -1073,7 +1126,7 @@ private slots:
         QTRY_VERIFY(item("vpn-discovery-status")->property("text").toString() == language->serviceMessage(bridge->vpnCompatibilityError()));
         QVERIFY(bridge->error().isEmpty());
         bridge->setDemoState("vpn-empty");
-        QTRY_VERIFY(item("vpn-discovery-status")->property("text").toString() == qmlText("No active external VPNs found. Connect Pritunl, then open this tab."));
+        QTRY_VERIFY(item("vpn-discovery-status")->property("text").toString() == qmlText(bridge->windowsPlatform() ? "No active external VPNs found. Connect a supported VPN, then reopen this tab." : "No active external VPNs found. Connect Pritunl, then open this tab."));
         bridge->setDemoState("foreign");
         QTRY_VERIFY(bridge->vpnCompatibility().value("busyByOtherUser").toBool());
         QVERIFY(bridge->vpnCompatibility().value("items").toList().isEmpty());

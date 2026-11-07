@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/netip"
+	"runtime"
 	"strings"
 
 	"vault443/internal/model"
@@ -58,7 +59,7 @@ func Build(p model.Profile, o Options) ([]byte, error) {
 			if o.LocalPort < 1 || o.LocalPort > 65535 || o.LocalUser == "" || o.LocalPassword == "" {
 				return nil, errors.New("Outline adapter is not ready")
 			}
-			proxy = map[string]any{"tag": "proxy", "protocol": "socks", "streamSettings": map[string]any{"sockopt": map[string]any{"mark": OutlineMark}}, "settings": map[string]any{"servers": []any{map[string]any{"address": "127.0.0.1", "port": o.LocalPort, "users": []any{map[string]any{"user": o.LocalUser, "pass": o.LocalPassword}}}}}}
+			proxy = map[string]any{"tag": "proxy", "protocol": "socks", "streamSettings": map[string]any{"sockopt": socketOptions(o, true)}, "settings": map[string]any{"servers": []any{map[string]any{"address": "127.0.0.1", "port": o.LocalPort, "users": []any{map[string]any{"user": o.LocalUser, "pass": o.LocalPassword}}}}}}
 		} else {
 			method, e := profiles.NormalizeMethod(p.Method, p.Password)
 			if e != nil {
@@ -67,7 +68,7 @@ func Build(p model.Profile, o Options) ([]byte, error) {
 			if p.Port < 1 || p.Port > 65535 {
 				return nil, errors.New("invalid Shadowsocks port")
 			}
-			proxy = map[string]any{"tag": "proxy", "protocol": "shadowsocks", "settings": map[string]any{"address": o.Endpoint.String(), "port": p.Port, "method": method, "password": p.Password}, "streamSettings": map[string]any{"sockopt": map[string]any{"mark": o.Mark, "interface": o.Uplink}}}
+			proxy = map[string]any{"tag": "proxy", "protocol": "shadowsocks", "settings": map[string]any{"address": o.Endpoint.String(), "port": p.Port, "method": method, "password": p.Password}, "streamSettings": map[string]any{"sockopt": socketOptions(o, false)}}
 		}
 	default:
 		return nil, errors.New("unsupported proxy protocol")
@@ -79,7 +80,7 @@ func buildStream(p model.Profile, o Options) (map[string]any, error) {
 	if p.Security == "reality" && p.Transport == "ws" {
 		return nil, errors.New("REALITY does not support WebSocket transport")
 	}
-	stream := map[string]any{"network": p.Transport, "security": p.Security, "sockopt": map[string]any{"mark": o.Mark, "interface": o.Uplink}}
+	stream := map[string]any{"network": p.Transport, "security": p.Security, "sockopt": socketOptions(o, false)}
 	sni := p.SNI
 	if sni == "" {
 		sni = p.Server
@@ -172,4 +173,15 @@ func SafeInterface(s string) bool {
 	return strings.IndexFunc(s, func(r rune) bool {
 		return !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' || r == '.')
 	}) < 0
+}
+
+func socketOptions(o Options, local bool) map[string]any {
+	if runtime.GOOS == "windows" {
+		if local {return map[string]any{}}
+		return map[string]any{"interface":o.Uplink}
+	}
+	if local {
+		return map[string]any{"mark": OutlineMark}
+	}
+	return map[string]any{"mark": o.Mark, "interface": o.Uplink}
 }

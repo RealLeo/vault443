@@ -197,6 +197,43 @@ func TestUIDIsolationOwnershipAndAdminBoundaries(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestBootProfileSnapshotReadbackIsUIDScoped(t *testing.T) {
+	s, _, _ := setup(t)
+	owner := Caller{UID: 1001}
+	other := Caller{UID: 1002}
+	id := importOne(t, s, owner, link)
+	if otherID := importOne(t, s, other, link); otherID != id {
+		t.Fatalf("isolation fixture needs the same profile ID for both users: %q != %q", otherID, id)
+	}
+	// Windows UAC authorizes this one write for the console user's UID. The
+	// subsequent ordinary interface snapshot must reflect the saved setting.
+	elevatedOwner := Caller{UID: owner.UID, Admin: true}
+	if err := s.SetBootProfile(elevatedOwner, id); err != nil {
+		t.Fatal(err)
+	}
+	if view := s.GetSnapshot(owner); view.BootProfileID != id || view.CanAdmin {
+		t.Fatalf("ordinary owner cannot read back its boot setting without gaining admin rights: %+v", view)
+	}
+	for _, caller := range []Caller{other, {UID: other.UID, Admin: true}} {
+		if view := s.GetSnapshot(caller); view.BootProfileID != "" {
+			t.Fatalf("another UID saw the boot setting despite only sharing its profile ID: caller=%+v boot=%q", caller, view.BootProfileID)
+		}
+	}
+	if err := s.SetBootProfile(owner, ""); err == nil {
+		t.Fatal("read access allowed an ordinary owner to change the system boot setting")
+	}
+	if s.GetSnapshot(owner).BootProfileID != id {
+		t.Fatal("a denied ordinary write changed the saved boot profile")
+	}
+	if err := s.SetBootProfile(elevatedOwner, ""); err != nil {
+		t.Fatal(err)
+	}
+	if s.GetSnapshot(owner).BootProfileID != "" {
+		t.Fatal("ordinary owner retained a cleared boot selection")
+	}
+}
+
 func TestBootVersusDaemonRestartAndEarlyGuard(t *testing.T) {
 	s, r, st := setup(t)
 	ctx := context.Background()

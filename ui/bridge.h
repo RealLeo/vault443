@@ -1,11 +1,10 @@
 #pragma once
 
 #include <QObject>
+#include "servicetransport.h"
 #include <QVariantMap>
 #include <QHash>
 #include <QJsonObject>
-#include <QDBusConnection>
-#include <QDBusServiceWatcher>
 #include <QSettings>
 #include <QTimer>
 #include <QSet>
@@ -45,6 +44,10 @@ class Bridge final : public QObject {
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(bool networkBusy READ networkBusy NOTIFY busyChanged)
     Q_PROPERTY(bool online READ online NOTIFY onlineChanged)
+    Q_PROPERTY(bool windowsPlatform READ windowsPlatform CONSTANT)
+    Q_PROPERTY(bool enrollmentRequired READ enrollmentRequired NOTIFY enrollmentChanged)
+    Q_PROPERTY(bool enrollmentPending READ enrollmentPending NOTIFY enrollmentChanged)
+    Q_PROPERTY(QString enrollmentError READ enrollmentError NOTIFY enrollmentChanged)
     Q_PROPERTY(bool demo READ demo CONSTANT)
     Q_PROPERTY(bool autostart READ autostart NOTIFY autostartChanged)
     Q_PROPERTY(bool trayAvailable READ trayAvailable WRITE setTrayAvailable NOTIFY trayAvailableChanged)
@@ -93,6 +96,17 @@ public:
     bool busy() const { return hasRequest(RequestScope::Foreground); }
     bool networkBusy() const { return m_networkPending > 0; }
     bool online() const { return m_online; }
+    bool windowsPlatform() const {
+#ifdef Q_OS_WIN
+        return true;
+#else
+        return false;
+#endif
+    }
+    bool enrollmentRequired() const { return m_enrollmentRequired; }
+    bool enrollmentPending() const { return m_enrollmentPending; }
+    QString enrollmentError() const { return m_enrollmentError; }
+    Q_INVOKABLE void requestServiceAccess();
     bool demo() const { return m_demo; }
     bool autostart() const;
     bool trayAvailable() const { return m_trayAvailable; }
@@ -149,6 +163,7 @@ signals:
     void errorChanged();
     void busyChanged();
     void onlineChanged();
+    void enrollmentChanged();
     void autostartChanged();
     void trayAvailableChanged();
     void vpnCompatibilityChanged();
@@ -203,12 +218,14 @@ private:
     qint64 m_diagnosticsReceivedAt = 0, m_snapshotReceivedAt = 0;
     quint64 m_diagnosticsGeneration = 0;
     bool m_diagnosticsPending = false, m_disconnectQueued = false;
-    QDBusConnection m_bus;
-    QDBusServiceWatcher *m_watcher = nullptr;
+    ServiceConnection m_bus;
+    ServiceWatcher *m_watcher = nullptr;
     QHash<quint64, RequestScope> m_requests;
     quint64 m_nextRequest = 0;
     int m_networkPending = 0;
     bool m_demo = false, m_online = false, m_trayAvailable = false;
+    bool m_enrollmentRequired = false, m_enrollmentPending = false;
+    QString m_enrollmentError;
     bool m_refreshing = false, m_refreshAgain = false, m_demoAutostart = false;
     QVariantMap m_vpnCompatibility;
     QString m_vpnCompatibilityError, m_demoCompatibilityState, m_compatibilitySnapshotKey;

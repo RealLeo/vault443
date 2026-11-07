@@ -265,6 +265,7 @@ ApplicationWindow {
         function onSnapshotChanged() { if (!bootProfile.dirty) bootProfile.beginEdit() }
         function onProfileLogsChanged() { Qt.callLater(function() { if (!appWindow.logHistoryMode && appWindow.logFollowEnd) logList.positionViewAtEnd(); else if (!appWindow.logHistoryMode) logList.contentY = appWindow.logSavedPosition }) }
         function onRaiseRequested() { appWindow.showNormal(); appWindow.requestActivate() }
+        function onEnrollmentChanged() { if (!backend.enrollmentRequired) enrollmentDialog.close() }
         function onWorkFilesRead() { importDialog.sourceKind = "work"; importDialog.previewReady = false }
         function onImportFileRead(text) { importArea.text = text; importDialog.previewReady = false }
         function onPreviewChanged() {
@@ -335,18 +336,19 @@ ApplicationWindow {
         ProfileList {
             id: profileListWidget
             x: 40; y: 182; width: 872; height: 565
+            visible: !backend.enrollmentRequired
             host: appWindow
         }
 
         Rectangle {
             x: 56; y: 196; width: 834; height: 523
-            visible: appWindow.profiles.length === 0
+            visible: appWindow.profiles.length === 0 || backend.enrollmentRequired
             color: "#07130b"; radius: 12; border.color: "#796e4f"
             Column {
                 anchors.centerIn: parent; spacing: 24
-                Text { textFormat: Text.PlainText; width: 690; text: backend.online ? qsTr("No profiles") : qsTr("System service unavailable"); color: "#8ceaa0"; font.family: appWindow.bodyFont; font.pixelSize: 38; horizontalAlignment: Text.AlignHCenter }
-                Text { textFormat: Text.PlainText; width: 690; text: backend.online ? qsTr("Import VPN links\nor add a subscription in settings.") : qsTr("Install and start vault443d,\nthen refresh the status."); color: "#829a89"; font.family: appWindow.bodyFont; font.pixelSize: 26; horizontalAlignment: Text.AlignHCenter }
-                MetalButton { objectName: "empty-action"; anchors.horizontalCenter: parent.horizontalCenter; text: backend.online ? qsTr("Import") : qsTr("Refresh"); onClicked: backend.online ? openImport() : backend.refresh() }
+                Text { objectName: "access-status"; textFormat: Text.PlainText; width: 690; text: backend.enrollmentRequired ? qsTr("Allow this Windows account") : backend.online ? qsTr("No profiles") : qsTr("System service unavailable"); color: "#8ceaa0"; font.family: appWindow.bodyFont; font.pixelSize: 38; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap }
+                Text { textFormat: Text.PlainText; width: 690; text: backend.enrollmentRequired ? qsTr("An administrator must approve access to the VPN service once for this Windows account. Review the request to continue.") : backend.online ? qsTr("Import VPN links\nor add a subscription in settings.") : backend.windowsPlatform ? qsTr("Start the Vault 443 Windows service, then refresh the status.") : qsTr("Install and start vault443d,\nthen refresh the status."); color: "#829a89"; font.family: appWindow.bodyFont; font.pixelSize: 26; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap }
+                MetalButton { objectName: "empty-action"; anchors.horizontalCenter: parent.horizontalCenter; width: backend.enrollmentRequired ? 460 : implicitWidth; text: backend.enrollmentRequired ? qsTr("Review access request") : backend.online ? qsTr("Import") : qsTr("Refresh"); enabled: !backend.enrollmentPending; onClicked: backend.enrollmentRequired ? enrollmentDialog.open() : backend.online ? openImport() : backend.refresh() }
             }
         }
         Item {
@@ -418,9 +420,26 @@ ApplicationWindow {
             x: 320; y: 101; width: 452; height: 53; radius: 4
             visible: !backend.online || appWindow.snap.busyByOtherUser || appWindow.runtime.state === "paused_external" || appWindow.runtime.state === "error"
             color: "#df121710"; border.color: "#8f7854"
-            Text { textFormat: Text.PlainText; anchors.fill: parent; anchors.margins: 7; text: !backend.online ? qsTr("Service unavailable") : (appWindow.snap.busyByOtherUser ? qsTr("Another user’s VPN") : (appWindow.runtime.state === "paused_external" ? qsTr("Paused: another VPN") : qsTr("Error · open diagnostics"))); color: "#d9bc78"; font.family: appWindow.bodyFont; font.pixelSize: 24; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+            Text { textFormat: Text.PlainText; anchors.fill: parent; anchors.margins: 7; text: backend.enrollmentRequired ? qsTr("Administrator approval required") : !backend.online ? qsTr("Service unavailable") : (appWindow.snap.busyByOtherUser ? qsTr("Another user’s VPN") : (appWindow.runtime.state === "paused_external" ? qsTr("Paused: another VPN") : qsTr("Error · open diagnostics"))); color: "#d9bc78"; font.family: appWindow.bodyFont; font.pixelSize: 24; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
             PointerHover {}
-            MouseArea { anchors.fill: parent; onClicked: { if (appWindow.snap.busyByOtherUser) takeoverDialog.open(); else appWindow.openDiagnostics() } }
+            MouseArea { anchors.fill: parent; onClicked: { if (backend.enrollmentRequired) enrollmentDialog.open(); else if (appWindow.snap.busyByOtherUser) takeoverDialog.open(); else appWindow.openDiagnostics() } }
+        }
+    }
+
+    TerminalDialog {
+        id: enrollmentDialog; objectName: "enrollment-dialog"
+        title: qsTr("Allow this Windows account"); height: 610
+        ColumnLayout {
+            anchors.fill: parent; spacing: 20
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("This grants the Windows account currently signed in at this computer permission to manage VPN connections through the Vault 443 service."); color: "#c5b995"; font.pixelSize: 24; wrapMode: Text.Wrap }
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Windows will ask for administrator approval. If this is a standard account, enter an administrator's credentials. Access is granted to the signed-in account, and the interface continues to run without administrator rights."); color: "#a8b69e"; font.pixelSize: 23; wrapMode: Text.Wrap }
+            Text { objectName: "enrollment-result"; textFormat: Text.PlainText; Layout.fillWidth: true; visible: backend.enrollmentPending || backend.enrollmentError.length > 0; text: backend.enrollmentPending ? qsTr("Waiting for administrator approval…") : backend.enrollmentError; color: "#e6af72"; font.pixelSize: 21; wrapMode: Text.Wrap }
+            Item { Layout.fillHeight: true }
+            RowLayout {
+                Layout.fillWidth: true; spacing: 14
+                MetalButton { objectName: "enrollment-later"; text: qsTr("Later"); Layout.fillWidth: true; onClicked: enrollmentDialog.close() }
+                MetalButton { objectName: "enrollment-approve"; text: qsTr("Request approval"); Layout.fillWidth: true; enabled: backend.enrollmentRequired && !backend.enrollmentPending; onClicked: backend.requestServiceAccess() }
+            }
         }
     }
 
@@ -711,7 +730,7 @@ ApplicationWindow {
                         MetalButton { objectName: "work-routes-open"; text: qsTr("Routes"); Layout.fillWidth: true; enabled: backend.online && !appWindow.snap.busyByOtherUser; onClicked: appWindow.openRoutes() }
                         Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Import .ovpn files from the main window. Work VPNs connect independently of the main VPN."); color: "#b1aa92"; font.pixelSize: 20; wrapMode: Text.Wrap }
                         Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Compatibility with other VPNs"); color: "#8fd89a"; font.pixelSize: 25 }
-                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Pritunl is detected automatically. No fields need to be filled in."); color: "#c5b995"; font.pixelSize: 22; wrapMode: Text.Wrap }
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: backend.windowsPlatform ? qsTr("WireGuard services are detected automatically. For other VPNs, add a manual binding.") : qsTr("Pritunl is detected automatically. No fields need to be filled in."); color: "#c5b995"; font.pixelSize: 22; wrapMode: Text.Wrap }
                         Repeater {
                             model: backend.vpnCompatibility.items || []
                             delegate: Rectangle {
@@ -729,24 +748,25 @@ ApplicationWindow {
                                 }
                             }
                         }
-                        Text { objectName: "vpn-discovery-status"; textFormat: Text.PlainText; Layout.fillWidth: true; visible: text.length > 0; text: { i18n.language; return appWindow.localizedMessage(backend.vpnCompatibilityError || backend.vpnCompatibility.message || "") || (backend.vpnCompatibility.busyByOtherUser ? qsTr("In use by another user") : backend.vpnCompatibilityPending ? qsTr("Checking tunnels…") : (backend.vpnCompatibility.items || []).length ? "" : qsTr("No active external VPNs found. Connect Pritunl, then open this tab.")) } color: backend.vpnCompatibilityError ? "#e6af72" : "#b9bc9e"; font.pixelSize: 20; wrapMode: Text.Wrap }
-                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Work routes: Pritunl handles work networks; the main VPN handles the internet.\n\nFull tunnel: the requested main VPN connection waits while Pritunl handles the internet, then resumes when those routes are released. Pritunl settings stay unchanged."); color: "#c5b995"; font.pixelSize: 21; wrapMode: Text.Wrap }
+                        Text { objectName: "vpn-discovery-status"; textFormat: Text.PlainText; Layout.fillWidth: true; visible: text.length > 0; text: { i18n.language; return appWindow.localizedMessage(backend.vpnCompatibilityError || backend.vpnCompatibility.message || "") || (backend.vpnCompatibility.busyByOtherUser ? qsTr("In use by another user") : backend.vpnCompatibilityPending ? qsTr("Checking tunnels…") : (backend.vpnCompatibility.items || []).length ? "" : backend.windowsPlatform ? qsTr("No active external VPNs found. Connect a supported VPN, then reopen this tab.") : qsTr("No active external VPNs found. Connect Pritunl, then open this tab.")) } color: backend.vpnCompatibilityError ? "#e6af72" : "#b9bc9e"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: backend.windowsPlatform ? qsTr("Work routes use the external VPN; the main VPN handles the internet.\n\nFor a full tunnel, the requested main VPN connection waits until the external VPN releases its internet routes, then resumes.") : qsTr("Work routes: Pritunl handles work networks; the main VPN handles the internet.\n\nFull tunnel: the requested main VPN connection waits while Pritunl handles the internet, then resumes when those routes are released. Pritunl settings stay unchanged."); color: "#c5b995"; font.pixelSize: 21; wrapMode: Text.Wrap }
                         MetalButton { objectName: "vpn-diagnostics"; text: qsTr("Diagnostics"); small: true; Layout.preferredWidth: 220; onClicked: appWindow.openDiagnostics() }
                         MetalButton { id: vpnAdvanced; objectName: "vpn-advanced"; Layout.fillWidth: true; checkable: true; text: (checked ? "▾ " : "▸ ") + qsTr("Advanced: manual binding"); onClicked: if (checked) Qt.callLater(function() { vpnScroll.contentItem.contentY = vpnAdvanced.y }) }
                         ColumnLayout {
                         visible: vpnAdvanced.checked; Layout.fillWidth: true; spacing: 13
                         Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("For custom tunnels. The service verifies ownership and transport; an interface name alone is not enough."); color: "#b1aa92"; font.pixelSize: 20; wrapMode: Text.Wrap }
-                        TerminalField { id: vpnInterface; Layout.fillWidth: true; placeholderText: qsTr("Interface, e.g. tun0"); maximumLength: 15 }
-                        TerminalCombo { id: vpnManager; objectName: "vpn-manager"; Layout.fillWidth: true; model: ["networkmanager", "pritunl", "openvpn", "wg-quick"]; font.pixelSize: 21 }
-                        TerminalField { id: vpnUnit; Layout.fillWidth: true; placeholderText: qsTr("systemd unit, e.g. openvpn-client@work.service") }
-                        TerminalField { id: vpnCgroup; Layout.fillWidth: true; placeholderText: qsTr("Cgroup (if no systemd unit is specified)") }
+                        TerminalField { id: vpnInterface; objectName: "vpn-interface"; Layout.fillWidth: true; placeholderText: backend.windowsPlatform ? qsTr("Adapter name, e.g. Corporate VPN") : qsTr("Interface, e.g. tun0"); maximumLength: backend.windowsPlatform ? 256 : 15 }
+                        TerminalCombo { id: vpnManager; objectName: "vpn-manager"; Layout.fillWidth: true; model: backend.windowsPlatform ? ["openvpn", "pritunl", "wireguard"] : ["networkmanager", "pritunl", "openvpn", "wg-quick"]; font.pixelSize: 21 }
+                        TerminalField { id: vpnUnit; objectName: "vpn-service"; Layout.fillWidth: true; placeholderText: backend.windowsPlatform ? qsTr("Windows service name, e.g. OpenVPNService") : qsTr("systemd unit, e.g. openvpn-client@work.service"); maximumLength: backend.windowsPlatform ? 256 : 32767 }
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; visible: backend.windowsPlatform; text: qsTr("Use the service name from Windows Services, not its display name. Transport exceptions require a verified LocalSystem VPN service."); color: "#b1aa92"; font.pixelSize: 20; wrapMode: Text.Wrap }
+                        TerminalField { id: vpnCgroup; objectName: "vpn-cgroup"; visible: !backend.windowsPlatform; Layout.fillWidth: true; placeholderText: qsTr("Cgroup (if no systemd unit is specified)") }
                         Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("External VPN server"); color: "#d2c194"; font.pixelSize: 22 }
                         RowLayout {
                             TerminalField { id: vpnEndpoint; Layout.fillWidth: true; Layout.minimumWidth: 60; placeholderText: qsTr("IP address") }
                             TerminalField { id: vpnPort; Layout.preferredWidth: 112; placeholderText: qsTr("Port"); validator: IntValidator { bottom: 1; top: 65535 } }
                             TerminalCombo { id: vpnProtocol; objectName: "vpn-protocol"; model: ["udp", "tcp"]; Layout.preferredWidth: 95; font.pixelSize: 18 }
                         }
-                        TerminalField { id: vpnMark; Layout.fillWidth: true; placeholderText: qsTr("WireGuard fwmark, e.g. 51820 (if used)") }
+                        TerminalField { id: vpnMark; objectName: "vpn-mark"; visible: !backend.windowsPlatform; Layout.fillWidth: true; placeholderText: qsTr("WireGuard fwmark, e.g. 51820 (if used)") }
                         TerminalField { id: vpnRoutes; Layout.fillWidth: true; placeholderText: qsTr("Protected CIDRs, comma separated (split tunnel)") }
                         TerminalField { id: vpnDNS; Layout.fillWidth: true; placeholderText: qsTr("DNS servers, comma separated") }
                         TerminalField { id: vpnDomains; Layout.fillWidth: true; placeholderText: qsTr("DNS domains, comma separated, e.g. ~corp.example") }
@@ -754,8 +774,12 @@ ApplicationWindow {
                             MetalButton { objectName: "vpn-save"; text: qsTr("Save binding"); Layout.preferredWidth: 300; Layout.preferredHeight: 60; enabled: !!appWindow.snap.canAdmin && vpnInterface.text.trim().length > 0 && !backend.busy; onClicked: {
                                 var binding = {interface:vpnInterface.text.trim(), manager:vpnManager.currentText}
                                 if (vpnUnit.text.trim()) binding.unit = vpnUnit.text.trim()
-                                if (vpnCgroup.text.trim()) binding.cgroup = vpnCgroup.text.trim()
-                                if (vpnEndpoint.text.trim()) binding.endpoints = [{address:vpnEndpoint.text.trim(), port:parseInt(vpnPort.text), protocol:vpnProtocol.currentText, mark:vpnMark.text.trim() ? Number(vpnMark.text) : 0}]
+                                if (!backend.windowsPlatform && vpnCgroup.text.trim()) binding.cgroup = vpnCgroup.text.trim()
+                                if (vpnEndpoint.text.trim()) {
+                                    var endpoint = {address:vpnEndpoint.text.trim(), port:parseInt(vpnPort.text), protocol:vpnProtocol.currentText}
+                                    if (!backend.windowsPlatform) endpoint.mark = vpnMark.text.trim() ? Number(vpnMark.text) : 0
+                                    binding.endpoints = [endpoint]
+                                }
                                 binding.routes = appWindow.splitLines(vpnRoutes.text)
                                 binding.dnsServers = appWindow.splitLines(vpnDNS.text)
                                 binding.dnsDomains = appWindow.splitLines(vpnDomains.text)

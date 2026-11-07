@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net"
-	"syscall"
 	"time"
 
 	"golang.getoutline.org/sdk/transport"
@@ -23,21 +22,7 @@ func (b transportBuilder) direct(network, address string) (net.Dialer, string, e
 	if e != nil || net.ParseIP(host) == nil {
 		return net.Dialer{}, "", errors.New("physical endpoint is not resolved")
 	}
-	d := net.Dialer{Timeout: 8 * time.Second, KeepAlive: 30 * time.Second, Control: func(_, _ string, c syscall.RawConn) error {
-		var result error
-		e := c.Control(func(fd uintptr) {
-			if b.config.Mark != 0 {
-				result = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_MARK, int(b.config.Mark))
-			}
-			if result == nil && b.config.Interface != "" {
-				result = syscall.SetsockoptString(int(fd), syscall.SOL_SOCKET, syscall.SO_BINDTODEVICE, b.config.Interface)
-			}
-		})
-		if e != nil {
-			return e
-		}
-		return result
-	}}
+	d := net.Dialer{Timeout: 8 * time.Second, KeepAlive: 30 * time.Second, Control: physicalControl(b.config, host)}
 	return d, pinned, nil
 }
 func (b transportBuilder) streamEndpoint(n *outlineNode) (transport.StreamEndpoint, error) {

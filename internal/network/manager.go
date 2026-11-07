@@ -1,3 +1,5 @@
+//go:build linux
+
 // Package network manages only resources named/allocated to Vault 443.
 // Constructing a Manager is inert. DryRun never executes mutating commands,
 // starts a core, writes state, or probes Internet connectivity.

@@ -1,3 +1,5 @@
+//go:build linux
+
 package network
 
 import (
@@ -35,13 +37,6 @@ type Binding struct {
 	ManagedActive bool `json:"-"`
 	ManagedFull4  bool `json:"-"`
 	ManagedFull6  bool `json:"-"`
-}
-type Endpoint struct {
-	Address    string `json:"address"`
-	Port       int    `json:"port"`
-	Protocol   string `json:"protocol"`
-	Mark       uint32 `json:"mark,omitempty"`
-	SourcePort int    `json:"sourcePort,omitempty"`
 }
 
 var safeCgroup = regexp.MustCompile(`^[A-Za-z0-9_.@\\x:-]+(/[A-Za-z0-9_.@\\x:-]+)*$`)
