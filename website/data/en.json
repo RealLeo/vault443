@@ -1,7 +1,7 @@
 {
   "lang": "en",
-  "title": "Vault 443 — a Fallout-inspired Linux VPN client",
-  "description": "Your VPNs, one control panel. A native Linux client for VLESS, Trojan, Outline, OpenVPN, WireGuard and AmneziaWG, with a Fallout-inspired retro interface.",
+  "title": "Vault 443 — a Fallout-inspired VPN client for Windows and Linux",
+  "description": "Your VPNs, one control panel. A native client for Windows and Linux for VLESS, Trojan, Outline, OpenVPN, WireGuard and AmneziaWG, with a Fallout-inspired retro interface.",
   "skip": "Skip to content",
   "nav": {
     "console": "Console",
@@ -18,16 +18,16 @@
     "heading": [
       "Vault 443"
     ],
-    "lead": "A Linux VPN client",
+    "lead": "A desktop VPN client",
     "body": "Your profiles. Internet and work.",
-    "download": "Download for Linux",
+    "download": "Download",
     "explore": "Explore",
-    "note": "Linux x86-64 · Your own server or subscription required",
+    "note": "Choose Windows or Linux · Your own server or subscription required",
     "monitor": "Native desktop client",
     "monitorStatus": "Console ready",
     "caption": "Real application · demo profiles",
     "alt": "Vault 443 desktop application with three fictional VPN profiles and an active connection",
-    "positioning": "A Linux VPN client with a Fallout-inspired retro interface.",
+    "positioning": "A VPN client for Windows and Linux with a Fallout-inspired retro interface.",
     "demo": "Demo preview",
     "protocols": "Supported protocols",
     "enlarge": "Enlarge application preview",
@@ -172,7 +172,7 @@
   },
   "downloads": {
     "heading": "Choose your system. Take the controls.",
-    "intro": "Your console is ready. Choose the package for your Linux distribution, add a profile and connect.",
+    "intro": "Your console is ready. Choose the package for your system, add a profile and connect.",
     "version": "Release",
     "established": "Main desktop target",
     "port": "Initial distribution port",
@@ -277,7 +277,57 @@
     ],
     "previousMobile": "Previous",
     "nextMobile": "Next",
-    "galleryNote": "Application screenshots with demo profiles.",
+    "galleryNote": "Screenshots of the Linux application with demo profiles.",
     "packageNote": "Ubuntu and Debian need different packages."
+  },
+  "platforms": {
+    "legend": "Operating system",
+    "prompt": "Choose your system for downloads and installation.",
+    "windows": {
+      "lead": "A Windows VPN client",
+      "download": "Download for Windows",
+      "note": "Windows 10 22H2 / Windows 11 · x64 · Your own server or subscription required",
+      "heading": "Your console for Windows.",
+      "requirements": "Windows 10 22H2 or Windows 11, x64. Setup includes Qt, VPN engines, runtime libraries and official Wintun.",
+      "unsigned": "The EXE and installer are not Authenticode-signed. Vault 443 is publisher metadata, not a verified UAC publisher.",
+      "verify": "Download the EXE and its .sha256 file. Run the PowerShell command and compare its hash with the checksum file.",
+      "install": "Run setup from your regular session, approve UAC and choose a local disk and folder. Then open Vault 443 from the Start menu and add a profile.",
+      "bundled": "Required components included",
+      "docs": "Windows user guide",
+      "steps": [
+        {
+          "title": "Install for Windows",
+          "body": "Verify SHA-256, run the EXE from your regular session and approve UAC. Choose a local disk and folder. The installer includes the required components."
+        },
+        {
+          "title": "Bring a profile",
+          "body": "Open Vault 443 from the Start menu. Import a supported link or file, or add an HTTPS subscription. Bring your own server or subscription."
+        },
+        {
+          "title": "Connect and stay informed",
+          "body": "Click Connect. Follow the status line or open the profile's journal. Closing the window leaves the connection running."
+        }
+      ],
+      "faq": {
+        "privileges": {
+          "question": "Windows: do I need administrator rights?",
+          "answer": "Run setup from your regular user session and approve UAC. Setup installs the system service and grants the current user access. The window runs as a regular user. Administrative actions can request UAC."
+        },
+        "update": {
+          "question": "Windows: how do I update or uninstall?",
+          "answer": "Verify the new EXE and run it over the installed version. The installation folder, profiles and settings are retained. Uninstall through Windows Settings → Apps. To move folders, uninstall and reinstall; profiles and logs in %ProgramData%\\Vault443 are retained by default."
+        },
+        "recovery": {
+          "question": "Windows: what happens when the tunnel fails?",
+          "answer": "The network guard blocks direct internet traffic during recovery. An explicit Disconnect releases protection. If the service fails to start after an update, rerun the verified installer. See the Windows guide for further recovery steps."
+        }
+      }
+    },
+    "linux": {
+      "lead": "A Linux VPN client",
+      "download": "Download for Linux",
+      "note": "Linux · x64 / Ubuntu ARM64 · Your own server or subscription required",
+      "architectureNote": "The ARM64 package targets Ubuntu 24.04. Validated under emulation; physical ARM64 hardware acceptance has not been performed."
+    }
   }
 }

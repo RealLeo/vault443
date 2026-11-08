@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="{{assets}}platform.js"></script>
   <meta name="theme-color" content="#202527">
   <title>{{title}}</title>
   <meta name="description" content="{{description}}">
@@ -33,6 +34,7 @@
   <link rel="stylesheet" href="{{assets}}equipment.css">
   <link rel="stylesheet" href="{{assets}}equipment-layout.css">
   <link rel="stylesheet" href="{{assets}}polish.css">
+  <link rel="stylesheet" href="{{assets}}platform.css">
   <script src="{{assets}}vendor/gsap.min.js" defer></script>
   <script src="{{assets}}vendor/ScrollTrigger.min.js" defer></script>
   <script src="{{assets}}main.js" defer></script>
@@ -46,8 +48,8 @@
     {{equipment_panels}}
 
     <section class="section container setup-faq" id="start" aria-labelledby="setup-heading">
-      <div class="setup"><h2 id="setup-heading">{{setup.heading}}</h2><ol class="setup-steps">{{setup_steps}}</ol><a class="text-link" href="{{readme_url}}#{{start_anchor}}">{{setup.guide}}</a></div>
-      <div class="faq"><h2>{{faq.heading}}</h2>{{faq_items}}<a class="text-link" href="{{recovery_url}}">{{faq.help}}</a></div>
+      <div class="setup"><h2 id="setup-heading">{{setup.heading}}</h2>{{platform_setup}}</div>
+      <div class="faq"><h2>{{faq.heading}}</h2>{{faq_items}}{{platform_help}}</div>
     </section>
   </main>
 

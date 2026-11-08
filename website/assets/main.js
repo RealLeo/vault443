@@ -47,9 +47,9 @@
   async function loadEquipment(section) {
     visitedEquipment.add(section);
     const art = section.querySelector("[data-art-src]");
-    section.style.setProperty("--equipment-atlas", 'url("' + art.dataset.artSrc + '")');
+    if (art) section.style.setProperty("--equipment-atlas", 'url("' + art.dataset.artSrc + '")');
     const images = [...section.querySelectorAll("[data-part-src]")];
-    if (desktopEquipment.matches) images.push(art);
+    if (desktopEquipment.matches && art) images.push(art);
     else images.push(...section.querySelectorAll("[data-mobile-src]"));
     await Promise.all(images.map(async image => {
       const url = image.dataset.artSrc || image.dataset.partSrc || image.dataset.mobileSrc;
@@ -135,6 +135,7 @@
     document.fonts.addEventListener("loadingdone", queueCaptions);
   } else queueCaptions();
   window.addEventListener("resize", queueCaptions);
+  window.addEventListener("platformchange", () => { queueCaptions(); refreshScroll(); });
 
   const canAnimate = () => Boolean(gsap) && allowsMotion(media.matches);
   function tone(frequency = 580, duration = 0.055) {

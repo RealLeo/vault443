@@ -1,0 +1,44 @@
+{
+  "version": "1.3.5",
+  "release": "https://github.com/RealLeo/vault443/releases/tag/1.3.5",
+  "method": "Downloaded installer bytes, individual SHA-256, SHA256SUMS and GitHub asset digest agree",
+  "packages": [
+    {
+      "name": "Vault443-1.3.5-windows-x64-setup.exe",
+      "sha256": "2eb010b25b06b2441aeedf56f5cafddb65e4c077486a8302a15ccccaf75b600a",
+      "size": 208904505,
+      "verified": true
+    },
+    {
+      "name": "vault443_1.3.5-1ubuntu24.04_amd64.deb",
+      "sha256": "9514f584cd4504c91716377c2988e2250e9ac0ab1a0b39a17ed4870eee09a775",
+      "size": 27432188,
+      "verified": true
+    },
+    {
+      "name": "vault443_1.3.5_arm64.deb",
+      "sha256": "a9e1e1e4495eecccdcdd32522b2908f2403abde1ac0a03243d701db840055d8d",
+      "size": 25165094,
+      "verified": true
+    },
+    {
+      "name": "vault443_1.3.5-1debian13_amd64.deb",
+      "sha256": "7e0d2d2feddc9ba1334769c2bcba936091eb94e750ed39b85359f030615aa113",
+      "size": 27393074,
+      "verified": true
+    },
+    {
+      "name": "vault443-1.3.5-1.fc44.x86_64.rpm",
+      "sha256": "42b17981404a76a04bcb9adacb9e69a4f572a449753e77bb59e6d56a132dc585",
+      "size": 26910801,
+      "verified": true
+    },
+    {
+      "name": "vault443-1.3.5-1-x86_64.pkg.tar.zst",
+      "sha256": "291e815f6bc2e1be349c33644c3257194afb0408c4b06e346b319dc8f9d0dcfe",
+      "size": 32572183,
+      "verified": true
+    }
+  ],
+  "verifiedAt": "2026-11-08T21:06:55.424357+00:00"
+}

@@ -155,7 +155,7 @@ body{background:#151b1a}
  html[data-enhanced="true"] .equipment-bay .e-package-status{font-size:1.25cqw;justify-content:flex-start;white-space:nowrap}
  html[data-enhanced="true"] .established-status{position:absolute!important;width:1px!important;height:1px!important;clip-path:inset(50%);overflow:hidden}
  html[data-enhanced="true"] .equipment-bay .package-download{font:900 2.18cqw/1 var(--display);color:#151306}
- html[data-enhanced="true"] .package-download>span{position:absolute;left:27%;right:4%}
+ html[data-enhanced="true"] .equipment-bay .package-download>span{position:absolute;left:27%;right:4%}
  html[data-enhanced="true"] .equipment-bay .checksum-link{font:400 1.62cqw/1 var(--body);padding-left:2.5%;color:#bae28e}
  html[data-enhanced="true"] .equipment-bay .e-install summary{font:400 1.28cqw/1 var(--body);padding-left:2.8%;color:var(--ivory)}
  html[data-enhanced="true"] .e-install summary:after{font-size:1cqw;margin-left:.5cqw}

@@ -57,7 +57,7 @@ def main():
         repaired = Image.open(clean).convert("RGB")
         assert source.size == repaired.size
         for lang in ("en", "ru"):
-            names = list(regions) if lang == "ru" else [name for name in ("brand", "statusCaption", "language") if name in regions]
+            names = list(regions) if lang == "ru" else [name for name in ("brand", "statusCaption", "language", "lead", "download") if name in regions]
             rectangles = [regions[name] for name in names]
             mask = repair_mask(source.size, rectangles)
             atlas = Image.composite(repaired, source, mask)

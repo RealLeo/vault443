@@ -1,6 +1,6 @@
 # Vault 443 landing design
 
-The website is an operating console for a real Linux desktop application.
+The website is an operating console for a real Windows and Linux desktop application.
 Fallout 1–2's pre-rendered industrial hardware guides the materials: quiet worn
 steel, tactile brass, recessed displays and practical hardware labels.
 

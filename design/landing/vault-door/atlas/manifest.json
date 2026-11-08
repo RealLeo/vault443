@@ -27,6 +27,18 @@
           20,
           113,
           36
+        ],
+        "lead": [
+          103,
+          415,
+          279,
+          42
+        ],
+        "download": [
+          147,
+          528,
+          303,
+          52
         ]
       },
       "cleaned": "design/landing/vault-door/atlas/text-clean-desktop.png",
@@ -34,9 +46,9 @@
       "master": "design/landing/vault-door/atlas/scene-desktop-en.png",
       "production": "website/assets/scene/desktop-en.webp",
       "referenceSha256": "bb1068b371e6703675e7a6396f014c5dc9dc3971c5842c83dd6418c33641354c",
-      "masterSha256": "dc76d5fdfd63fc28a238c344ee215d4d4de5d5453e34309cbb922fd4c309cd48",
-      "productionSha256": "57da82b1b823c9e3c0a2a12e4b43fea182585908056c1aa4d878782cd50c41b6",
-      "bytes": 659236
+      "masterSha256": "89ba22fe6dc74473cb044a9cda1a77d426cfcd0afbf655e68765bcb85de78633",
+      "productionSha256": "fec35261c4a6a4869ea284fc833d5cc4597aa944881fb5bcf9d7e33d17a2dda3",
+      "bytes": 655480
     },
     {
       "mode": "desktop",
@@ -161,6 +173,18 @@
           31,
           125,
           44
+        ],
+        "lead": [
+          442,
+          291,
+          366,
+          49
+        ],
+        "download": [
+          158,
+          426,
+          414,
+          54
         ]
       },
       "cleaned": "design/landing/vault-door/atlas/text-clean-mobile.png",
@@ -168,9 +192,9 @@
       "master": "design/landing/vault-door/atlas/scene-mobile-en.png",
       "production": "website/assets/scene/mobile-en.webp",
       "referenceSha256": "1462d17dac9d1706580de470b77af07fe947c027c003cade9e461449ced3e25e",
-      "masterSha256": "a653d2438ca01c506fba6fcb0f025503e68c5c897f1e77c16b4e80f78081e22b",
-      "productionSha256": "f631fb90787a2c72cde57ca2828ee6302fe13f7b03b3ddd7a3eca4a8149e7a93",
-      "bytes": 675600
+      "masterSha256": "20433a8228567e157998033cae5c3fa2a96898b75c4ff8959db5c0d80d277bf5",
+      "productionSha256": "67ad5f1dda4fe7e6af31bc77b3cf8d7375243e144a1c890ad7e972a4ef1696a6",
+      "bytes": 669742
     },
     {
       "mode": "mobile",

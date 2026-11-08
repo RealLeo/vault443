@@ -1,0 +1,21 @@
+    <section class="equipment-section windows-downloads" id="download-windows" data-platform-panel="windows" aria-labelledby="windows-heading" data-equipment>
+      <div class="windows-console">
+        <header class="windows-console-header"><h2 id="windows-heading">{{platforms.windows.heading}}</h2><p>{{equipment.version}} {{release_version}} · Windows x64</p></header>
+        <div class="windows-console-body">
+          <article class="windows-package">
+            <svg class="windows-emblem" viewBox="0 0 80 80" width="80" height="80" aria-hidden="true"><path fill="currentColor" d="M3 3h34v34H3zm40 0h34v34H43zM3 43h34v34H3zm40 0h34v34H43z"/></svg>
+            <h3>{{windows_name}}</h3><p class="windows-package-meta">.exe · x64 · {{windows_size}}</p>
+            <p class="windows-bundled"><i aria-hidden="true"></i>{{platforms.windows.bundled}}</p>
+            <a class="package-download console-brass-key windows-download" href="{{windows_url}}"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M9 2h6v10h5l-8 8-8-8h5zM3 20h18v3H3z"/></svg><span>{{platforms.windows.download}}</span></a>
+            <a class="console-steel-key" href="{{windows_checksum}}">{{downloads.checksum}}</a>
+            <p class="windows-requirements">{{platforms.windows.requirements}}</p>
+          </article>
+          <aside class="windows-install" aria-labelledby="windows-start-heading">
+            <h3 id="windows-start-heading" class="console-plate">{{equipment.startHeading}}</h3>
+            <div class="windows-crt"><ol><li><strong>{{equipment.steps.0.title}}</strong><p>{{platforms.windows.verify}}</p><div class="command-box"><pre tabindex="0"><code id="commands-windows">{{windows_commands}}</code></pre><button class="copy-button" type="button" data-copy="commands-windows" data-js-only hidden>{{downloads.copy}}</button></div></li><li><strong>{{platforms.windows.steps.0.title}}</strong><p>{{platforms.windows.install}}</p></li></ol></div>
+          </aside>
+        </div>
+        <div class="windows-console-footer"><span>{{equipment.verify}}</span><a class="text-link" href="{{release_url}}">{{downloads.all}}</a></div>
+      </div>
+      <div class="equipment-strip download-footnotes"><p>{{downloads.intro}}</p><p>{{platforms.windows.unsigned}}</p><div class="download-links"><a class="text-link" href="{{sums_url}}">{{downloads.sums}}</a><a class="text-link" href="{{windows_doc}}">{{platforms.windows.docs}}</a></div></div>
+    </section>

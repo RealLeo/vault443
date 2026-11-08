@@ -7,15 +7,18 @@ No visitor API requests, trackers, accounts, build framework or backend.
 ```sh
 python3 -m unittest discover -s website/tests -v
 node website/tests/motion.cjs
+node website/tests/platform.cjs
 python3 website/build.py --offline
 python3 website/tools/serve.py
 ```
 
 Open `http://127.0.0.1:8443/vault443/`. Without `--offline`, the build obtains the
 latest stable GitHub release. It requires exactly one matching installer for each
-of four distributions, individual `.sha256` assets and `SHA256SUMS`. An unavailable
-API or incomplete release falls back to the verified 1.3.4 snapshot, displaying
-1.3.4 rather than pretending to have the latest version. Refresh the snapshot only
+of four Linux x64 distributions, Ubuntu 24.04 ARM64 and Windows x64, individual
+`.sha256` assets and `SHA256SUMS`. An unavailable API or incomplete release falls
+back to the verified 1.3.5 snapshot, displaying its actual version. The downloaded
+six installers agree with individual/global checksums and GitHub digests; the
+receipt is in `data/release-verification.json`. Refresh the snapshot only
 after checking downloaded installers against the published checksums. Files and
 shell commands are rendered into HTML; downloading works with JavaScript disabled.
 
@@ -33,7 +36,17 @@ application's real `--demo --screenshot` path. Do not replace them with mock UI.
 
 The build enforces a 1.5 MB initial uncompressed asset budget and 100 KB compressed
 JavaScript budget. Gallery screens are lazy loaded. Preserve progressive
-enhancement, keyboard access, static reduced-motion states and audio opt-in.
+enhancement, keyboard access and static reduced-motion states. Sound is enabled
+by default but Web Audio only unlocks on a trusted user gesture; mute is immediate.
+
+Platform selection lives in `assets/platform.js`, independently of GSAP. Valid
+`?platform=windows|linux` wins over `localStorage["vault443.platform"]`, then the
+desktop OS hint. Android/iOS/macOS/ChromeOS and unknown clients get the general
+view. Only a manual selection is persisted. Both selectors, the hero and native
+installation/FAQ panels stay synchronized without reloading; language links
+preserve the selection and anchor, and history restores the selected view.
+Without JavaScript both platform panels and all six download links are visible;
+selector links jump to their respective sections. Canonical URLs stay unchanged.
 
 The vault-door redesign uses `templates/hero.html` and a final `assets/vault.css`
 hardware layer over the existing section layout. Its approved desktop/mobile
@@ -44,11 +57,11 @@ Roboto Condensed 900 is pinned to Google Fonts commit
 The pre-existing regular face keeps its separate Apache 2.0 license.
 
 The door starts in the accessible open state. Enhancement adds a 900 ms sequence:
-cams 0–180 ms, shutters 120–720 ms, lamps/glow 300–900 ms. A session flag prevents
-automatic replay when changing language. The status rail offers manual replay,
-motion and sound; stopping motion settles open immediately. There is no autoplay
-audio. `node website/tests/motion.cjs` checks lifecycle interruption and storage
-failure as well as policy and gallery boundaries.
+cams 0–180 ms, shutters 120–720 ms, lamps/glow 300–900 ms. Each document load,
+language navigation and BFCache restoration starts it again. OS selection in the
+same document does not replay the door. System reduced motion and unavailable
+GSAP settle the door open. The rail offers sound control. The motion test checks
+lifecycle interruption, reload/language/BFCache behavior and gallery boundaries.
 
 The builder counts all new artwork, both CSS layers, fonts and the larger of
 EN/RU entry documents/screens. It writes `dist/budgets.json`. Local fallback QA:

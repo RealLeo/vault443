@@ -1,0 +1,94 @@
+/* Shared console hardware, with native Windows/Linux content above it. */
+[data-platform-copy="windows"],[data-platform-copy="linux"]{display:none}
+html[data-platform="windows"] [data-platform-copy="all"],html[data-platform="linux"] [data-platform-copy="all"]{display:none}
+html[data-platform="windows"] [data-platform-copy="windows"],html[data-platform="linux"] [data-platform-copy="linux"]{display:inline-block}
+html[data-platform="windows"] [data-platform-panel="linux"],html[data-platform="linux"] [data-platform-panel="windows"]{display:none!important}
+html[lang="en"] .vault-scene .platform-lead{color:var(--ivory)}
+html[lang="en"] .vault-scene .platform-cta{color:#171409}
+.scene-lead .caption-ink,.platform-cta .caption-ink{white-space:nowrap}
+.vault-scene .scene-system-platform{left:50.840619%;top:58.79017%;width:20.511096%;height:2.646503%;background:#151a13;color:#ddc79a;font:400 1.3cqw/1 var(--body);white-space:nowrap}
+.equipment-toolbar>p{flex:1 1 330px}
+.platform-switch{display:flex;align-items:stretch;gap:8px;flex:none}
+.platform-switch a{position:relative;display:flex;align-items:center;justify-content:center;gap:12px;min-height:60px;min-width:128px;padding:12px 18px;border:4px ridge #6d624c;background:linear-gradient(#44483c,#1a211b);box-shadow:inset 0 0 0 1px #080d08,0 3px 5px #000b;font:900 20px/1.1 var(--display);color:var(--ivory);text-decoration:none;transition:filter .1s,transform .1s}
+.platform-switch i,.windows-bundled i{width:12px;height:12px;flex:none;border:2px solid #665f3c;border-radius:50%;background:#13331a;box-shadow:0 0 0 2px #0c120c,inset 0 0 4px #000}
+.platform-switch [aria-current="true"]{color:#d6e8ae;border-color:#9b8658;background:linear-gradient(#525440,#263326)}
+.platform-switch [aria-current="true"] i,.windows-bundled i{background:#98eb57;box-shadow:0 0 0 2px #19261a,0 0 10px #8ced6966,inset 0 0 3px #c1ff99}
+.platform-switch a:hover{filter:brightness(1.15)}
+.platform-switch a:active{transform:translateY(2px)}
+.download-platform-bar{display:flex;align-items:center;gap:24px;padding-block:20px}
+.download-platform-bar p{margin:0}
+.platform-section-label{margin:24px 0 18px;color:var(--brass);font:900 25px/1.1 var(--display)}
+.platform-section-label+ol{margin-top:0}
+.setup [data-platform-panel]+[data-platform-panel]{margin-top:30px}
+.console-brass-key,.console-steel-key,.console-plate{display:flex;align-items:center;justify-content:center;gap:14px;min-height:60px;min-width:60px;border:12px solid transparent;padding:10px 18px;text-align:center;line-height:1.15;font:900 24px/1.15 var(--display)}
+.console-brass-key,.console-plate{border-image:url("equipment/brass-key-frame.webp") 19 stretch;background:#ac8b4d url("equipment/brass-surface.webp") repeat;color:#15180e;box-shadow:inset 0 0 12px #43290188,0 5px 8px #000b}
+.console-steel-key{border-image:url("equipment/steel-key-frame.webp") 19 stretch;background:#18251a;color:var(--ivory);font:400 20px/1.2 var(--body)}
+.console-brass-key:hover,.console-steel-key:hover{filter:brightness(1.12)}
+.console-brass-key:active,.console-steel-key:active{transform:translateY(2px)}
+.windows-console{padding:26px clamp(24px,4vw,64px);border:9px ridge #766d56;background:linear-gradient(#272d2577,#0a100d99),url("equipment/steel-seamless.webp");box-shadow:inset 0 0 0 3px #0b100b,inset 0 0 40px #000,0 9px 22px #000c}
+.windows-console-header{text-align:center;border:12px solid transparent;border-image:url("equipment/steel-key-frame.webp") 19 stretch;padding:24px;box-shadow:inset 0 0 30px #000}
+.windows-console-header h2{font:900 clamp(30px,3.1vw,48px)/1.05 var(--display);color:#ddc79a}
+.windows-console-header p{margin:14px 0 0;color:var(--brass);font:500 17px/1.4 var(--mono)}
+.windows-console-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:34px;padding:34px 0}
+.windows-package{display:flex;flex-direction:column;align-items:stretch;gap:18px;border:12px solid transparent;border-image:url("equipment/steel-key-frame.webp") 19 stretch;padding:32px 26px;background:radial-gradient(ellipse at 50% 10%,#3a453377,#101811aa);min-width:0}
+.windows-emblem{color:#c2aa74;align-self:center;filter:drop-shadow(0 3px 3px #000);width:70px;height:70px}
+.windows-package h3{font:900 clamp(27px,2.8vw,42px)/1.1 var(--display);text-align:center}
+.windows-package p{margin:0}
+.windows-package-meta{text-align:center;color:var(--brass);font:500 17px/1.4 var(--mono)}
+.windows-bundled{display:flex;align-items:center;justify-content:center;gap:12px;color:var(--phosphor);font-size:18px}
+.windows-download{font-size:clamp(22px,2.5vw,34px)}
+.windows-package .windows-download>span{position:static;inset:auto;opacity:1;font:inherit}
+.windows-download svg{flex:none;fill:currentColor;stroke:none}
+.windows-requirements{font-size:19px;line-height:1.4}
+.windows-install{min-width:0;display:flex;flex-direction:column}
+.windows-install .console-plate{font-size:27px;margin:0 12px -2px;position:relative;z-index:1}
+.windows-crt{flex:1;border:18px ridge #655f48;border-radius:28px;padding:26px 22px;background:radial-gradient(ellipse at 50% 0,#153b1b55,transparent),repeating-linear-gradient(0deg,#0000 0 2px,#0002 2px 3px),#061209;box-shadow:inset 0 0 24px #000,0 3px 8px #000b;color:#c3d6a7;min-width:0}
+.windows-crt ol{margin:0;padding-left:22px}
+.windows-crt li{padding-left:4px;margin-bottom:24px}
+.windows-crt li:last-child{margin:0}
+.windows-crt strong{font:900 23px/1.1 var(--display);color:var(--ivory)}
+.windows-crt p{margin:10px 0 16px;font-size:18px;line-height:1.35}
+.windows-crt .command-box{padding:12px;min-width:0}
+.windows-crt pre,.supplemental-package pre{max-width:100%;overflow:auto;white-space:pre;font-size:14px;line-height:1.6}
+.windows-crt .copy-button{font-size:16px;min-height:60px}
+.windows-console-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;border-top:3px ridge #77694e;padding:14px 0 0;color:var(--brass)}
+.windows-console-footer a{min-height:60px}
+.supplemental-package{margin:24px clamp(24px,5vw,80px);padding:24px;border:5px ridge #75694b;background:#152015;box-shadow:inset 0 0 20px #0008}
+.supplemental-package h3{font:900 28px/1.1 var(--display);margin-bottom:12px}
+.supplemental-package p{margin:12px 0;color:var(--muted)}
+.supplemental-actions{display:flex;flex-wrap:wrap;gap:12px;margin:18px 0}
+.supplemental-command summary{display:flex;align-items:center;min-height:60px;cursor:pointer;font-size:20px}
+.supplemental-command summary:before{content:"+";color:var(--phosphor);margin-right:12px}
+.supplemental-command[open] summary:before{content:"−"}
+.supplemental-command .copy-button{min-height:60px}
+@media(max-width:1023px){
+ .vault-scene .scene-system-platform{left:47.23788%;top:84.55468%;width:44.08117%;height:2.36753%;background:#001909;color:#ddc79a;font-size:3.6cqw}
+ .platform-switch{width:100%;gap:10px}
+ .platform-switch a{flex:1;min-width:0;min-height:48px;font-size:19px;padding:10px 14px}
+ .download-platform-bar{flex-wrap:wrap;gap:14px}
+ .windows-console{border-width:6px;padding:16px 12px}
+ .windows-console-header{padding:22px 10px;border-width:5px}
+ .windows-console-header h2{font-size:30px}
+ .windows-console-header p{font-size:13px;overflow-wrap:anywhere}
+ .windows-console-body{grid-template-columns:minmax(0,1fr);gap:24px;padding:24px 0}
+ .windows-package{padding:24px 16px;gap:18px}
+ .windows-package h3{font-size:29px}
+ .windows-package-meta{font-size:14px}
+ .windows-bundled{font-size:17px}
+ .windows-download{font-size:25px}
+ .console-brass-key,.console-steel-key{border-width:10px;min-height:54px;padding:10px;gap:10px}
+ .windows-requirements{font-size:18px}
+ .windows-crt{padding:22px 12px;border-width:12px;border-radius:22px}
+ .windows-crt ol{padding-left:18px}
+ .windows-crt strong{font-size:22px}
+ .windows-crt p{font-size:17px}
+ .windows-crt .command-box{padding:10px}
+ .windows-crt pre{font-size:12px}
+ .windows-crt .copy-button{font-size:14px;min-height:44px;padding:10px}
+ .windows-install .console-plate{font-size:23px;padding:9px 6px;border-width:10px;margin-inline:6px}
+ .windows-console-footer{align-items:flex-start;flex-direction:column;gap:6px;font-size:17px}
+ .windows-console-footer a{min-height:44px}
+ .supplemental-package{margin:20px 12px;padding:20px 14px}
+ .supplemental-package h3{font-size:27px}
+ .supplemental-command summary,.supplemental-command .copy-button{min-height:44px}
+}

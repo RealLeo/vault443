@@ -37,11 +37,14 @@
       <div class="equipment-strip"><p>{{gallery.intro}}</p><p class="demo-notice">{{equipment.galleryNote}}</p></div>
     </section>
 
-    <section class="equipment-section equipment-downloads" id="download" aria-labelledby="download-heading" data-equipment>
+    <div id="download" class="platform-downloads">
+      <div class="download-platform-bar equipment-strip">{{platform_switch}}<p data-platform-copy="all">{{platforms.prompt}}</p></div>
+      {{windows_panel}}
+    <section class="equipment-section equipment-downloads" id="download-linux" data-platform-panel="linux" aria-labelledby="download-heading" data-equipment>
       <div class="equipment-bay">
         <img class="equipment-art" data-art-src="{{assets}}equipment/downloads-counter.webp" width="1536" height="1024" alt="">
         <h2 class="e-slot ed-title" id="download-heading"><span class="caption-zone"><span class="caption-ink" data-caption-text>{{downloads.heading}}</span></span></h2>
-        <p class="e-slot ed-version"><span class="caption-zone"><span class="caption-ink" data-caption-text>{{equipment.version}} {{release_version}} · Linux x86-64</span></span></p>
+        <p class="e-slot ed-version"><span class="caption-zone"><span class="caption-ink" data-caption-text>{{equipment.version}} {{release_version}} · Linux x64</span></span></p>
         {{download_rows}}
         <aside class="equipment-start" aria-label="{{equipment.startHeading}}">
           <h3 class="e-slot ed-start"><span class="caption-zone"><span class="caption-ink" data-caption-text>{{equipment.startHeading}}</span></span></h3>
@@ -51,8 +54,15 @@
         <p class="e-slot ed-verify">{{equipment.verify}}</p>
         <a class="e-slot ed-release" href="{{release_url}}">{{downloads.all}}</a>
       </div>
+      <article class="arm-package supplemental-package">
+        <h3>{{arm64_name}}</h3><p>.deb · ARM64 · {{arm64_size}}</p>
+        <div class="supplemental-actions"><a class="package-download console-brass-key" href="{{arm64_url}}">{{downloads.download}}</a><a class="console-steel-key" href="{{arm64_checksum}}">{{downloads.checksum}}</a></div>
+        <details class="supplemental-command"><summary>{{downloads.install}}</summary><div class="command-box"><pre tabindex="0"><code id="commands-ubuntu-arm64">{{arm64_commands}}</code></pre><button class="copy-button" type="button" data-copy="commands-ubuntu-arm64" data-js-only hidden>{{downloads.copy}}</button></div></details>
+        <p>{{platforms.linux.architectureNote}}</p>
+      </article>
       <div class="equipment-strip download-footnotes">
         <p>{{downloads.intro}}</p><p>{{equipment.packageNote}}</p><p>{{downloads.verify}}</p><p>{{support_summary}}</p><p>{{downloads.requirements}}</p><p>{{downloads.portNote}}</p>
         <div class="download-links"><a class="text-link" href="{{sums_url}}">{{downloads.sums}}</a><a class="text-link" href="https://github.com/RealLeo/vault443/blob/main/docs/linux-packages.md">{{downloads.docs}}</a></div>
       </div>
     </section>
+    </div>

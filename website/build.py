@@ -22,6 +22,8 @@ TARGETS = {
     "debian": {"name": "Debian 13", "pattern": "vault443_{version}-*debian13_amd64.deb", "format": ".deb"},
     "fedora": {"name": "Fedora 44", "pattern": "vault443-{version}-*.fc44.x86_64.rpm", "format": ".rpm"},
     "arch": {"name": "Arch Linux", "pattern": "vault443-{version}-*-x86_64.pkg.tar.zst", "format": ".pkg.tar.zst"},
+    "ubuntu-arm64": {"name": "Ubuntu 24.04 · ARM64", "pattern": "vault443_{version}_arm64.deb", "format": ".deb"},
+    "windows": {"name": "Windows 10 22H2 / Windows 11", "pattern": "Vault443-{version}-windows-x64-setup.exe", "format": ".exe"},
 }
 
 
@@ -59,6 +61,8 @@ def select_release(release):
             raise ValueError("Unsafe installer filename")
         packages.append(dict(target=target, name=info["name"], filename=name,
                              format=info["format"], url=url(name), checksum=url(name + ".sha256"),
+                             platform="windows" if target == "windows" else "linux",
+                             architecture="arm64" if target == "ubuntu-arm64" else "x64",
                              size=assets[name]["size"]))
     return dict(version=version, tag=tag, url=REPOSITORY + "/releases/tag/" + urllib.parse.quote(tag, safe=""),
                 sums=url("SHA256SUMS"), packages=packages)
@@ -97,9 +101,11 @@ def translation_keys(value, prefix=""):
 
 def install_commands(package):
     name = package["filename"]
+    if package["target"] == "windows":
+        return 'Get-FileHash .\\' + name + ' -Algorithm SHA256'
     lines = ["sha256sum -c " + name + ".sha256"]
     target = package["target"]
-    if target in ("ubuntu", "debian"):
+    if target in ("ubuntu", "ubuntu-arm64", "debian"):
         lines.append("sudo apt install ./" + name)
     elif target == "fedora":
         lines.append("sudo dnf install ./" + name)
@@ -109,6 +115,45 @@ def install_commands(package):
         lines.append("sudo systemctl enable --now vault443-guard.service vault443.service")
     lines.append('sudo vault443-access "$USER"')
     return "\n".join(lines)
+
+
+def platform_values(data, release):
+    """All platform content is pre-rendered; JavaScript only selects a view."""
+    t = lambda key: escape(lookup(data, key))
+    values = {}
+    for key in ("lead", "download", "note"):
+        values["platform_" + key] = Markup('<span' + (' class="caption-ink" data-caption-text' if key != 'note' else '') + ' data-platform-copy="all">' + t("hero." + key) + '</span>' + "".join(
+            '<span' + (' class="caption-ink" data-caption-text' if key != 'note' else '') + ' data-platform-copy="' + platform + '">' + t("platforms." + platform + "." + key) + '</span>' for platform in ("windows", "linux")))
+    values["platform_switch"] = Markup('<nav class="platform-switch" aria-label="' + t("platforms.legend") + '">' + "".join(
+        '<a href="?platform=' + platform + '#download-' + platform + '" data-platform-select="' + platform + '"><i aria-hidden="true"></i><span translate="no">' + name + '</span></a>'
+        for platform, name in (("windows", "Windows"), ("linux", "Linux"))) + '</nav>')
+    packages = {package["target"]: package for package in release["packages"]}
+    for target, prefix in (("windows", "windows"), ("ubuntu-arm64", "arm64")):
+        package = packages[target]
+        number = f'{package["size"] / 1048576:.1f}'
+        if data["lang"] == "ru": number = number.replace(".", ",")
+        for key in ("url", "checksum", "filename", "name"):
+            values[prefix + "_" + key] = package[key]
+        values[prefix + "_size"] = number + (" МБ" if data["lang"] == "ru" else " MB")
+        values[prefix + "_commands"] = install_commands(package)
+    values["platform_setup"] = Markup("".join(
+        '<div data-platform-panel="' + platform + '"><h3 class="platform-section-label" translate="no">' + platform.title() + '</h3><ol class="setup-steps">' + "".join(
+            '<li><h3>' + escape(item["title"]) + '</h3><p>' + escape(item["body"]) + '</p></li>' for item in steps) + '</ol><a class="text-link" href="' + REPOSITORY + '/blob/main/' + guide + '">' + escape(label) + '</a></div>'
+        for platform, steps, guide, label in (
+            ("windows", data["platforms"]["windows"]["steps"], "docs/WINDOWS-USER-GUIDE.md" if data["lang"] == "ru" else "README.md#install", data["platforms"]["windows"]["docs"]),
+            ("linux", data["setup"]["steps"], ("README.ru.md" if data["lang"] == "ru" else "README.md") + "#first-connection", data["setup"]["guide"]))))
+    faq = []
+    for index, item in enumerate(data["faq"]["items"]):
+        variants = [(None, item)] if index not in (2,4,5) else [
+            ("windows", data["platforms"]["windows"]["faq"][{2:"privileges",4:"update",5:"recovery"}[index]]), ("linux", item)]
+        for platform, variant in variants:
+            faq.append('<details' + (' data-platform-panel="' + platform + '"' if platform else '') + '><summary>' + escape(variant["question"]) + '</summary><p>' + escape(variant["answer"]) + '</p></details>')
+    values["faq_items"] = Markup("".join(faq))
+    readme = REPOSITORY + "/blob/main/" + ("README.ru.md" if data["lang"] == "ru" else "README.md")
+    windows_doc = REPOSITORY + "/blob/main/" + ("docs/WINDOWS-USER-GUIDE.md" if data["lang"] == "ru" else "README.md#install")
+    values["windows_doc"] = windows_doc
+    values["platform_help"] = Markup('<a class="text-link" data-platform-panel="windows" href="' + windows_doc + '">' + t("platforms.windows.docs") + '</a><a class="text-link" data-platform-panel="linux" href="' + readme + ('#' + urllib.parse.quote("диагностика-и-восстановление-сети") if data["lang"] == "ru" else '#troubleshooting-and-recovery') + '">' + t("faq.help") + '</a>')
+    return values
 
 
 
@@ -129,7 +174,7 @@ def equipment_values(data, release, assets, gallery):
         '<a class="e-slot gallery-choice eg-choice-' + str(i) + (' is-active' if i == 0 else '') + '" href="' + item["src"] + '" data-gallery-index="' + str(i) + '"' + (' aria-current="true"' if i == 0 else '') + '>' + image("gallery-key-" + str(i)) + '' + caption(item["short"], "e-label") + '<i class="choice-lamp" aria-hidden="true"></i></a>'
         for i, item in enumerate(gallery)))
     rows, support = [], []
-    for i, package in enumerate(release["packages"]):
+    for i, package in enumerate(p for p in release["packages"] if p["target"] in ("ubuntu", "debian", "fedora", "arch")):
         target = package["target"]
         status = data["downloads"]["established" if target == "ubuntu" else "port" if target in ("fedora", "arch") else "native"]
         support.append(package["name"] + " — " + status)
@@ -173,8 +218,7 @@ def render_page(translations, release, base):
     gallery = [dict(item, src=screen_url(item["file"])) for item in data["gallery"]["screens"]]
     values["gallery_first_image"] = gallery[0]["src"]
     values.update(equipment_values(data, release, assets, gallery))
-    values["setup_steps"] = Markup("".join('<li><h3>' + escape(item["title"]) + '</h3><p>' + escape(item["body"]) + '</p></li>' for item in data["setup"]["steps"]))
-    values["faq_items"] = Markup("".join('<details><summary>' + escape(item["question"]) + '</summary><p>' + escape(item["answer"]) + '</p></details>' for item in data["faq"]["items"]))
+    values.update(platform_values(data, release))
     values["page_data"] = Markup(json.dumps(dict(controls=data["controls"], demo=data["demo"], gallery=gallery,
                                                  hero=dict(src=screen_url("main"), alt=data["hero"]["alt"], caption=data["hero"]["caption"]),
                                                  downloads={key: data["downloads"][key] for key in ("copy", "copied", "copyFailed")}), ensure_ascii=False).replace("<", "\\u003c"))
@@ -183,10 +227,10 @@ def render_page(translations, release, base):
         key = match.group(1)
         value = values[key] if key in values else lookup(data, key)
         return value if isinstance(value, Markup) else escape(value)
-    template = (ROOT / "templates/index.html").read_text().replace("{{hero_panel}}", (ROOT / "templates/hero.html").read_text()).replace("{{equipment_panels}}", (ROOT / "templates/equipment.html").read_text())
+    template = (ROOT / "templates/index.html").read_text().replace("{{hero_panel}}", (ROOT / "templates/hero.html").read_text()).replace("{{equipment_panels}}", (ROOT / "templates/equipment.html").read_text().replace("{{windows_panel}}", (ROOT / "templates/windows.html").read_text()))
     page = re.sub(r"\{\{\s*([\w.]+)\s*\}\}", substitute, template)
     # Cache-safe replacements for CSS/JS and revised measured atlases.
-    versioned = ["style.css", "vault.css", "scene.css", "scene-layout.css", "equipment.css", "equipment-layout.css", "polish.css", "main.js"]
+    versioned = ["style.css", "vault.css", "scene.css", "scene-layout.css", "equipment.css", "equipment-layout.css", "polish.css", "platform.css", "platform.js", "main.js"]
     versioned += [f"scene/{mode}-{code}.webp" for mode in ("desktop", "mobile") for code in ("en", "ru")]
     versioned += [f"equipment/{name}.webp" for name in ("routing-relays", "gallery-archive", "downloads-counter")]
     for name in versioned:
@@ -224,11 +268,11 @@ def build(base="/vault443/", offline=False):
         shutil.copytree(stage, output)
     # Count hero layers, HTML, scripts, styles, fonts and the shared material.
     # Lower equipment atlases/parts and gallery screens load only near the viewport.
-    initial = ["style.css", "vault.css", "scene.css", "scene-layout.css", "equipment.css", "equipment-layout.css", "polish.css", "main.js", "vendor/gsap.min.js", "vendor/ScrollTrigger.min.js", "fonts/vault-terminal.woff2", "fonts/vault-condensed.woff2", "fonts/vault-display.woff2", "emblem.webp", "vault/hatch-shutters.webp", "equipment/steel-seamless.webp"]
+    initial = ["style.css", "vault.css", "scene.css", "scene-layout.css", "equipment.css", "equipment-layout.css", "polish.css", "platform.css", "platform.js", "main.js", "vendor/gsap.min.js", "vendor/ScrollTrigger.min.js", "fonts/vault-terminal.woff2", "fonts/vault-condensed.woff2", "fonts/vault-display.woff2", "emblem.webp", "vault/hatch-shutters.webp", "equipment/steel-seamless.webp", "equipment/brass-key-frame.webp", "equipment/steel-key-frame.webp", "equipment/brass-surface.webp"]
     shared = sum((ROOT / "assets" / name).stat().st_size for name in initial)
     totals = {lang: {mode: shared + (ROOT / "assets/scene" / f"{mode}-{lang}.webp").stat().st_size + (ROOT / "assets/screens" / lang / "main.webp").stat().st_size + (output / ("index.html" if lang == "en" else "ru/index.html")).stat().st_size for mode in ("desktop", "mobile")} for lang in locales}
     total = max(value for modes in totals.values() for value in modes.values())
-    js_gzip = sum(len(gzip.compress((ROOT / "assets" / name).read_bytes(), mtime=0)) for name in ["main.js", "vendor/gsap.min.js", "vendor/ScrollTrigger.min.js"])
+    js_gzip = sum(len(gzip.compress((ROOT / "assets" / name).read_bytes(), mtime=0)) for name in ["main.js", "platform.js", "vendor/gsap.min.js", "vendor/ScrollTrigger.min.js"])
     if total > 1_500_000 or js_gzip > 100_000:
         raise ValueError(f"Initial load budget exceeded: {total} bytes, JS gzip {js_gzip}")
     (output / "budgets.json").write_text(json.dumps(dict(initial_bytes={lang: max(modes.values()) for lang, modes in totals.items()}, initial_bytes_by_viewport=totals, javascript_gzip_bytes=js_gzip), indent=2) + "\n")

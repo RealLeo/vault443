@@ -1,0 +1,52 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const {detectPlatform, resolvePlatform} = require('../assets/platform.js');
+const windows={platform:'Win32',userAgent:'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'};
+const linux={platform:'Linux x86_64',userAgent:'Mozilla/5.0 (X11; Linux x86_64)'};
+assert.equal(detectPlatform(windows),'windows');
+assert.equal(detectPlatform(linux),'linux');
+assert.equal(detectPlatform({userAgentData:{platform:'Windows',mobile:false}}),'windows');
+for(const nav of [{platform:'Linux armv8l',userAgent:'Mozilla/5.0 (Linux; Android 16)'},{platform:'MacIntel',userAgent:'iPad'}, {platform:'MacIntel',userAgent:'Macintosh'}, {platform:'Linux',userAgent:'CrOS'}, {platform:'Linux',userAgentData:{platform:'Linux',mobile:true}}, {}]) assert.equal(detectPlatform(nav),null);
+assert.equal(resolvePlatform('?platform=windows','linux',linux),'windows');
+assert.equal(resolvePlatform('?platform=linux','windows',windows),'linux');
+assert.equal(resolvePlatform('?platform=bogus','windows',linux),'windows');
+assert.equal(resolvePlatform('',null,{}),'all');
+assert.equal(resolvePlatform('',null,linux),'linux');
+
+// Exercise storage failure, manual choice, navigation and links without GSAP or a browser.
+function page({nav=linux,stored=null,blocked=false,search=''}={}) {
+ const listeners={}, documentListeners={}, values=new Map(stored?[['vault443.platform',stored]]:[]);
+ const location=new URL('https://realleo.github.io/vault443/'+search+'#download');
+ const choices=['windows','linux','windows','linux'].map(platform=>({dataset:{platformSelect:platform},attrs:{},handlers:{},setAttribute(k,v){this.attrs[k]=v},removeAttribute(k){delete this.attrs[k]},addEventListener(k,f){this.handlers[k]=f}}));
+ const language={href:'https://realleo.github.io/vault443/ru/',handlers:{},addEventListener(k,f){this.handlers[k]=f}};
+ const root={dataset:{}};
+ const history={state:null,entries:[],replaceState(state,unused,url){this.state=state;this.entries[0]={state,url:String(url)};location.href=String(url)},pushState(state,unused,url){this.state=state;this.entries.push({state,url:String(url)});location.href=String(url)}};
+ const window={navigator:nav,location,history,localStorage:{getItem:k=>{if(blocked)throw Error('blocked');return values.get(k)},setItem:(k,v)=>{if(blocked)throw Error('blocked');values.set(k,v)}},addEventListener:(k,f)=>{listeners[k]=f},dispatchEvent(){}};
+ const document={documentElement:root,readyState:'loading',activeElement:null,addEventListener:(k,f)=>{documentListeners[k]=f},querySelectorAll:s=>s==='[data-platform-select]'?choices:[language]};
+ vm.runInNewContext(fs.readFileSync(require.resolve('../assets/platform.js'),'utf8'),{window,document,URL,URLSearchParams,Event});
+ documentListeners.DOMContentLoaded();
+ return {root,window,choices,language,values,listeners,select(index){let prevented=false;choices[index].handlers.click({button:0,preventDefault(){prevented=true}});assert.ok(prevented)}};
+}
+let p=page();
+assert.equal(p.root.dataset.platform,'linux');
+p.select(0);
+assert.equal(p.root.dataset.platform,'windows');
+assert.equal(p.values.get('vault443.platform'),'windows');
+assert.equal(p.window.location.search,'?platform=windows');
+assert.ok(p.choices.filter(c=>c.attrs['aria-current']==='true').every(c=>c.dataset.platformSelect==='windows'));
+assert.equal(p.choices.filter(c=>c.attrs['aria-current']==='true').length,2);
+assert.equal(p.language.href,'https://realleo.github.io/vault443/ru/?platform=windows#download');
+p.select(1);
+const previous=p.window.history.entries[1];
+p.window.location.href=previous.url;p.listeners.popstate({state:previous.state});
+assert.equal(p.root.dataset.platform,'windows','Back restores the selected view, even when stored choice is Linux');
+p.window.history.state=previous.state;p.listeners.pageshow({persisted:true});
+assert.equal(p.root.dataset.platform,'windows','BFCache preserves the history view');
+p.window.location.hash='#download-windows';p.select(1);
+assert.equal(p.window.location.hash,'#download','Switching OS keeps download deep links valid');
+p=page({blocked:true});p.select(0);assert.equal(p.root.dataset.platform,'windows');
+p=page({stored:'windows'});assert.equal(p.root.dataset.platform,'windows');
+p=page({stored:'windows',search:'?platform=linux'});assert.equal(p.root.dataset.platform,'linux');
+p=page({nav:{}});assert.equal(p.root.dataset.platform,'all');
+console.log('Platform detection, mobile exclusions, precedence, persistence failure, synchronized controls and history OK');

@@ -32,7 +32,9 @@ jobs:
       - name: Check release selection and static pages
         run: python3 -m unittest discover -s website/tests -v
       - name: Check motion policy
-        run: node website/tests/motion.cjs
+        run: |
+          node website/tests/motion.cjs
+          node website/tests/platform.cjs
       - name: Build bilingual website
         run: python3 website/build.py
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5

@@ -28,14 +28,35 @@ class WebsiteTests(unittest.TestCase):
 
     def test_complete_snapshot_and_distribution_commands(self):
         selected = builder.select_release(self.release)
-        self.assertEqual(selected["version"], "1.3.4")
-        self.assertEqual(len(selected["packages"]), 4)
-        for package, manager in zip(selected["packages"], ("apt", "apt", "dnf", "pacman")):
+        self.assertEqual(selected["version"], "1.3.5")
+        self.assertEqual(len(selected["packages"]), 6)
+        for package, manager in zip(selected["packages"], ("apt", "apt", "dnf", "pacman", "apt")):
             command = builder.install_commands(package)
             self.assertTrue(command.startswith("sha256sum -c "))
             self.assertIn("sudo " + manager, command)
             self.assertIn(package["filename"], command)
             self.assertTrue(command.endswith('sudo vault443-access "$USER"'))
+        windows = next(p for p in selected["packages"] if p["platform"] == "windows")
+        self.assertEqual(windows["architecture"], "x64")
+        self.assertEqual(builder.install_commands(windows), "Get-FileHash .\\" + windows["filename"] + " -Algorithm SHA256")
+        self.assertNotIn("sudo", builder.install_commands(windows))
+
+    def test_verified_snapshot_hashes_and_platforms(self):
+        selected = builder.select_release(self.release)
+        receipt = json.loads((ROOT / "data/release-verification.json").read_text())
+        sums = dict((line.split()[-1], line.split()[0]) for line in (ROOT / "data/release-SHA256SUMS").read_text().splitlines())
+        assets = {a["name"]: a for a in self.release["assets"]}
+        verified = {p["name"]: p for p in receipt["packages"]}
+        self.assertEqual(receipt["version"], selected["version"])
+        self.assertEqual(len(sums), 6)
+        for package in selected["packages"]:
+            name = package["filename"]
+            self.assertTrue(verified[name]["verified"])
+            self.assertEqual(assets[name]["digest"], "sha256:" + sums[name])
+            self.assertEqual(verified[name]["sha256"], sums[name])
+            self.assertEqual(verified[name]["size"], package["size"])
+        self.assertEqual(sum(p["platform"] == "linux" for p in selected["packages"]), 5)
+        self.assertEqual(sum(p["architecture"] == "arm64" for p in selected["packages"]), 1)
 
     def test_incomplete_release_rejected(self):
         for asset in self.release["assets"]:
@@ -58,11 +79,11 @@ class WebsiteTests(unittest.TestCase):
 
     def test_network_failure_and_incomplete_latest_fall_back(self):
         with patch.object(builder.urllib.request, "urlopen", side_effect=OSError("offline")):
-            self.assertEqual(builder.load_release()["version"], "1.3.4")
-        with patch.object(builder, "select_release", side_effect=[ValueError("missing asset"), {"version": "1.3.4"}]):
+            self.assertEqual(builder.load_release()["version"], "1.3.5")
+        with patch.object(builder, "select_release", side_effect=[ValueError("missing asset"), {"version": "1.3.5"}]):
             with patch.object(builder.urllib.request, "urlopen") as response:
                 response.return_value.__enter__.return_value.read.return_value = b'{}'
-                self.assertEqual(builder.load_release()["version"], "1.3.4")
+                self.assertEqual(builder.load_release()["version"], "1.3.5")
 
     def test_static_links_localization_and_assets(self):
         selected = builder.select_release(self.release)
@@ -75,6 +96,7 @@ class WebsiteTests(unittest.TestCase):
             parser.feed(page)
             self.assertNotIn("{{", page)
             ids = {attrs["id"] for tag, attrs in parser.elements if "id" in attrs}
+            self.assertEqual(len(ids), sum("id" in attrs for tag, attrs in parser.elements), "Platform panels must not duplicate IDs")
             for tag, attrs in parser.elements:
                 for key in ("href", "src"):
                     url = attrs.get(key, "")
@@ -83,10 +105,19 @@ class WebsiteTests(unittest.TestCase):
                     if url.startswith("/vault443/assets/") and not url.endswith("social.png"):
                         self.assertTrue((ROOT / "assets" / url.removeprefix("/vault443/assets/").split("?",1)[0]).is_file(), url)
             downloads = [attrs for tag, attrs in parser.elements if tag == "a" and "package-download" in attrs.get("class", "")]
-            self.assertEqual(len(downloads), 4, "Static HTML must contain the real download links")
+            self.assertEqual(len(downloads), 6, "Static HTML must contain the real download links")
             self.assertIn('lang="' + locale["lang"] + '"', page)
             self.assertIn('hreflang="x-default"', page)
             self.assertTrue(all(attrs.get("alt") is not None for tag, attrs in parser.elements if tag == "img"))
+            self.assertIn('data-platform-panel="windows"', page)
+            self.assertIn('data-platform-panel="linux"', page)
+            self.assertIn('Get-FileHash', page)
+            self.assertIn('Authenticode', page)
+            self.assertIn('ARM64', page)
+            self.assertIn('Linux', locale["equipment"]["galleryNote"])
+            switches = [attrs for tag,attrs in parser.elements if "data-platform-select" in attrs]
+            self.assertEqual(len(switches), 4)
+            self.assertTrue(all("#download-" in a["href"] for a in switches))
 
     def test_door_static_state_and_art_provenance(self):
         selected = builder.select_release(self.release)
