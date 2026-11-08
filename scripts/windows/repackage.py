@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Verify a restored runtime and prepare a packaging or Go-backend revision.
 
-No compiler, SDK, Go command or network is used. Pass the original installer and
+No compiler build, SDK installation or network access is used. The optional
+backend revision inspects BuildInfo with the pinned Go tool. Pass the original installer and
 build manifest with independently recorded hashes, its original runtime source
 ZIP, and a fresh source snapshot containing the current installer and QA files.
 By default only build-manifest.json changes. --backend-build replaces the five

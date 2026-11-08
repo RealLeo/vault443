@@ -99,27 +99,63 @@ function Read-FileIcons([string]$Path,[string]$Prefix,[bool]$RequireResource) {
 }
 function Read-VersionMetadata([string]$Path) {
     $version=[Diagnostics.FileVersionInfo]::GetVersionInfo($Path)
-    if($version.CompanyName -cne 'Vault 443' -or $version.FileMajorPart -ne 1 -or $version.FileMinorPart -ne 3 -or $version.FileBuildPart -ne 5){throw 'Publisher or file version mismatch'}
-    return @{companyName=$version.CompanyName;fileVersion=$version.FileVersion;productName=$version.ProductName;productVersion=$version.ProductVersion;fileDescription=$version.FileDescription}
+    # Inno reserves space-padded VERSIONINFO strings in the setup loader.
+    # Preserve the raw evidence while comparing its visible publisher value.
+    $company=$version.CompanyName.TrimEnd(' ')
+    if($company -cne 'Vault 443' -or $version.FileMajorPart -ne 1 -or $version.FileMinorPart -ne 3 -or $version.FileBuildPart -ne 5){throw 'Publisher or file version mismatch'}
+    return @{companyName=$company;rawCompanyName=$version.CompanyName;fileVersion=$version.FileVersion;productName=$version.ProductName;productVersion=$version.ProductVersion;fileDescription=$version.FileDescription}
 }
 function Read-ShellEvidence {
     Initialize-ShellIcons
+    if(!('Vault443Release135ShellLink' -as [type])){Add-Type -TypeDefinition @'
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public static class Vault443Release135ShellLink {
+    [ComImport, Guid("000214F9-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IShellLinkW {
+        void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder path, int count, IntPtr findData, uint flags);
+        void GetIDList(out IntPtr idList);
+        void SetIDList(IntPtr idList);
+        void GetDescription([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder text, int count);
+        void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string text);
+        void GetWorkingDirectory([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder path, int count);
+        void SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string path);
+        void GetArguments([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder text, int count);
+        void SetArguments([MarshalAs(UnmanagedType.LPWStr)] string text);
+        void GetHotkey(out short hotkey);
+        void SetHotkey(short hotkey);
+        void GetShowCmd(out int show);
+        void SetShowCmd(int show);
+        void GetIconLocation([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder path, int count, out int index);
+    }
+    public sealed class LinkData {
+        public string TargetPath, WorkingDirectory, IconLocation;
+    }
+    public static LinkData Read(string filename) {
+        object instance=Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("00021401-0000-0000-C000-000000000046")));
+        try {
+            // STGM_READ only. Never call Resolve, Save or any setter.
+            ((System.Runtime.InteropServices.ComTypes.IPersistFile)instance).Load(filename,0);
+            var link=(IShellLinkW)instance;
+            var target=new StringBuilder(32768);var working=new StringBuilder(32768);var icon=new StringBuilder(32768);int index;
+            link.GetPath(target,target.Capacity,IntPtr.Zero,0); // Unicode target path; no Resolve call
+            link.GetWorkingDirectory(working,working.Capacity);
+            link.GetIconLocation(icon,icon.Capacity,out index);
+            return new LinkData{TargetPath=target.ToString(),WorkingDirectory=working.ToString(),IconLocation=icon.ToString()+","+index};
+        } finally { Marshal.FinalReleaseComObject(instance); }
+    }
+}
+'@}
     $registry='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{B7547E6A-E316-4C92-9407-1B0F0D4A3443}_is1'
     $installed=Get-ItemProperty -LiteralPath $registry
     $displayIcon=([string]$installed.DisplayIcon -replace ',\s*-?\d+\s*$','').Trim('"')
     if($installed.Publisher -cne 'Vault 443' -or $installed.DisplayVersion -ne '1.3.5' -or [IO.Path]::GetFullPath($displayIcon) -ne $app){throw 'Installed-app publisher or display icon mismatch'}
     $shortcut=Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'Vault 443.lnk'
     if(!(Test-Path -LiteralPath $shortcut -PathType Leaf)){throw 'Start shortcut is missing'}
-    $shell=New-Object -ComObject WScript.Shell
-    $link=$null
-    try {
-        $link=$shell.CreateShortcut($shortcut)
-        if([IO.Path]::GetFullPath($link.TargetPath) -ne $app){throw 'Start shortcut points to a different installation'}
-        $shortcutInfo=@{path=$shortcut;targetPath=$link.TargetPath;iconLocation=$link.IconLocation;workingDirectory=$link.WorkingDirectory}
-    }finally{
-        if($null -ne $link){[void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($link)}
-        [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shell)
-    }
+    $link=[Vault443Release135ShellLink]::Read($shortcut)
+    if([IO.Path]::GetFullPath($link.TargetPath) -ne $app){throw 'Start shortcut points to a different installation'}
+    $shortcutInfo=@{path=$shortcut;targetPath=$link.TargetPath;iconLocation=$link.IconLocation;workingDirectory=$link.WorkingDirectory;reader='IShellLinkW/IPersistFile STGM_READ'}
     $result=[ordered]@{metadata=(Read-VersionMetadata $app);exe=(Read-FileIcons $app 'shell-exe' $true);shortcut=$shortcutInfo;startIcon=(Read-FileIcons $shortcut 'shell-start' $false);installedApp=@{publisher=$installed.Publisher;version=$installed.DisplayVersion;displayIcon=$installed.DisplayIcon};installer=$null}
     if([bool]$InstallerPath -ne [bool]$ExpectedInstallerSha256){throw 'Installer path and checksum must be supplied together'}
     if($InstallerPath){
