@@ -110,6 +110,22 @@ sources. OpenSSL/LZ4 source notices added by the collector are in
 terms from the native toolchain into `stage/licenses/msvc/`; this is checked before
 packaging. The license collector must be rerun if any project Go executable changes.
 
+For a repeatable extraction of the runtime terms, obtain `VC_redist.x64.exe`
+from the pinned native installation's `C:\ProgramData\Microsoft\VisualStudio\Packages`
+cache. Record its FileVersion, SHA-256 and valid Microsoft Authenticode signature
+in the native receipt, then copy it to the Linux build host and run:
+
+```sh
+python3 scripts/windows/msvc_licenses.py \
+  --redistributable /path/to/VC_redist.x64.exe \
+  --expected-sha256 SHA256_FROM_NATIVE_RECEIPT \
+  --stage /var/www/projects/windows/license-stage
+```
+
+This uses `cabextract` to authenticate the EN/RU EULAs against the bundle's Burn
+manifest and records their provenance. Merge this stage after `licenses.py`;
+the redistributable itself is not included in the application payload.
+
 Qt is dynamically linked. Interface-compatible modified Qt DLLs can replace the
 installed DLLs, with administrator access to the protected installation folder. Qt source archives,
 the exact patch and `licenses/qt/RELINKING.txt` accompany the distribution. No
