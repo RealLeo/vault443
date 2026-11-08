@@ -205,6 +205,20 @@ function Stable-WfpGUID([string]$Label) {
     $hex = ([BitConverter]::ToString($bytes) -replace '-', '').Substring(0,32)
     return [Guid]::Parse($hex.Substring(0,8)+'-'+$hex.Substring(8,4)+'-'+$hex.Substring(12,4)+'-'+$hex.Substring(16,4)+'-'+$hex.Substring(20,12))
 }
+function Convert-WfpGuidText($Value) {
+    if ($Value -is [string] -or $Value -is [Guid]) { return ([Guid]$Value).ToString('D') }
+    # wf.RuleID is a named windows.GUID struct, not an encoding.TextMarshaler.
+    # Its JSON representation contains numeric Data1/2/3 and eight Data4 bytes.
+    $tail = @($Value.Data4)
+    if ($null -eq $Value.Data1 -or $null -eq $Value.Data2 -or $null -eq $Value.Data3 -or $tail.Count -ne 8) {
+        throw 'Invalid stored WFP GUID representation'
+    }
+    $text = '{0:x8}-{1:x4}-{2:x4}-{3:x2}{4:x2}-{5:x2}{6:x2}{7:x2}{8:x2}{9:x2}{10:x2}' -f
+        [uint32]$Value.Data1, [uint16]$Value.Data2, [uint16]$Value.Data3,
+        [byte]$tail[0], [byte]$tail[1], [byte]$tail[2], [byte]$tail[3],
+        [byte]$tail[4], [byte]$tail[5], [byte]$tail[6], [byte]$tail[7]
+    return ([Guid]$text).ToString('D')
+}
 function DNS-Normalized([string]$Text) { return ((($Text -split '[,;\s]+' | Where-Object { $_ }) | Sort-Object) -join ',').ToLowerInvariant() }
 function Removed($Owned, $InstalledManifest) {
     $deadline = [DateTime]::UtcNow.AddSeconds(30)
@@ -238,9 +252,10 @@ function Removed($Owned, $InstalledManifest) {
         if ((DNS-Normalized $current) -ne (DNS-Normalized $backup.nameServer)) { $badDNS++ }
     }
     Check 'original-static-dns-restored' ($badDNS -eq 0) @{ mismatches = $badDNS }
-    $keys = @($Owned.wfp.ids) + @($remaining.wfp.ids)
+    $keys = @((@($Owned.wfp.ids) + @($remaining.wfp.ids)) | Where-Object { $null -ne $_ } |
+        ForEach-Object { Convert-WfpGuidText $_ } | Sort-Object -Unique)
     $filters = 0
-    foreach ($key in @($keys | Where-Object { $_ } | Sort-Object -Unique)) { if ([VaultInstallerReadOnly]::Exists([Guid]$key,0)) { $filters++ } }
+    foreach ($key in $keys) { if ([VaultInstallerReadOnly]::Exists([Guid]$key,0)) { $filters++ } }
     Check 'owned-wfp-filters-removed' ($filters -eq 0 -and @($remaining.wfp.parts.PSObject.Properties).Count -eq 0) @{ remainingFilters = $filters }
     $provider = [VaultInstallerReadOnly]::Exists((Stable-WfpGUID 'provider'),1)
     $sublayer = [VaultInstallerReadOnly]::Exists((Stable-WfpGUID 'sublayer'),2)
