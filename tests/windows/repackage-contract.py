@@ -57,6 +57,90 @@ class RepackageContract(unittest.TestCase):
                                source=source, expected_file_count=2)
         return args, project, manifest
 
+    def backend_fixture(self, root):
+        args, project, original = self.fixture(root)
+        names = ('vault443d.exe', 'vault443-cli.exe', 'vault443-access.exe',
+                 'vault443-tunnel.exe', 'vault443-outline.exe')
+        backend = dict(productVersion='1.3.5', goVersion='1.27.3', os='windows', architecture='amd64',
+                       dependencyPatches={}, binaries={})
+        linked = {}
+        args.backend_build = root / 'new-backend'
+        args.backend_build.mkdir()
+        for name in names:
+            (args.stage / name).write_bytes(('old ' + name).encode())
+            backend['binaries'][name] = repackage.digest(args.stage / name)
+            linked[name] = dict(goVersion='go1.27.3', sha256=backend['binaries'][name])
+            (args.backend_build / name).write_bytes(('new ' + name).encode())
+        (args.stage / 'backend-build.json').write_text(json.dumps(backend))
+        components = args.stage / 'licenses/software-components.json'
+        components.parent.mkdir()
+        components.write_text(json.dumps(dict(linkedGoBinaries=linked, components=[dict(name='unchanged license')])) )
+        original['backend'] = backend
+        original['files'] = {path.relative_to(args.stage).as_posix(): dict(bytes=path.stat().st_size, sha256=repackage.digest(path))
+                             for path in args.stage.rglob('*') if path.is_file() and path.name != 'build-manifest.json'}
+        args.baseline_manifest.write_text(json.dumps(original))
+        args.baseline_manifest_sha256 = repackage.digest(args.baseline_manifest)
+        args.expected_file_count = len(original['files'])
+        new_backend = json.loads(json.dumps(backend))
+        new_backend['revision'] = 'fixed-backend'
+        new_backend['binaries'] = {name: repackage.digest(args.backend_build / name) for name in names}
+        (args.backend_build / 'backend-build.json').write_text(json.dumps(new_backend))
+        return args, project, original, new_backend
+
+    @staticmethod
+    def identity(path):
+        return dict(GoVersion='go1.27.3', Path='example/' + path.name,
+                    Main=dict(Path='example'), Deps=[dict(Path='licensed-module', Version='v1.0', Sum='h1:original')])
+
+    def test_backend_revision_preserves_native_payload_and_refreshes_actual_license_hashes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args, project, original, backend = self.backend_fixture(Path(directory))
+            original_qt = (args.stage / 'Qt6Core.dll').read_bytes()
+            with mock.patch.object(repackage, 'ROOT', project), mock.patch.object(repackage, 'go_binary_identity', side_effect=self.identity), mock.patch.object(repackage.subprocess, 'check_output', return_value=b''):
+                revised = repackage.repackage(args)
+            self.assertEqual((args.stage / 'Qt6Core.dll').read_bytes(), original_qt)
+            self.assertEqual(revised['nativeToolchain'], original['nativeToolchain'])
+            self.assertEqual(revised['nativeSource']['sha256'], original['source']['sha256'])
+            self.assertEqual(revised['backendSource']['sha256'], repackage.digest(args.source))
+            self.assertEqual(revised['backend'], backend)
+            self.assertFalse(revised['packagingRevision']['runtimePayloadUnchanged'])
+            self.assertTrue(revised['packagingRevision']['nativePayloadUnchanged'])
+            components = json.loads((args.stage / 'licenses/software-components.json').read_text())
+            self.assertEqual(components['components'], [dict(name='unchanged license')])
+            for name, sha in backend['binaries'].items():
+                self.assertEqual(repackage.digest(args.stage / name), sha)
+                self.assertEqual(components['linkedGoBinaries'][name]['sha256'], sha)
+                self.assertEqual(revised['files'][name]['sha256'], sha)
+
+    def test_backend_module_change_rejected_without_stage_or_output_mutation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args, project, original, _ = self.backend_fixture(Path(directory))
+            before = (args.stage / 'build-manifest.json').read_bytes()
+
+            def changed(path):
+                result = self.identity(path)
+                if path.parent == args.backend_build:
+                    result['Deps'].append(dict(Path='unreviewed-module', Version='v2', Sum='h1:new'))
+                return result
+
+            with mock.patch.object(repackage, 'ROOT', project), mock.patch.object(repackage, 'go_binary_identity', side_effect=changed), mock.patch.object(repackage.subprocess, 'check_output', return_value=b''):
+                with self.assertRaisesRegex(ValueError, 'recollect licenses explicitly'):
+                    repackage.repackage(args)
+            self.assertEqual((args.stage / 'build-manifest.json').read_bytes(), before)
+            self.assertFalse(args.output.exists())
+            for name, record in original['files'].items():
+                self.assertEqual(repackage.digest(args.stage / name), record['sha256'])
+
+    def test_backend_snapshot_must_include_new_current_go_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args, project, _, _ = self.backend_fixture(Path(directory))
+            path = project / 'new.go'
+            path.write_text('package main\n')
+            with mock.patch.object(repackage, 'ROOT', project), mock.patch.object(repackage.subprocess, 'check_output', return_value=b'new.go\0'):
+                with self.assertRaisesRegex(ValueError, 'current Go source: new.go'):
+                    repackage.repackage(args)
+            self.assertFalse(args.output.exists())
+
     def test_preserves_runtime_and_records_separate_sources(self):
         with tempfile.TemporaryDirectory() as directory:
             args, project, original = self.fixture(Path(directory))

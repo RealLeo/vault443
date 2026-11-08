@@ -15,6 +15,8 @@ installation instructions visible in the main README.
   Unicode. Setup protects application files and refuses unsafe parent
   permissions, network paths and junction/symlink traversal before installing
   the SYSTEM service.
+- Fixed WFP AppID matching in Unicode installation paths using Windows invariant
+  casing, so IPv6 checks and VPN transport endpoint exceptions apply correctly.
 - Updates keep the existing installation location. To move the application,
   uninstall and reinstall in the new location; private profiles and journals in
   `%ProgramData%\Vault443` remain by default.
@@ -84,6 +86,9 @@ Vault 443 выпускается для Windows 10 22H2 / Windows 11 x64 и Linu
   `C:\Program Files\Vault443`. Перед установкой службы SYSTEM проверяются путь
   и права: сетевые и небезопасные каталоги, junction и символические ссылки
   отклоняются, файлы приложения защищаются от подмены обычным пользователем.
+- Исправлено сопоставление AppID в WFP для Unicode-путей: инвариантное приведение
+  регистра Windows корректно применяет исключения для проверки IPv6 и
+  транспортных соединений VPN-движков.
 - Обновление сохраняет прежний каталог. Для переноса удалите приложение и
   установите его в новую папку; приватные профили и журналы в
   `%ProgramData%\Vault443` сохраняются по умолчанию.
