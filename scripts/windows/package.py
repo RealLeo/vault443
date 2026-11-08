@@ -165,6 +165,17 @@ def finish(args):
         'build-manifest.json': dict(sha256=digest(output / 'build-manifest.json')),
         'source.zip': dict(bytes=(output / 'source.zip').stat().st_size, sha256=digest(output / 'source.zip')),
     }
+    if manifest.get('packagingRevision'):
+        if digest(output / 'source.zip') != manifest['source']['sha256']:
+            raise ValueError('Packaging revision source ZIP differs from the build manifest')
+        for identity in (manifest['runtimeSource'], manifest['packagingRevision']['runtimeBuildManifest']):
+            archive = identity['archive']
+            if Path(archive).name != archive or archive in artifacts:
+                raise ValueError('Invalid runtime provenance archive name')
+            path = output / archive
+            if not path.is_file() or digest(path) != identity['sha256']:
+                raise ValueError('Missing or substituted original runtime provenance: ' + archive)
+            artifacts[archive] = dict(bytes=path.stat().st_size, sha256=identity['sha256'])
     (output / 'artifact-manifest.json').write_text(json.dumps(dict(
         schemaVersion=1, productVersion=version, signed=False, published=False,
         acceptance='pending', artifacts=artifacts), indent=2) + '\n', encoding='utf-8')

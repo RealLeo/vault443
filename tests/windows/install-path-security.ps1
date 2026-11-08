@@ -44,7 +44,7 @@ function ACL([string]$Path, [string]$Additional='') {
     $security.SetSecurityDescriptorSddlForm('O:BAG:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)'+$Additional)
     Set-Acl -LiteralPath $Path -AclObject $security
 }
-function Dir([string]$Path) { New-Item -ItemType Directory -Path $Path | Out-Null; ACL $Path }
+function New-TestDirectory([string]$Path) { New-Item -ItemType Directory -Path $Path | Out-Null; ACL $Path }
 try {
     Save
     $safe=$root+'\Папка с пробелами\Vault 443'
@@ -56,30 +56,30 @@ try {
         $result=Native 'prepare-install-path' $bad
         Check ('ambiguous-or-network-'+$bad) ($result.exitCode -ne 0) $result
     }
-    $foreign=$root+'\foreign'; Dir $foreign
+    $foreign=$root+'\foreign'; New-TestDirectory $foreign
     $marker=Join-Path $foreign 'foreign.txt'; [IO.File]::WriteAllText($marker,'preserve-'+$token)
     $markerBefore=(Get-FileHash -LiteralPath $marker).Hash
     $before=(Get-Acl -LiteralPath $foreign).Sddl
     $result=Native 'prepare-install-path' $foreign
     Check 'nonempty-unregistered-target-refused' ($result.exitCode -ne 0 -and (Get-FileHash -LiteralPath $marker).Hash -eq $markerBefore -and (Get-Acl -LiteralPath $foreign).Sddl -eq $before) $result
-    $unsafe=$root+'\unsafe-parent'; Dir $unsafe; ACL $unsafe '(A;0x40;;;BU)'
+    $unsafe=$root+'\unsafe-parent'; New-TestDirectory $unsafe; ACL $unsafe '(A;;0x40;;;BU)'
     $before=(Get-Acl -LiteralPath $unsafe).Sddl
     $result=Native 'prepare-install-path' ($unsafe+'\Vault443')
     Check 'untrusted-delete-child-parent-refused' ($result.exitCode -ne 0 -and !(Test-Path -LiteralPath ($unsafe+'\Vault443')) -and (Get-Acl -LiteralPath $unsafe).Sddl -eq $before) $result
     ACL $unsafe
-    $unsafe=$root+'\unsafe-target'; Dir $unsafe; ACL $unsafe '(A;0x2;;;BU)'
+    $unsafe=$root+'\unsafe-target'; New-TestDirectory $unsafe; ACL $unsafe '(A;;0x2;;;BU)'
     $before=(Get-Acl -LiteralPath $unsafe).Sddl
     $result=Native 'prepare-install-path' $unsafe
     Check 'untrusted-child-creation-target-refused' ($result.exitCode -ne 0 -and (Get-Acl -LiteralPath $unsafe).Sddl -eq $before) $result
     ACL $unsafe
     foreach ($right in @('0x10','0x100')) {
-        $unsafe=$root+'\unsafe-metadata-'+$right; Dir $unsafe; ACL $unsafe ('(A;'+$right+';;;BU)')
+        $unsafe=$root+'\unsafe-metadata-'+$right; New-TestDirectory $unsafe; ACL $unsafe ('(A;;'+$right+';;;BU)')
         $before=(Get-Acl -LiteralPath $unsafe).Sddl
         $result=Native 'prepare-install-path' $unsafe
         Check ('untrusted-metadata-'+$right+'-refused') ($result.exitCode -ne 0 -and (Get-Acl -LiteralPath $unsafe).Sddl -eq $before) $result
         ACL $unsafe
     }
-    $create=$root+'\create-only-parent'; Dir $create; ACL $create '(A;0x6;;;BU)'
+    $create=$root+'\create-only-parent'; New-TestDirectory $create; ACL $create '(A;;0x6;;;BU)'
     $before=(Get-Acl -LiteralPath $create).Sddl
     $result=Native 'prepare-install-path' ($create+'\Vault443')
     Check 'parent-unrelated-child-creation-allowed' ($result.exitCode -eq 0 -and (Get-Acl -LiteralPath $create).Sddl -eq $before -and (Native 'check-install-path' ($create+'\Vault443')).exitCode -eq 0) $result

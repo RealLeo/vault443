@@ -44,6 +44,19 @@ if($c.files.'Vault443-1.3.4-windows-x64-setup.exe'-ne'f923f16fff693112fc1d53a167
 foreach($entry in $c.files.PSObject.Properties){$target=Join-Path $q $entry.Name;if(Test-Path -LiteralPath $target){Protected $target $false;if((Get-FileHash -LiteralPath $target).Hash.ToLowerInvariant()-ne$entry.Value){throw 'Existing protected QA input differs; use fresh QA root'}}else{[Vault443Release135Files]::CopyNew((Join-Path $SourceDirectory $entry.Name),$target,$false)};Protected $target $false;if((Get-FileHash -LiteralPath $target).Hash.ToLowerInvariant()-ne$entry.Value){throw 'Protected copy SHA differs'}}
 $marker=Join-Path $private 'marker';if(!(Test-Path -LiteralPath $marker)){[Vault443Release135Files]::TextNew('Vault443 isolated Windows fixture',$marker,$true)};Protected $marker $true
 if([IO.File]::ReadAllText($marker)-ne'Vault443 isolated Windows fixture'){throw 'Existing QA marker differs'}
+# The host attaches a new, disposable 2 GiB VDI solely for alternate-drive tests.
+# Never format an existing volume or change permissions on a pre-existing root.
+$testVolume=Get-Volume -DriveLetter V -ErrorAction SilentlyContinue
+if($testVolume){
+ if($testVolume.FileSystemLabel-ne'Vault443-QA-135'-or$testVolume.FileSystem-ne'NTFS'-or$testVolume.DriveType-ne'Fixed'){throw 'Unexpected existing V: QA volume'}
+}else{
+ $extra=@(Get-Disk|Where-Object {!$_.IsBoot-and!$_.IsSystem})
+ if($extra.Count-ne1-or$extra[0].Size-ne2GB-or$extra[0].PartitionStyle-ne'RAW'-or$extra[0].FriendlyName-ne'VBOX HARDDISK'){throw 'Expected one new empty 2 GiB VirtualBox QA disk'}
+ $extra[0]|Initialize-Disk -PartitionStyle GPT -PassThru|New-Partition -UseMaximumSize -DriveLetter V|Format-Volume -FileSystem NTFS -NewFileSystemLabel 'Vault443-QA-135' -Confirm:$false|Out-Null
+ $volumeACL=[Security.AccessControl.DirectorySecurity]::new()
+ $volumeACL.SetSecurityDescriptorSddlForm('O:BAG:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)')
+ Set-Acl -LiteralPath 'V:\' -AclObject $volumeACL
+}
 $adapter=@(Get-NetAdapter -Physical|Where-Object {$_.InterfaceDescription-notmatch'Wintun|WireGuard|VPN'});if($adapter.Count-ne1){throw 'One physical QA uplink required'}
 $compat=@{machine=$env:COMPUTERNAME;controllerSID=$c.controllerSID;adapterGuid=[string]$adapter[0].InterfaceGuid;adapterMAC=$adapter[0].MacAddress;files=$c.files;installer='Vault443-1.3.5-windows-x64-setup.exe';installerSha256=$c.installerSha256}
 $compatPath=Join-Path $private 'qa-inputs.json';if(!(Test-Path -LiteralPath $compatPath)){[Vault443Release135Files]::TextNew(($compat|ConvertTo-Json -Depth 8),$compatPath,$true)};Protected $compatPath $true

@@ -166,6 +166,18 @@ function CreateHelperFile(Path: String; Access, Share: DWORD;
   external 'CreateFileW@kernel32.dll stdcall setuponly';
 function CloseSetupHandle(Handle: THandle): BOOL;
   external 'CloseHandle@kernel32.dll stdcall setuponly';
+function AllocateCopyBuffer(Address, Size: NativeUInt; AllocationType, Protection: DWORD): NativeUInt;
+  external 'VirtualAlloc@kernel32.dll stdcall setuponly';
+function FreeCopyBuffer(Address, Size: NativeUInt; FreeType: DWORD): BOOL;
+  external 'VirtualFree@kernel32.dll stdcall setuponly';
+function ReadHelperBytes(Handle: THandle; Buffer: NativeUInt; Count: DWORD;
+  var Transferred: DWORD; Overlapped: NativeUInt): BOOL;
+  external 'ReadFile@kernel32.dll stdcall setuponly';
+function WriteHelperBytes(Handle: THandle; Buffer: NativeUInt; Count: DWORD;
+  var Transferred: DWORD; Overlapped: NativeUInt): BOOL;
+  external 'WriteFile@kernel32.dll stdcall setuponly';
+function FlushHelperBytes(Handle: THandle): BOOL;
+  external 'FlushFileBuffers@kernel32.dll stdcall setuponly';
 function CreateProcessSnapshot(Flags, ProcessId: DWORD): THandle;
   external 'CreateToolhelp32Snapshot@kernel32.dll stdcall uninstallonly';
 function FirstProcess(Snapshot: THandle; var Entry: TNativeProcessEntry): BOOL;
@@ -230,22 +242,26 @@ end;
 
 function PrepareAuthenticatedHelper: Boolean;
 var
-  Candidate, Helper: String;
+  Candidate, Helper, ActualHash: String;
   Attributes: TNativeSecurityAttributes;
   Descriptor: NativeUInt;
-  HelperHandle: THandle;
-  Data: AnsiString;
-  Size: DWORD;
+  SourceHandle, HelperHandle: THandle;
+  Buffer: NativeUInt;
+  Size, ReadCount, WrittenCount, Total: DWORD;
 begin
   Result := False;
   if PrivateHelperDir = '' then begin
+    Log('Authenticated helper: create protected temporary directory.');
     Candidate := ExpandConstant('{autopf}\Vault443.Setup-') +
       IntToStr(CurrentSetupProcessId) + '-' + GetDateTimeString('yyyymmddhhnnsszzz', #0, #0);
     Descriptor := 0;
     Size := 0;
     if not ConvertDirectorySecurity(
       'O:BAG:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)',
-      1, Descriptor, Size) then Exit;
+      1, Descriptor, Size) then begin
+      Log('Authenticated helper: directory security conversion failed, Windows error ' + IntToStr(DLLGetLastError));
+      Exit;
+    end;
     try
       Attributes.Length := 24;
       Attributes.AlignmentPad := 0;
@@ -253,7 +269,10 @@ begin
       Attributes.InheritHandle := False;
       Attributes.TailPad := 0;
       { Never adopt/re-ACL an existing directory, even if the name collides. }
-      if not CreateProtectedDirectory(Candidate, Attributes) then Exit;
+      if not CreateProtectedDirectory(Candidate, Attributes) then begin
+        Log('Authenticated helper: protected directory creation failed, Windows error ' + IntToStr(DLLGetLastError));
+        Exit;
+      end;
       PrivateHelperDir := Candidate;
     finally
       FreeSecurityDescriptor(Descriptor);
@@ -262,37 +281,93 @@ begin
   Helper := AddBackslash(PrivateHelperDir) + 'vault443-setup-helper.exe';
   try
     if not FileExists(Helper) then begin
+      Log('Authenticated helper: extract embedded source.');
       ExtractTemporaryFile('vault443-setup-helper.exe');
-      if not LoadStringFromFile(ExpandConstant('{tmp}\vault443-setup-helper.exe'), Data) then Exit;
+      SourceHandle := 0;
+      HelperHandle := 0;
+      Buffer := 0;
       Descriptor := 0;
-      if not ConvertDirectorySecurity(
-        'O:BAG:BAD:P(A;FA;;;SY)(A;FA;;;BA)(A;0x1200a9;;;BU)',
-        1, Descriptor, Size) then Exit;
       try
         Attributes.Length := 24;
         Attributes.AlignmentPad := 0;
-        Attributes.SecurityDescriptor := Descriptor;
+        Attributes.SecurityDescriptor := 0;
         Attributes.InheritHandle := False;
         Attributes.TailPad := 0;
+        Log('Authenticated helper: open source without write/delete sharing.');
+        SourceHandle := CreateHelperFile(ExpandConstant('{tmp}\vault443-setup-helper.exe'),
+          $80000000, 1, Attributes, 3, $00200000, 0);
+        if SourceHandle = THandle(-1) then begin
+          Log('Authenticated helper: source open failed, Windows error ' + IntToStr(DLLGetLastError));
+          Exit;
+        end;
+        if not ConvertDirectorySecurity(
+          'O:BAG:BAD:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;0x1200a9;;;BU)',
+          1, Descriptor, Size) then begin
+          Log('Authenticated helper: file security conversion failed, Windows error ' + IntToStr(DLLGetLastError));
+          Exit;
+        end;
+        Attributes.SecurityDescriptor := Descriptor;
         { CREATE_NEW with the final owner/DACL from birth. CopyFile/source
           security and the creator's implicit owner rights cannot introduce a
           writable interval, even with alternate-credential UAC elevation. }
+        Log('Authenticated helper: create protected destination.');
         HelperHandle := CreateHelperFile(Helper, $40000000, 1, Attributes, 1, $80, 0);
-        if HelperHandle = THandle(-1) then Exit;
-        CloseSetupHandle(HelperHandle);
+        if HelperHandle = THandle(-1) then begin
+          Log('Authenticated helper: destination creation failed, Windows error ' + IntToStr(DLLGetLastError));
+          Exit;
+        end;
+        Buffer := AllocateCopyBuffer(0, 65536, $3000, 4);
+        if Buffer = 0 then begin
+          Log('Authenticated helper: buffer allocation failed, Windows error ' + IntToStr(DLLGetLastError));
+          Exit;
+        end;
+        Log('Authenticated helper: copy native binary bytes.');
+        Total := 0;
+        repeat
+          ReadCount := 0;
+          if not ReadHelperBytes(SourceHandle, Buffer, 65536, ReadCount, 0) then begin
+            Log('Authenticated helper: read failed, Windows error ' + IntToStr(DLLGetLastError));
+            Exit;
+          end;
+          if ReadCount <> 0 then begin
+            Total := Total + ReadCount;
+            if Total > 67108864 then begin
+              Log('Authenticated helper: source exceeds 64 MiB limit.');
+              Exit;
+            end;
+            WrittenCount := 0;
+            if not WriteHelperBytes(HelperHandle, Buffer, ReadCount, WrittenCount, 0) then begin
+              Log('Authenticated helper: write failed, Windows error ' + IntToStr(DLLGetLastError));
+              Exit;
+            end;
+            if WrittenCount <> ReadCount then begin
+              Log('Authenticated helper: incomplete native write.');
+              Exit;
+            end;
+          end;
+        until ReadCount = 0;
+        if not FlushHelperBytes(HelperHandle) then begin
+          Log('Authenticated helper: flush failed, Windows error ' + IntToStr(DLLGetLastError));
+          Exit;
+        end;
+        Log('Authenticated helper: copied ' + IntToStr(Total) + ' bytes.');
       finally
-        FreeSecurityDescriptor(Descriptor);
+        if (SourceHandle <> 0) and (SourceHandle <> THandle(-1)) then CloseSetupHandle(SourceHandle);
+        if (HelperHandle <> 0) and (HelperHandle <> THandle(-1)) then CloseSetupHandle(HelperHandle);
+        if Buffer <> 0 then FreeCopyBuffer(Buffer, 0, $8000);
+        if Descriptor <> 0 then FreeSecurityDescriptor(Descriptor);
       end;
-      { Existing-file truncation preserves that explicit owner/DACL. AnsiString
-        retains every binary byte, including NUL; no source ACL is copied. }
-      if not SaveStringToFile(Helper, Data, False) then Exit;
     end;
     { A replacement in the temporary extraction directory can only fail this
       check; it can never be executed. The authenticated destination is RX. }
-    Result := CompareText(GetSHA256OfFile(Helper),
+    Log('Authenticated helper: verify destination SHA-256.');
+    ActualHash := GetSHA256OfFile(Helper);
+    Result := CompareText(ActualHash,
       '{#GetSHA256OfFile(StageDir + "\vault443d.exe")}') = 0;
+    if not Result then Log('Authenticated helper: destination SHA-256 mismatch: ' + ActualHash)
+    else Log('Authenticated helper: destination SHA-256 verified.');
   except
-    Log('Could not prepare the authenticated installation-path helper.');
+    Log('Authenticated helper: exception: ' + GetExceptionMessage);
     Result := False;
   end;
 end;
