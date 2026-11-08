@@ -3,7 +3,8 @@
 param(
     [ValidateSet('install','upgrade','uninstall','inspect')][string]$Phase = 'inspect',
     [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-fA-F]{64}$')][string]$InstallerSha256,
-    [string]$InstallerPath = 'C:\Users\Public\Vault443Exchange\Vault443-1.3.4-windows-x64-setup.exe',
+    [string]$InstallerPath = 'C:\Users\Public\Vault443Exchange\Vault443-1.3.5-windows-x64-setup.exe',
+    [string]$AppDirectory = '',
     [string]$OutputDirectory = 'C:\Users\Public\Vault443Exchange\installer-results',
     [switch]$SkipGuiProbe
 )
@@ -14,7 +15,13 @@ if ($env:COMPUTERNAME -notin @('VAULT443-WIN10','VAULT443-WIN11') -or !(Test-Pat
 }
 $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
 if (!$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Run this QA script elevated' }
-$app = Join-Path $env:ProgramFiles 'Vault443'
+$registration = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{B7547E6A-E316-4C92-9407-1B0F0D4A3443}_is1'
+if (!$AppDirectory) {
+    $installed = Get-ItemProperty -LiteralPath $registration -ErrorAction SilentlyContinue
+    if ($installed -and $installed.InstallLocation) { $AppDirectory = $installed.InstallLocation }
+    else { $AppDirectory = Join-Path $env:ProgramFiles 'Vault443' }
+}
+$app = [IO.Path]::GetFullPath($AppDirectory).TrimEnd('\')
 $data = Join-Path $env:ProgramData 'Vault443'
 $private = 'C:\ProgramData\Vault443-QA\installer-private'
 New-Item -ItemType Directory -Force -Path $private | Out-Null
@@ -91,7 +98,9 @@ function ACL-Safe([string]$Path, [bool]$PrivatePath) {
 function Service { Get-CimInstance Win32_Service -Filter "Name='Vault443'" }
 function Native-Setup([string]$Executable) {
     $script:step = 'inno-' + $Phase
-    $process = Start-Process -FilePath $Executable -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',('/LOG="' + $logPath + '"')) -PassThru
+    $arguments = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',('/LOG="' + $logPath + '"'))
+    if ($Phase -in @('install','upgrade')) { $arguments += '/DIR="' + $app + '"' }
+    $process = Start-Process -FilePath $Executable -ArgumentList $arguments -PassThru
     [void]$process.Handle
     if (!$process.WaitForExit(180000)) { throw 'Installer exceeded the bounded QA wait; inspect its process and log' }
     Check 'inno-exit-code' ($process.ExitCode -eq 0) @{ exitCode = $process.ExitCode; log = $logPath }
@@ -104,8 +113,13 @@ function Installed {
         Start-Sleep -Milliseconds 300
     } while ([DateTime]::UtcNow -lt $deadline)
     Check 'service-running-system' ($service -and $service.State -eq 'Running' -and $service.StartName -eq 'LocalSystem') @{ state = $service.State; account = $service.StartName }
-    $expected = '"' + (Join-Path $app 'vault443d.exe') + '"'
-    Check 'service-protected-path' ($service.PathName -eq $expected -and (ACL-Safe $app $false) -and (ACL-Safe (Join-Path $app 'vault443d.exe') $false))
+    $expected = Join-Path $app 'vault443d.exe'
+    if ($expected -match '[ \t]') { $expected = '"' + $expected + '"' }
+    Check 'service-protected-path' ([string]::Equals($service.PathName,$expected,[StringComparison]::OrdinalIgnoreCase) -and (ACL-Safe $app $false) -and (ACL-Safe (Join-Path $app 'vault443d.exe') $false))
+    $installed = Get-ItemProperty -LiteralPath $registration
+    Check 'registered-path-and-publisher' ([string]::Equals([IO.Path]::GetFullPath($installed.InstallLocation).TrimEnd('\'),$app,[StringComparison]::OrdinalIgnoreCase) -and $installed.Publisher -eq 'Vault 443')
+    $uiVersion = (Get-Item -LiteralPath (Join-Path $app 'vault443.exe')).VersionInfo
+    Check 'gui-version-and-publisher' ($uiVersion.CompanyName -eq 'Vault 443' -and $uiVersion.ProductVersion -match '^1\.3\.5(\.0)?$') @{company=$uiVersion.CompanyName;version=$uiVersion.ProductVersion}
     Check 'private-programdata-acl' (ACL-Safe $data $true)
     foreach ($name in @('state.json','work-vpn.json')) {
         $path = Join-Path $data $name

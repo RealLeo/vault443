@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/mgr"
 	app "vault443"
+	"vault443/internal/installpath"
 	"vault443/internal/ipc"
 	"vault443/internal/journal"
 	"vault443/internal/network"
@@ -53,6 +54,8 @@ func runWindows() error {
 	check := flag.Bool("check", false, "inspect without writes or network changes")
 	dry := flag.Bool("dry-run", false, "alias for --check")
 	profile := flag.Bool("check-profile", false, "read bounded profiles on stdin and print a redacted preview")
+	preparePath := flag.String("prepare-install-path", "", "prepare a protected local installation directory (administrator only)")
+	checkPath := flag.String("check-install-path", "", "inspect a protected installation directory without changes")
 	install := flag.Bool("install-service", false, "install or update the LocalSystem service (administrator only)")
 	uninstall := flag.Bool("uninstall-service", false, "release owned networking and remove the service (administrator only)")
 	release := flag.Bool("release-network", false, "stop the service and release owned networking as LocalSystem (administrator only)")
@@ -64,6 +67,18 @@ func runWindows() error {
 	flag.Parse()
 	if flag.NArg() != 0 {
 		return errors.New("unexpected positional arguments")
+	}
+	if *preparePath != "" {
+		if !windows.GetCurrentProcessToken().IsElevated() {
+			return errors.New("administrator approval is required")
+		}
+		if err = installpath.CheckExecutable(exe); err != nil {
+			return fmt.Errorf("unsafe installer helper: %w", err)
+		}
+		return installpath.Prepare(*preparePath)
+	}
+	if *checkPath != "" {
+		return installpath.CheckDirectory(*checkPath)
 	}
 	if *version {
 		fmt.Printf("Vault 443 %s\n", app.Version())
@@ -297,6 +312,9 @@ func administrativeSCM() (*mgr.Mgr, error) {
 	return mgr.Connect()
 }
 func installWindowsService(exe string) error {
+	if err := installpath.CheckExecutable(exe); err != nil {
+		return fmt.Errorf("unsafe service executable: %w", err)
+	}
 	m, err := administrativeSCM()
 	if err != nil {
 		return err

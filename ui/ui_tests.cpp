@@ -125,11 +125,19 @@ private slots:
         QVERIFY(bridge->online()); QVERIFY(bridge->enrollmentError().isEmpty());
     }
     void manualVPNBindingUsesPlatformFields() {
-        click("settings-button"); click("vpn-tab"); click("vpn-advanced");
+        click("settings-button"); click("vpn-tab");
+        auto *advanced = item("vpn-advanced"); QVERIFY(advanced);
+        // Distro Qt/font metrics can leave the toggle partially clipped at the
+        // ScrollView's bottom. Activate the real control by keyboard instead of
+        // clicking an unscrolled center coordinate near an overlay scrollbar.
+        advanced->forceActiveFocus();
+        QTRY_VERIFY(advanced->hasActiveFocus());
+        QTest::keyClick(window, Qt::Key_Space);
+        QTRY_VERIFY(advanced->property("checked").toBool());
         auto *alias = item("vpn-interface"), *service = item("vpn-service"); QVERIFY(alias && service);
         QCOMPARE(alias->property("maximumLength").toInt(), bridge->windowsPlatform() ? 256 : 15);
-        QCOMPARE(item("vpn-cgroup")->isVisible(), !bridge->windowsPlatform());
-        QCOMPARE(item("vpn-mark")->isVisible(), !bridge->windowsPlatform());
+        QTRY_COMPARE(item("vpn-cgroup")->isVisible(), !bridge->windowsPlatform());
+        QTRY_COMPARE(item("vpn-mark")->isVisible(), !bridge->windowsPlatform());
         const auto managers = item("vpn-manager")->property("model").toStringList();
         if (bridge->windowsPlatform()) {
             alias->setProperty("text", "Corporate VPN Adapter With Long Name");

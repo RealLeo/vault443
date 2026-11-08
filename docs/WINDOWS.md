@@ -2,12 +2,16 @@
 
 Vault 443 targets Windows 10 22H2 (build 19045) and Windows 11 on x64 hardware.
 The Qt interface runs as the signed-in user. The VPN service runs as LocalSystem;
-only the narrow administrative helper requests UAC. The local application build
-is unsigned and the scripts do not publish a release.
+only the narrow administrative helper requests UAC. The application and installer are unsigned; `Vault 443` in their metadata is
+not an Authenticode-verified UAC publisher. The build scripts do not publish a
+release; publication is a separate verified release step.
 
-A compiled installer is an intermediate build until the Windows acceptance matrix
-has passed on **both** operating systems. The current implementation checkpoint
-and outstanding work are recorded in `docs/WINDOWS-PORT-CHECKPOINT-2026-11-06.md`.
+The current release target is **1.3.5**. Its user-facing installation changes and
+validation status are recorded in [RELEASE-1.3.5.md](RELEASE-1.3.5.md#validation).
+The completed 1.3.4 R9 port acceptance remains a historical baseline in
+[WINDOWS-ACCEPTANCE-REPORT-2026-11-07.md](WINDOWS-ACCEPTANCE-REPORT-2026-11-07.md).
+Its VMs and SDK were deleted after acceptance; new native checks require a
+temporary build/test environment.
 
 ## Build inputs
 
@@ -107,7 +111,7 @@ terms from the native toolchain into `stage/licenses/msvc/`; this is checked bef
 packaging. The license collector must be rerun if any project Go executable changes.
 
 Qt is dynamically linked. Interface-compatible modified Qt DLLs can replace the
-installed DLLs, with administrator access to Program Files. Qt source archives,
+installed DLLs, with administrator access to the protected installation folder. Qt source archives,
 the exact patch and `licenses/qt/RELINKING.txt` accompany the distribution. No
 static Qt linking or application signature check prevents such replacement.
 
@@ -132,7 +136,7 @@ compiled directly for diagnosis:
 
 ```powershell
 C:\Vault443Inno\ISCC.exe /Qp /DStageDir=C:\Vault443Build\stage `
-  /DOutputDir=C:\Vault443Build\dist /DAppVersion=1.3.4 `
+  /DOutputDir=C:\Vault443Build\dist /DAppVersion=1.3.5 `
   C:\Vault443Build\source\packaging\windows\vault443.iss
 ```
 
@@ -167,10 +171,27 @@ rotate the main GUID to recover this state. See the pinned
 
 ## Install, update and remove
 
-Run the setup executable as the ordinary user and approve its UAC request. It
-installs in Program Files, starts the LocalSystem service and enrolls the active
-console user using the helper's Windows token checks. The service creates its own
-private ProgramData storage; the installer never grants ordinary users access.
+Run the setup executable as the ordinary user and approve its UAC request. The
+fresh-install destination page permits a local disk and folder, including spaces
+and Unicode, with `{autopf}\Vault443` as the default. The installer validates the
+path and protects application-owned files before installing or executing the
+LocalSystem payload. Network destinations, reparse points and unsafe parent
+ACLs are refused; unrelated parent directories are not re-permissioned. An
+upgrade retains its registered installation folder. To relocate, uninstall while
+retaining profiles, then install at the new location.
+
+Setup starts the LocalSystem service and enrolls the active console user using
+the helper's Windows token checks. The service creates its own private
+`%ProgramData%\Vault443` storage, independently of the chosen application folder;
+the installer never grants ordinary users access to that storage.
+
+The GUI has a native PE icon and version resource from
+`packaging/windows/vault443.rc.in`. CompanyName is `Vault 443`; product/file
+versions come from `VERSION` through CMake. The committed multi-size
+`packaging/windows/vault443.ico` is derived from the existing vault-door emblem
+with `python3 scripts/windows/prepare_icon.py` (Pillow 10.2.0); native builds do
+not need Pillow. Inno uses the same icon and publisher. These metadata fields
+are separate from signing, and the application remains unsigned.
 
 An upgrade stops the old service without clearing connection/boot intent or the
 persistent guard, replaces the runtime, updates SCM and starts the service again.
@@ -193,7 +214,7 @@ Run entries in loaded user registry hives are removed; unrelated entries remain.
 For unattended VM acceptance:
 
 ```powershell
-Start-Process .\Vault443-1.3.4-windows-x64-setup.exe `
+Start-Process .\Vault443-1.3.5-windows-x64-setup.exe `
   -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=C:\Vault443QA\install.log' -Wait -PassThru
 Start-Process 'C:\Program Files\Vault443\unins000.exe' `
   -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=C:\Vault443QA\uninstall.log' -Wait -PassThru
@@ -248,4 +269,9 @@ network is blocked. Record logs, screenshots and pcap with timestamps.
 
 An installer is ready only after the full matrix passes on both Windows versions.
 Keep the final installer and evidence in `dist/windows/`, with SHA-256, build
-manifest, instructions and acceptance report. Shut down all project VMs at the end.
+manifest, instructions and acceptance report. For the 1.3.5 maintenance release, record the new installer/path/icon checks
+separately from the historical full-port matrix: both OSes, standard and custom
+paths, another local disk, Unicode, unsafe-path refusal, 1.3.4 upgrade, boot,
+reinstall/removal, all six protocol families from the custom path, and EN/RU at
+100/150/200%. After retaining artifacts and evidence, remove the temporary VMs,
+ISO files, SDK and intermediate build data.

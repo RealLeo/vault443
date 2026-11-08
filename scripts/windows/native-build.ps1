@@ -54,6 +54,8 @@ try {
             if ($LASTEXITCODE) { throw 'Vault443 UI configuration failed' }
             cmake --build "$root\gui" --parallel 4
             if ($LASTEXITCODE) { throw 'Vault443 UI build failed' }
+            ctest --test-dir "$root\gui" --output-on-failure
+            if ($LASTEXITCODE) { throw 'Vault443 EN/RU UI tests failed' }
             New-Item -ItemType Directory -Force "$root\stage" | Out-Null
             Copy-Item "$exchange\app\*" "$root\stage" -Force -Recurse
             Copy-Item "$root\gui\vault443.exe" "$root\stage" -Force

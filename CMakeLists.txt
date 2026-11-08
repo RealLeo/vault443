@@ -21,7 +21,13 @@ find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Widgets Quick QuickControls2 $
 qt_add_executable(vault443
     ui/main.cpp ui/servicetransport.cpp ui/servicetransport.h ui/bridge.cpp ui/bridge.h ui/profilemodel.cpp ui/profilemodel.h ui/tray.cpp ui/tray.h ui/language.cpp ui/language.h)
 if(WIN32)
+    enable_language(RC)
     set_target_properties(vault443 PROPERTIES WIN32_EXECUTABLE TRUE)
+    configure_file(packaging/windows/vault443.rc.in
+        "${CMAKE_CURRENT_BINARY_DIR}/vault443.rc" @ONLY)
+    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/vault443.rc" PROPERTIES
+        OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows/vault443.ico")
+    target_sources(vault443 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/vault443.rc")
 endif()
 target_compile_definitions(vault443 PRIVATE VAULT443_APP_VERSION="${PROJECT_VERSION}")
 target_link_libraries(vault443 PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Quick Qt6::QuickControls2 ${VAULT443_PLATFORM_LIBS})

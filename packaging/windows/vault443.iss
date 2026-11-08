@@ -13,12 +13,15 @@
 AppId={{B7547E6A-E316-4C92-9407-1B0F0D4A3443}
 AppName=Vault 443
 AppVersion={#AppVersion}
-AppPublisher=Vault 443 contributors
+AppPublisher=Vault 443
+AppPublisherURL=https://github.com/RealLeo/vault443
 DefaultDirName={autopf}\Vault443
 DefaultGroupName=Vault 443
-DisableDirPage=yes
+DisableDirPage=no
 DisableProgramGroupPage=yes
 UsePreviousAppDir=yes
+AllowUNCPath=no
+AllowNetworkDrive=no
 SetupArchitecture=x64
 ArchitecturesAllowed=x64os
 ArchitecturesInstallIn64BitMode=x64os
@@ -29,6 +32,7 @@ OutputBaseFilename=Vault443-{#AppVersion}-windows-x64-setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile={#SourcePath}\vault443.ico
 SetupLogging=yes
 CloseApplications=yes
 CloseApplicationsFilter=*.exe,*.dll
@@ -37,6 +41,7 @@ UninstallDisplayIcon={app}\vault443.exe
 UninstallDisplayName=Vault 443
 SignedUninstaller=no
 VersionInfoVersion={#AppVersion}
+VersionInfoCompany=Vault 443
 VersionInfoDescription=Vault 443 Windows x64 installer
 LicenseFile={#StageDir}\licenses\Vault443-LICENSE.txt
 
@@ -47,8 +52,10 @@ Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"; InfoAfterFile: 
 [CustomMessages]
 english.ServiceStopFailed=The existing VPN service could not stop safely. Close Vault 443 and retry. No files have been replaced.
 russian.ServiceStopFailed=Не удалось безопасно остановить службу VPN. Закройте Vault 443 и повторите установку. Файлы не заменены.
-english.InstallLocation=Vault 443 must be installed in the system Program Files directory.
-russian.InstallLocation=Vault 443 необходимо установить в системный каталог Program Files.
+english.InstallLocation=Choose an empty folder on a fixed local disk with protected parent folders. Network paths, links and folders writable by other users are not supported. No existing service has been stopped and no application files have been copied.
+russian.InstallLocation=Выберите пустую папку на локальном несъёмном диске с защищёнными родительскими каталогами. Сетевые пути, ссылки и папки, доступные другим пользователям для изменения, не поддерживаются. Существующая служба не остановлена, файлы приложения не скопированы.
+english.UpgradeLocation=Updates keep the existing installation folder. To move Vault 443, uninstall it with profiles retained, then install it in the new folder.
+russian.UpgradeLocation=Обновление сохраняет прежнюю папку установки. Для переноса Vault 443 удалите приложение с сохранением профилей, затем установите его в новую папку.
 english.ServiceInstallFailed=The VPN service could not start. The application files and profiles have been retained. Run this installer again to repair the installation.
 russian.ServiceInstallFailed=Не удалось запустить службу VPN. Файлы приложения и профили сохранены. Повторите установку для восстановления.
 english.OperatorGrantFailed=The VPN service is installed, but access for the active user could not be granted. Start Vault 443 and approve its request for administrator access.
@@ -61,6 +68,9 @@ english.OpenApplication=Open Vault 443
 russian.OpenApplication=Открыть Vault 443
 
 [Files]
+; Never execute privileged installer code from a user-writable exchange/TEMP.
+; This embedded copy is authenticated again after copying to a protected folder.
+Source: "{#StageDir}\vault443d.exe"; DestName: "vault443-setup-helper.exe"; Flags: dontcopy
 Source: "{#StageDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs notimestamp; Excludes: "build-manifest.json,*.pdb,*.ilk,*.exp,*.lib"
 ; This final callback runs after the whole runtime is present, including DLLs.
 Source: "{#StageDir}\build-manifest.json"; DestDir: "{app}"; Flags: ignoreversion notimestamp; AfterInstall: ConfigureInstalledService
@@ -89,6 +99,14 @@ const
   ERROR_NO_MORE_FILES = 18;
 
 type
+  { SECURITY_ATTRIBUTES uses native pointer alignment in x64 Setup. }
+  TNativeSecurityAttributes = record
+    Length: DWORD;
+    AlignmentPad: DWORD;
+    SecurityDescriptor: NativeUInt;
+    InheritHandle: BOOL;
+    TailPad: DWORD;
+  end;
   TServiceStatus = record
     ServiceType: DWORD;
     CurrentState: DWORD;
@@ -135,6 +153,19 @@ function CurrentSetupProcessId: DWORD;
   external 'GetCurrentProcessId@kernel32.dll stdcall';
 function QuerySetupProcessSession(ProcessId: DWORD; var SessionId: DWORD): BOOL;
   external 'ProcessIdToSessionId@kernel32.dll stdcall';
+function ConvertDirectorySecurity(SDDL: String; Revision: DWORD;
+  var Descriptor: NativeUInt; var Size: DWORD): BOOL;
+  external 'ConvertStringSecurityDescriptorToSecurityDescriptorW@advapi32.dll stdcall setuponly';
+function CreateProtectedDirectory(Path: String; var Attributes: TNativeSecurityAttributes): BOOL;
+  external 'CreateDirectoryW@kernel32.dll stdcall setuponly';
+function FreeSecurityDescriptor(Descriptor: NativeUInt): NativeUInt;
+  external 'LocalFree@kernel32.dll stdcall setuponly';
+function CreateHelperFile(Path: String; Access, Share: DWORD;
+  var Attributes: TNativeSecurityAttributes; Disposition, Flags: DWORD;
+  Template: NativeUInt): THandle;
+  external 'CreateFileW@kernel32.dll stdcall setuponly';
+function CloseSetupHandle(Handle: THandle): BOOL;
+  external 'CloseHandle@kernel32.dll stdcall setuponly';
 function CreateProcessSnapshot(Flags, ProcessId: DWORD): THandle;
   external 'CreateToolhelp32Snapshot@kernel32.dll stdcall uninstallonly';
 function FirstProcess(Snapshot: THandle; var Entry: TNativeProcessEntry): BOOL;
@@ -164,6 +195,107 @@ var
   StoppedExistingService: Boolean;
   ServiceConfigured: Boolean;
   SetupResultCode: Integer;
+  ExistingInstallDir: String;
+  PrivateHelperDir: String;
+
+function PreviousInstallDir: String;
+begin
+  Result := '';
+  RegQueryStringValue(HKLM64,
+    'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{B7547E6A-E316-4C92-9407-1B0F0D4A3443}_is1',
+    'InstallLocation', Result);
+  if Result <> '' then Result := RemoveBackslashUnlessRoot(ExpandFileName(Result));
+end;
+
+procedure InitializeWizard;
+var
+  Explanation: TNewStaticText;
+begin
+  ExistingInstallDir := PreviousInstallDir;
+  if ExistingInstallDir <> '' then begin
+    { /DIR overrides are checked again in PrepareToInstall. Do not silently
+      install a second copy or move a service while an upgrade is in progress. }
+    WizardForm.DirEdit.ReadOnly := True;
+    WizardForm.DirBrowseButton.Enabled := False;
+    Explanation := TNewStaticText.Create(WizardForm);
+    Explanation.Parent := WizardForm.SelectDirPage;
+    Explanation.Left := WizardForm.DirEdit.Left;
+    Explanation.Top := WizardForm.DirEdit.Top + WizardForm.DirEdit.Height + ScaleY(12);
+    Explanation.Width := WizardForm.DirEdit.Width + WizardForm.DirBrowseButton.Width + ScaleX(8);
+    Explanation.Height := ScaleY(64);
+    Explanation.WordWrap := True;
+    Explanation.Caption := CustomMessage('UpgradeLocation');
+  end;
+end;
+
+function PrepareAuthenticatedHelper: Boolean;
+var
+  Candidate, Helper: String;
+  Attributes: TNativeSecurityAttributes;
+  Descriptor: NativeUInt;
+  HelperHandle: THandle;
+  Data: AnsiString;
+  Size: DWORD;
+begin
+  Result := False;
+  if PrivateHelperDir = '' then begin
+    Candidate := ExpandConstant('{autopf}\Vault443.Setup-') +
+      IntToStr(CurrentSetupProcessId) + '-' + GetDateTimeString('yyyymmddhhnnsszzz', #0, #0);
+    Descriptor := 0;
+    Size := 0;
+    if not ConvertDirectorySecurity(
+      'O:BAG:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)',
+      1, Descriptor, Size) then Exit;
+    try
+      Attributes.Length := 24;
+      Attributes.AlignmentPad := 0;
+      Attributes.SecurityDescriptor := Descriptor;
+      Attributes.InheritHandle := False;
+      Attributes.TailPad := 0;
+      { Never adopt/re-ACL an existing directory, even if the name collides. }
+      if not CreateProtectedDirectory(Candidate, Attributes) then Exit;
+      PrivateHelperDir := Candidate;
+    finally
+      FreeSecurityDescriptor(Descriptor);
+    end;
+  end;
+  Helper := AddBackslash(PrivateHelperDir) + 'vault443-setup-helper.exe';
+  try
+    if not FileExists(Helper) then begin
+      ExtractTemporaryFile('vault443-setup-helper.exe');
+      if not LoadStringFromFile(ExpandConstant('{tmp}\vault443-setup-helper.exe'), Data) then Exit;
+      Descriptor := 0;
+      if not ConvertDirectorySecurity(
+        'O:BAG:BAD:P(A;FA;;;SY)(A;FA;;;BA)(A;0x1200a9;;;BU)',
+        1, Descriptor, Size) then Exit;
+      try
+        Attributes.Length := 24;
+        Attributes.AlignmentPad := 0;
+        Attributes.SecurityDescriptor := Descriptor;
+        Attributes.InheritHandle := False;
+        Attributes.TailPad := 0;
+        { CREATE_NEW with the final owner/DACL from birth. CopyFile/source
+          security and the creator's implicit owner rights cannot introduce a
+          writable interval, even with alternate-credential UAC elevation. }
+        HelperHandle := CreateHelperFile(Helper, $40000000, 1, Attributes, 1, $80, 0);
+        if HelperHandle = THandle(-1) then Exit;
+        CloseSetupHandle(HelperHandle);
+      finally
+        FreeSecurityDescriptor(Descriptor);
+      end;
+      { Existing-file truncation preserves that explicit owner/DACL. AnsiString
+        retains every binary byte, including NUL; no source ACL is copied. }
+      if not SaveStringToFile(Helper, Data, False) then Exit;
+    end;
+    { A replacement in the temporary extraction directory can only fail this
+      check; it can never be executed. The authenticated destination is RX. }
+    Result := CompareText(GetSHA256OfFile(Helper),
+      '{#GetSHA256OfFile(StageDir + "\vault443d.exe")}') = 0;
+  except
+    Log('Could not prepare the authenticated installation-path helper.');
+    Result := False;
+  end;
+end;
 
 function ServiceHandle(Access: DWORD; var OpenError: DWORD): THandle;
 var
@@ -242,12 +374,28 @@ end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
-  ProgramFiles, Destination: String;
+  Destination, Helper: String;
+  ResultCode: Integer;
 begin
   Result := '';
-  ProgramFiles := AddBackslash(Uppercase(ExpandConstant('{autopf}')));
-  Destination := AddBackslash(Uppercase(ExpandFileName(WizardDirValue)));
-  if Pos(ProgramFiles, Destination) <> 1 then begin
+  Destination := RemoveBackslashUnlessRoot(ExpandFileName(WizardDirValue));
+  if Pos('"', Destination) <> 0 then begin
+    Result := CustomMessage('InstallLocation');
+    Exit;
+  end;
+  ExistingInstallDir := PreviousInstallDir;
+  if (ExistingInstallDir <> '') and (CompareText(Destination, ExistingInstallDir) <> 0) then begin
+    Result := CustomMessage('UpgradeLocation');
+    Exit;
+  end;
+  if not PrepareAuthenticatedHelper then begin
+    Result := CustomMessage('InstallLocation');
+    Exit;
+  end;
+  Helper := AddBackslash(PrivateHelperDir) + 'vault443-setup-helper.exe';
+  if not Exec(Helper, '--prepare-install-path="' + Destination + '"',
+    PrivateHelperDir, SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then begin
+    Log('Protected installation path validation failed.');
     Result := CustomMessage('InstallLocation');
     Exit;
   end;
@@ -313,6 +461,10 @@ begin
      FileExists(ExpandConstant('{app}\vault443d.exe')) then
     Exec(ExpandConstant('{app}\vault443d.exe'), '--install-service',
       ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, IgnoredCode);
+  if PrivateHelperDir <> '' then begin
+    DeleteFile(AddBackslash(PrivateHelperDir) + 'vault443-setup-helper.exe');
+    RemoveDir(PrivateHelperDir);
+  end;
 end;
 
 function FindInstalledInterfaces(var Processes: TRestartManagerProcesses): Boolean;

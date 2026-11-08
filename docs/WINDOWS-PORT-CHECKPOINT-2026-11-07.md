@@ -1,5 +1,13 @@
 # Windows: остановка и продолжение 7 ноября 2026
 
+> **Windows R9 опубликован в GitHub Release 1.3.4 по запросу пользователя.**
+> [Скачать EXE](https://github.com/RealLeo/vault443/releases/download/1.3.4/Vault443-1.3.4-windows-x64-setup.exe) ·
+> [SHA-256](https://github.com/RealLeo/vault443/releases/download/1.3.4/Vault443-1.3.4-windows-x64-setup.exe.sha256).
+> Публичное скачивание полного EXE и его SHA-256 проверены; прежние Linux-вложения сохранены.
+> [Акт публикации](../dist/windows/publication-1.3.4/publication-receipt.json).
+> Указания «не опубликован» ниже относятся к историческому состоянию до этой публикации;
+> замороженные build/acceptance-артефакты не изменялись.
+
 > **Стенд удалён по запросу пользователя 7 ноября 2026 после приёмки.**
 > VM Windows 10, Windows 11 и вспомогательная Linux VM сняты с регистрации
 > вместе с дисками и всеми снимками. Каталог `/var/www/projects/windows`,

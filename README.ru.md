@@ -2,7 +2,7 @@
   <img src="assets/profile-icons/vault-door.png" width="96" height="96" alt="Эмблема Vault 443">
 </p>
 <h1 align="center">Vault 443</h1>
-<p align="center"><strong>VPN-клиент для Linux с ретро-интерфейсом, вдохновлённым Fallout.</strong></p>
+<p align="center"><strong>VPN-клиент для Windows и Linux с ретро-интерфейсом, вдохновлённым Fallout.</strong></p>
 <p align="center"><a href="README.md">English</a> · <strong>Русский</strong></p>
 <p align="center"><a href="https://realleo.github.io/vault443/ru/"><strong>Откройте интерактивный пульт Vault 443</strong></a></p>
 <p align="center">
@@ -11,17 +11,19 @@
   Для подключения нужен ваш сервер или подписка. Аккаунт Vault 443 не требуется.
 </p>
 <p align="center">
+  <img src="https://img.shields.io/badge/Windows-10%2022H2%20%7C%2011-0078D4?style=flat-square" alt="Windows 10 22H2 и Windows 11 x64">
   <img src="https://img.shields.io/badge/Ubuntu-24.04%20%7C%2026.04-E95420?style=flat-square" alt="Ubuntu 24.04 и 26.04">
-  <img src="https://img.shields.io/badge/version-1.3.4-b6a166?style=flat-square" alt="Версия 1.3.4">
+  <img src="https://img.shields.io/badge/version-1.3.5-b6a166?style=flat-square" alt="Версия 1.3.5">
   <img src="https://img.shields.io/badge/Qt-6%20Quick-41CD52?style=flat-square" alt="Qt 6 Quick">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="Лицензия MIT"></a>
 </p>
 <p align="center">
-  <a href="https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443_1.3.4-1ubuntu24.04_amd64.deb"><strong>Скачать для Ubuntu</strong></a> ·
-  <a href="#download">Другие дистрибутивы</a> ·
+  <a href="https://github.com/RealLeo/vault443/releases/download/1.3.5/Vault443-1.3.5-windows-x64-setup.exe"><strong>Скачать для Windows</strong></a> ·
+  <a href="https://github.com/RealLeo/vault443/releases/download/1.3.5/vault443_1.3.5-1ubuntu24.04_amd64.deb"><strong>Скачать для Ubuntu</strong></a> ·
+  <a href="#download">Все загрузки</a> ·
   <a href="#install">Установка</a> ·
   <a href="#first-connection">Первое подключение</a> ·
-  <a href="docs/RELEASE-1.3.4.md#russian">Что нового</a>
+  <a href="docs/RELEASE-1.3.5.md#русский">Что нового</a>
 </p>
 <p align="center">
   <a href="docs/images/readme/main.png"><img src="docs/images/readme/main.png" width="472" alt="Главное окно Vault 443 с демонстрационными профилями и активным подключением"></a>
@@ -39,45 +41,68 @@ Vault 443 — клиент для ваших конфигураций, а не V
 <a id="download"></a>
 ## Скачать
 
-**Vault 443 1.3.4 · Linux x86-64 (amd64).** Выберите пакет своего дистрибутива: Ubuntu и Debian используют разные сборки.
+**Vault 443 1.3.5 · Windows x64 и Linux.** Выберите систему и архитектуру: Ubuntu и Debian используют разные сборки.
 
-| Дистрибутив | Установщик | Контрольная сумма |
+| Система | Установщик | Контрольная сумма |
 | --- | --- | --- |
-| Ubuntu 24.04 / 26.04 | [Скачать .deb](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443_1.3.4-1ubuntu24.04_amd64.deb) | [SHA-256](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443_1.3.4-1ubuntu24.04_amd64.deb.sha256) |
-| Debian 13 | [Скачать .deb](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443_1.3.4-1debian13_amd64.deb) | [SHA-256](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443_1.3.4-1debian13_amd64.deb.sha256) |
-| Fedora 44 · первоначальный порт | [Скачать .rpm](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443-1.3.4-1.fc44.x86_64.rpm) | [SHA-256](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443-1.3.4-1.fc44.x86_64.rpm.sha256) |
-| Arch Linux · первоначальный порт | [Скачать .pkg.tar.zst](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443-1.3.4-1-x86_64.pkg.tar.zst) | [SHA-256](https://github.com/RealLeo/vault443/releases/download/1.3.4/vault443-1.3.4-1-x86_64.pkg.tar.zst.sha256) |
+| Windows 10 22H2 / Windows 11 · x64 | [Скачать .exe](https://github.com/RealLeo/vault443/releases/download/1.3.5/Vault443-1.3.5-windows-x64-setup.exe) | [SHA-256](https://github.com/RealLeo/vault443/releases/download/1.3.5/Vault443-1.3.5-windows-x64-setup.exe.sha256) |
+| Ubuntu 24.04 / 26.04 · x64 | [Скачать .deb](https://github.com/RealLeo/vault443/releases/download/1.3.5/vault443_1.3.5-1ubuntu24.04_amd64.deb) | [SHA-256](https://github.com/RealLeo/vault443/releases/download/1.3.5/vault443_1.3.5-1ubuntu24.04_amd64.deb.sha256) |
+| Ubuntu 24.04 · ARM64 | [Скачать .deb](https://github.com/RealLeo/vault443/releases/download/1.3.5/vault443_1.3.5_arm64.deb) | [SHA-256](https://github.com/RealLeo/vault443/releases/download/1.3.5/vault443_1.3.5_arm64.deb.sha256) |
+| Debian 13 · x64 | [Скачать .deb](https://github.com/RealLeo/vault443/releases/download/1.3.5/vault443_1.3.5-1debian13_amd64.deb) | [SHA-256](https://github.com/RealLeo/vault443/releases/download/1.3.5/vault443_1.3.5-1debian13_amd64.deb.sha256) |
+| Fedora 44 · x64 · первоначальный порт | [Скачать .rpm](https://github.com/RealLeo/vault443/releases/download/1.3.5/vault443-1.3.5-1.fc44.x86_64.rpm) | [SHA-256](https://github.com/RealLeo/vault443/releases/download/1.3.5/vault443-1.3.5-1.fc44.x86_64.rpm.sha256) |
+| Arch Linux · x64 · первоначальный порт | [Скачать .pkg.tar.zst](https://github.com/RealLeo/vault443/releases/download/1.3.5/vault443-1.3.5-1-x86_64.pkg.tar.zst) | [SHA-256](https://github.com/RealLeo/vault443/releases/download/1.3.5/vault443-1.3.5-1-x86_64.pkg.tar.zst.sha256) |
 
-[Все файлы релиза и манифесты сборок](https://github.com/RealLeo/vault443/releases/tag/1.3.4) · [SHA256SUMS](https://github.com/RealLeo/vault443/releases/download/1.3.4/SHA256SUMS).
+[Все файлы релиза и манифесты сборок](https://github.com/RealLeo/vault443/releases/tag/1.3.5) · [SHA256SUMS](https://github.com/RealLeo/vault443/releases/download/1.3.5/SHA256SUMS).
 
-Основная проверенная настольная система — Ubuntu. Fedora и Arch пока имеют статус первоначальных портов. Приёмка на физических рабочих столах, загрузка и выход из сна, а также SELinux в enforcing-режиме и firewalld на Fedora остаются отдельными проверками. Пакеты проекта не подписаны и не входят в официальные репозитории дистрибутивов. [Требования и границы проверки](docs/linux-packages.md).
+Windows не требует отдельной установки Qt, Go, VPN-движков или драйвера. Приложение и установщик не подписаны: `Vault 443` указан в метаданных издателя, но не является подтверждённым Authenticode-издателем. ARM64 проверяется в эмуляции, не на физическом устройстве; см. [отчёт 1.3.5](docs/RELEASE-1.3.5.md#validation).
+
+Основная проверенная настольная система Linux — Ubuntu. Fedora и Arch пока имеют статус первоначальных портов. Приёмка на физических рабочих столах, загрузка и выход из сна, а также SELinux в enforcing-режиме и firewalld на Fedora остаются отдельными проверками. Пакеты проекта не подписаны и не входят в официальные репозитории дистрибутивов. [Требования и границы проверки](docs/linux-packages.md).
 
 <a id="install"></a>
 ## Установка
+
+### Windows
+
+1. Скачайте Windows EXE и его файл `.sha256`. Получите хеш в PowerShell:
+
+   ```powershell
+   Get-FileHash .\Vault443-1.3.5-windows-x64-setup.exe -Algorithm SHA256
+   ```
+
+   Сравните результат с содержимым скачанного файла контрольной суммы.
+2. Запустите установщик из обычного сеанса Windows и подтвердите UAC. Выберите локальный диск и папку приложения, например `D:\Apps\Vault443`; по умолчанию — `C:\Program Files\Vault443`. Установщик защищает свои файлы и отклоняет небезопасные и сетевые пути, junction и символические ссылки. Обновление сохраняет прежний каталог.
+3. Откройте **Vault 443** из меню **«Пуск»**. Окно работает от обычного пользователя, служба `Vault443` — от LocalSystem. Qt/QML, VPN-движки и официальный подписанный Wintun уже включены.
+
+Профили и журналы хранятся в приватном `%ProgramData%\Vault443`, отдельно от папки приложения. Административные действия при необходимости запрашивают UAC. После автоматической установки от SYSTEM первый запуск может отдельно запросить доступ. [Руководство Windows](docs/WINDOWS-USER-GUIDE.md).
+
+### Linux
 
 1. Скачайте установщик и соответствующий файл `.sha256`. Откройте терминал в каталоге с обоими файлами от имени **обычного пользователя рабочего стола**.
 2. Проверьте контрольную сумму. Например, для Ubuntu:
 
    ```sh
-   sha256sum -c vault443_1.3.4-1ubuntu24.04_amd64.deb.sha256
+   sha256sum -c vault443_1.3.5-1ubuntu24.04_amd64.deb.sha256
    ```
 
-   Результат должен содержать `OK`. Для другого дистрибутива укажите имя его файла `.sha256`. Другой вариант: скачайте [SHA256SUMS](https://github.com/RealLeo/vault443/releases/download/1.3.4/SHA256SUMS) в тот же каталог и выполните `sha256sum --ignore-missing -c SHA256SUMS`; убедитесь, что проверен именно ваш пакет и результат — `OK`.
+   Результат должен содержать `OK`. Для другого дистрибутива укажите имя его файла `.sha256`. Другой вариант: скачайте [SHA256SUMS](https://github.com/RealLeo/vault443/releases/download/1.3.5/SHA256SUMS) в тот же каталог и выполните `sha256sum --ignore-missing -c SHA256SUMS`; убедитесь, что проверен именно ваш пакет и результат — `OK`.
 3. Выполните команду для своей системы:
 
    ```sh
    # Ubuntu 24.04 / 26.04
-   sudo apt install ./vault443_1.3.4-1ubuntu24.04_amd64.deb
+   sudo apt install ./vault443_1.3.5-1ubuntu24.04_amd64.deb
+
+   # Ubuntu 24.04 ARM64: вместо x64-пакета
+   sudo apt install ./vault443_1.3.5_arm64.deb
 
    # Debian 13
-   sudo apt install ./vault443_1.3.4-1debian13_amd64.deb
+   sudo apt install ./vault443_1.3.5-1debian13_amd64.deb
 
    # Fedora 44
-   sudo dnf install ./vault443-1.3.4-1.fc44.x86_64.rpm
+   sudo dnf install ./vault443-1.3.5-1.fc44.x86_64.rpm
 
    # Arch Linux: сначала полное обновление системы
    sudo pacman -Syu
-   sudo pacman -U ./vault443-1.3.4-1-x86_64.pkg.tar.zst
+   sudo pacman -U ./vault443-1.3.5-1-x86_64.pkg.tar.zst
    ```
 
 4. До первого подключения убедитесь, что система использует **systemd-resolved**: `systemctl is-active systemd-resolved` должен вывести `active`, а `resolvectl status` — показать сетевые настройки. Поддерживается стек systemd, D-Bus/logind и systemd-resolved с NetworkManager либо systemd-networkd. Необходимы WireGuard в ядре и `/dev/net/tun`. Установщик не переводит систему с другого DNS-сервиса автоматически; при необходимости выполните [настройку своего дистрибутива](docs/linux-packages.md#dns-and-desktop-prerequisites).
@@ -112,7 +137,7 @@ Vault 443 — клиент для ваших конфигураций, а не V
 | Запуск интерфейса при входе | Открывает окно после входа пользователя; не выбирает профиль загрузочного подключения. |
 | Подключение VPN при загрузке системы | Запускает выбранный основной профиль до входа в рабочий стол; требует прав уполномоченного администратора. |
 
-Набором подключений управляет один владелец: одно основное интернет-подключение VLESS, Trojan либо Shadowsocks/Outline и до 16 рабочих подключений OpenVPN, WireGuard и AmneziaWG суммарно. Библиотеки профилей и журналы разделены по пользователям. Оператору нужны активный локальный сеанс и членство в группе `vault443`; для выбора загрузочного профиля и ручных привязок VPN дополнительно требуется группа `sudo`, `admin` либо `wheel`.
+Набором подключений управляет один владелец: одно основное интернет-подключение VLESS, Trojan либо Shadowsocks/Outline и до 16 рабочих подключений OpenVPN, WireGuard и AmneziaWG суммарно. Библиотеки профилей и журналы разделены по пользователям. Оператору нужен активный локальный сеанс. В Linux требуется членство в группе `vault443`, а для выбора загрузочного профиля и ручных привязок VPN — дополнительно `sudo`, `admin` либо `wheel`. В Windows доступ и административные действия подтверждаются через UAC.
 
 ## Ежедневное использование
 
@@ -149,7 +174,7 @@ Vault 443 — клиент для ваших конфигураций, а не V
 
 **OpenVPN:** поддерживаются TUN-профили с сертификатами и встроенными CA, клиентским сертификатом, закрытым ключом и, при необходимости, `tls-auth` / `tls-crypt`. Пароли, зашифрованные закрытые ключи, MFA/SSO, внешние файлы учётных данных, TAP, пользовательские скрипты и плагины не поддерживаются. Неподдерживаемая директива вызывает конкретную ошибку импорта.
 
-**WireGuard и AmneziaWG:** один или несколько узлов, IPv4/IPv6, PSK, DNS и MTU. WireGuard использует ядро Linux, AmneziaWG — отдельный поставляемый Go-процесс без дополнительного DKMS-модуля. Сохраняются параметры AmneziaWG вплоть до 3.1. Соединение узла подтверждается рукопожатием; отказ одного узла не отключает остальные. Вкладка узлов показывает endpoints, последние рукопожатия и защищённые сети. Автономные экспорты Amnezia декодируются локально; подписки Premium/Free API и ключи администрирования сервера не поддерживаются.
+**WireGuard и AmneziaWG:** один или несколько узлов, IPv4/IPv6, PSK, DNS и MTU. В Linux WireGuard использует ядро, AmneziaWG — отдельный поставляемый Go-процесс без дополнительного DKMS-модуля. В Windows оба протокола используют поставляемые Go-движки и официальный Wintun. Сохраняются параметры AmneziaWG вплоть до 3.1. Соединение узла подтверждается рукопожатием; отказ одного узла не отключает остальные. Вкладка узлов показывает endpoints, последние рукопожатия и защищённые сети. Автономные экспорты Amnezia декодируются локально; подписки Premium/Free API и ключи администрирования сервера не поддерживаются.
 
 В настройках других VPN откройте маршруты, чтобы увидеть сети, пересечения и DNS-зоны. Рабочие маршруты по умолчанию приоритетнее пересекающихся Docker-сетей. Можно назначить рабочий профиль для IP/CIDR или сохранить доступ к конкретной локальной/Docker-подсети. Одинаковые префиксы и DNS-зоны двух рабочих профилей требуют явного выбора. Правила прямого выхода в интернет через физический интерфейс не поддерживаются.
 
@@ -164,7 +189,7 @@ Vault 443 — клиент для ваших конфигураций, а не V
 
 ## Совместная работа с другими VPN
 
-Подключите Pritunl обычным способом и откройте настройки других VPN. Автоматически проверенным туннелям не нужна ручная привязка. Приложение также распознаёт поддерживаемые соединения NetworkManager, systemd OpenVPN и WireGuard по метаданным процессов и интерфейсов.
+Подключите Pritunl обычным способом и откройте настройки других VPN. Автоматически проверенным туннелям не нужна ручная привязка. В Linux приложение также распознаёт поддерживаемые соединения NetworkManager, systemd OpenVPN и WireGuard по метаданным процессов и интерфейсов. В Windows официальные службы WireGuard могут проверяться автоматически; для остальных поддерживаемых VPN используются явные административные привязки.
 
 | Сторонний VPN | Поведение Vault 443 |
 | --- | --- |
@@ -176,7 +201,9 @@ Vault 443 — клиент для ваших конфигураций, а не V
 
 ## Обновление и удаление
 
-Скачайте новый пакет, проверьте сумму и повторите команду установки для своего дистрибутива. При обновлении с 1.3.0 сохраняются профили, подписки, журналы, права и автозапуск. Служба может ненадолго перезапуститься и восстановит запрошенное соединение под сетевой защитой. На Fedora и Arch ранее не запущенные службы не включаются автоматически при обновлении.
+**Windows:** скачайте и проверьте новый EXE, затем установите поверх существующей версии. Каталог установки, профили и настройки сохраняются. Для переноса на другой диск или в другую папку удалите приложение и установите заново: приватные профили и журналы в `%ProgramData%\Vault443` сохраняются по умолчанию. Удаление доступно в **«Параметры → Приложения → Установленные приложения → Vault 443»**. Оно закрывает интерфейс и освобождает сетевые ресурсы приложения; если безопасно завершить операцию не удалось, файлы сохраняются для повторной попытки. [Подробности Windows](docs/WINDOWS-USER-GUIDE.md#обновление-и-удаление).
+
+**Linux:** Скачайте новый пакет, проверьте сумму и повторите команду установки для своего дистрибутива. При обновлении с 1.3.0 сохраняются профили, подписки, журналы, права и автозапуск. Служба может ненадолго перезапуститься и восстановит запрошенное соединение под сетевой защитой. На Fedora и Arch ранее не запущенные службы не включаются автоматически при обновлении.
 
 Старые установки **VLESS Terminal** сначала нужно перевести с помощью инструментов релиза **1.0.0**; в текущем дереве исходников этого переноса уже нет.
 
@@ -191,6 +218,8 @@ sudo pacman -R vault443        # Arch
 Удаление освобождает сетевые ресурсы Vault 443, сохраняя посторонние правила, частные данные в `/var/lib/vault443`, членство в группе и настройки рабочего стола. Даже purge сохраняет частные профили; удалять их вручную следует только при намерении стереть учётные данные. Не используйте удаление файлов вручную, `--nodeps` или `--noscripts`: для очистки сети нужны штатные обработчики пакетного менеджера.
 
 ## Диагностика и восстановление сети
+
+В Windows начните с журнала профиля и состояния службы `Vault443` в приложении **«Службы»**. Следующие команды systemd относятся к Linux. [Диагностика Windows](docs/WINDOWS-USER-GUIDE.md#диагностика).
 
 Начните со строки состояния профиля, диагностики и журнала. Если служба недоступна:
 
@@ -210,9 +239,9 @@ sudo vault443d --release-network
 
 ## Устройство приложения и сборка
 
-Интерфейс — Qt 6 Quick / QML и C++20; системная служба — Go. Xray-core, Outline SDK и AmneziaWG работают отдельными процессами. Маршрутизацию и сетевую защиту обеспечивают systemd, nftables и systemd-resolved. Собственные права root окну приложения не нужны.
+Интерфейс — Qt 6 Quick / QML и C++20; системная служба — Go. Xray-core, Outline SDK и AmneziaWG работают отдельными процессами. В Linux маршрутизацию и сетевую защиту обеспечивают systemd, nftables и systemd-resolved, IPC работает через D-Bus. В Windows используются SCM, IP Helper, WFP, NRPT и локальный DNS-координатор, а IPC — защищённые named pipes. Окно работает от обычного пользователя в обеих системах.
 
-Для сборки нужны Python 3.12+, CMake 3.21+, Ninja, компилятор C++20 и Qt 6.4+. Скрипты загружают отдельный проверяемый Go 1.27.3; системный Go не заменяется. Исходники и зависимости движков закреплены контрольными суммами. [Пошаговая сборка](README.md#build-from-source), [проверки разработки](README.md#development-checks) и [руководство по пакетам](docs/linux-packages.md#build-and-validate) приведены на английском.
+Для Windows используются MSVC 2022, закреплённый Qt 6.12.0 с опубликованным исправлением QtBase и Inno Setup 7.1.1; см. [сборку Windows](docs/WINDOWS.md). Для сборки Linux нужны Python 3.12+, CMake 3.21+, Ninja, компилятор C++20 и Qt 6.4+. Скрипты загружают отдельный проверяемый Go 1.27.3; системный Go не заменяется. Исходники и зависимости движков закреплены контрольными суммами. [Пошаговая сборка](README.md#build-from-source), [проверки разработки](README.md#development-checks) и [руководство по пакетам](docs/linux-packages.md#build-and-validate) приведены на английском.
 
 Для предварительного просмотра собранного интерфейса без обращения к системной службе и изменения сети:
 
@@ -220,15 +249,15 @@ sudo vault443d --release-network
 ./build/vault443 --demo
 ```
 
-Версия 1.3.4 публикуется для x86-64. Бандл содержит закреплённый [Xray 26.9.30](https://github.com/XTLS/Xray-core/releases/tag/v26.9.30), который у upstream помечен как prerelease. Контейнерные тесты используют ядро хоста и не заменяют приёмку реального рабочего стола. [Протокол выполненных проверок](docs/VALIDATION.md).
+Версия 1.3.5 выпускается для Windows x64, Linux x64 и Ubuntu ARM64. Бандл содержит закреплённый [Xray 26.9.30](https://github.com/XTLS/Xray-core/releases/tag/v26.9.30), который у upstream помечен как prerelease. Контейнерные тесты используют ядро хоста и не заменяют приёмку реального рабочего стола. [Протокол выполненных проверок](docs/VALIDATION.md).
 
 ## Лицензия и компоненты
 
-Собственный код, документация и оригинальная графика Vault 443 доступны под [MIT](LICENSE), включая версию 1.3.4. Сторонние компоненты и шрифты сохраняют свои лицензии и не переводятся под MIT. Уведомления включены в пакеты в `/usr/share/doc/vault443/`.
+Собственный код, документация и оригинальная графика Vault 443 доступны под [MIT](LICENSE), включая версию 1.3.5. Сторонние компоненты и шрифты сохраняют свои лицензии и не переводятся под MIT. Уведомления включены в пакеты в `/usr/share/doc/vault443/` на Linux и в `licenses/` папки приложения на Windows.
 
 - [Xray-core](https://github.com/XTLS/Xray-core) — отдельный исполняемый файл под MPL-2.0.
 - [AmneziaWG-Go](https://github.com/amnezia-vpn/amneziawg-go/tree/v3.1.20260828) — отдельный процесс под MIT с лицензиями зависимостей и манифестом сборки.
 - Outline SDK и зависимости сопровождаются собственными уведомлениями и [закреплёнными исходниками](packaging/outline-lock.json).
-- Qt использует динамически подключаемые библиотеки дистрибутива. Лицензии шрифтов [Iosevka](assets/fonts/Iosevka-LICENSE.md) и [Roboto Condensed](assets/fonts/Roboto-LICENSE.txt) включены отдельно.
+- Qt подключается динамически: системные библиотеки на Linux, поставляемые Qt/QML на Windows. Лицензии шрифтов [Iosevka](assets/fonts/Iosevka-LICENSE.md) и [Roboto Condensed](assets/fonts/Roboto-LICENSE.txt) включены отдельно.
 
 Ретро-интерфейс вдохновлён Fallout. Игровые ресурсы и логотипы Bethesda не включены.

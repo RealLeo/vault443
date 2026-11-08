@@ -8,12 +8,13 @@ param(
     [string]$ProfilesPath = 'C:\Users\Public\Vault443Exchange\main-profiles.json',
     [string]$OutputDirectory = 'C:\Users\Public\Vault443Exchange\main-results',
     [int]$PhysicalInterfaceIndex = 0,
-    [int]$ConnectTimeoutSeconds = 90
+    [int]$ConnectTimeoutSeconds = 90,
+    [string]$AppDirectory = (Join-Path $env:ProgramFiles 'Vault443')
 )
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 [Net.WebRequest]::DefaultWebProxy = $null
-$cli = 'C:\Program Files\Vault443\vault443-cli.exe'
+$cli = Join-Path $AppDirectory 'vault443-cli.exe'
 $protocols = @('vless','trojan','shadowsocks','outline')
 $script:checks = New-Object 'System.Collections.Generic.List[object]'
 $script:current = 'initialization'

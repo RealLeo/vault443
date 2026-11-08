@@ -1,11 +1,12 @@
 param(
     [ValidateSet('wireguard','amneziawg','wireguard-full','wireguard-multi')][string]$Profile = 'wireguard',
     [ValidateSet('begin','status','verify','disconnect','logs')][string]$Phase = 'status',
-    [ValidateRange(0,45)][int]$WaitSeconds = 30
+    [ValidateRange(0,45)][int]$WaitSeconds = 30,
+    [string]$AppDirectory = (Join-Path $env:ProgramFiles 'Vault443')
 )
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
-$cli = 'C:\Program Files\Vault443\vault443-cli.exe'
+$cli = Join-Path $AppDirectory 'vault443-cli.exe'
 function Invoke-Vault([string]$Method, [object[]]$Parameters = @()) {
     $json = ConvertTo-Json -InputObject $Parameters -Compress -Depth 12
     $reply = $json | & $cli $Method
