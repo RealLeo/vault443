@@ -157,7 +157,9 @@ def main():
             arguments = ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded]
         else:
             executable, *arguments = args.arguments
-        vbox('guestcontrol', name, 'run', '--username', args.username, '--passwordfile', password_file, '--exe', executable, '--wait-stdout', '--wait-stderr', '--timeout', '60000', '--', executable, *arguments)
+        # Explicit argv[0]: otherwise native Go tests stop parsing flags at the
+        # duplicated executable and PowerShell launches an unnecessary child.
+        vbox('guestcontrol', name, 'run', '--username', args.username, '--passwordfile', password_file, '--exe', executable, '--arg0', executable, '--wait-stdout', '--wait-stderr', '--timeout', '60000', '--', *arguments)
     elif args.action in ['put', 'get']:
         if len(args.arguments) != 2:
             parser.error('put/get need a source and destination')

@@ -13,6 +13,7 @@ import (
 	"sort"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/tailscale/wf"
 	"golang.org/x/sys/windows"
@@ -114,6 +115,44 @@ func match(field wf.FieldID, value any) *wf.Match {
 	return &wf.Match{Field: field, Op: wf.MatchTypeEqual, Value: value}
 }
 
+// WFP compares ALE_APP_ID blobs byte-for-byte. FwpmGetAppIdFromFileName0 can
+// preserve non-ASCII case in the returned device path, while ALE classifies the
+// same executable using its lowercase path. Normalize the returned identity
+// with Windows' invariant casing tables; never change the filesystem path used
+// to obtain that identity, or relax the independent SID/interface restrictions.
+func canonicalAppID(file string) (string, error) {
+	id, err := wf.AppID(file)
+	if err != nil {
+		return "", err
+	}
+	return lowercaseAppID(id)
+}
+
+func lowercaseAppID(id string) (string, error) {
+	source, err := windows.UTF16FromString(id)
+	if err != nil || len(source) <= 1 {
+		return "", errors.New("invalid WFP application identity")
+	}
+	// LOCALE_NAME_INVARIANT is the empty locale name. A positive input length
+	// excludes NUL; the composer adds the single required UTF-16 terminator.
+	var invariant [1]uint16
+	mapString := windows.NewLazySystemDLL("kernel32.dll").NewProc("LCMapStringEx")
+	const lowercase = 0x00000100 // LCMAP_LOWERCASE, no linguistic casing flags
+	count, _, callErr := mapString.Call(uintptr(unsafe.Pointer(&invariant[0])), lowercase,
+		uintptr(unsafe.Pointer(&source[0])), uintptr(len(source)-1), 0, 0, 0, 0, 0)
+	if count == 0 {
+		return "", fmt.Errorf("cannot size WFP application identity: %w", callErr)
+	}
+	destination := make([]uint16, int(count)+1)
+	written, _, callErr := mapString.Call(uintptr(unsafe.Pointer(&invariant[0])), lowercase,
+		uintptr(unsafe.Pointer(&source[0])), uintptr(len(source)-1),
+		uintptr(unsafe.Pointer(&destination[0])), count, 0, 0, 0)
+	if written == 0 {
+		return "", fmt.Errorf("cannot normalize WFP application identity: %w", callErr)
+	}
+	return windows.UTF16ToString(destination[:written]), nil
+}
+
 func (g *Guard) BlockAllActive() bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -183,7 +222,7 @@ func (g *Guard) rules() ([]*wf.Rule, error) {
 			if v6 {
 				local, remote = 546, 547
 			}
-			app, err := wf.AppID(filepath.Join(os.Getenv("SystemRoot"), "System32", "svchost.exe"))
+			app, err := canonicalAppID(filepath.Join(os.Getenv("SystemRoot"), "System32", "svchost.exe"))
 			if err != nil {
 				return nil, err
 			}
@@ -243,7 +282,7 @@ func (g *Guard) rules() ([]*wf.Rule, error) {
 				add(key+"-tunnel"+suffix, layer, wf.ActionPermit, 200, match(wf.FieldIPLocalInterface, luid))
 			}
 			if v6 && part.Probe6 != 0 {
-				app, e := wf.AppID(part.ProbeApp)
+				app, e := canonicalAppID(part.ProbeApp)
 				if e != nil {
 					return nil, e
 				}
@@ -297,7 +336,7 @@ func (g *Guard) rules() ([]*wf.Rule, error) {
 						return nil, errors.New("unscoped kernel VPN endpoint")
 					}
 				} else {
-					app, e := wf.AppID(endpoint.App)
+					app, e := canonicalAppID(endpoint.App)
 					if e != nil {
 						return nil, e
 					}
@@ -317,7 +356,7 @@ func (g *Guard) rules() ([]*wf.Rule, error) {
 				for i, port := range part.PrivatePorts {
 					conditions := []*wf.Match{match(wf.FieldIPRemoteAddress, netip.MustParseAddr("127.0.0.1")), match(wf.FieldIPRemotePort, port.Port)}
 					add(fmt.Sprintf("%s-private-block-%d%s", key, i, suffix), layer, wf.ActionBlock, 1200000, conditions...)
-					app, e := wf.AppID(port.App)
+					app, e := canonicalAppID(port.App)
 					if e != nil {
 						return nil, e
 					}
